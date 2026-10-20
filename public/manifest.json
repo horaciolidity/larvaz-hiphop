@@ -1,0 +1,25 @@
+{
+  "name": "LARVAZ HIPHOP — Cultura Urbana",
+  "short_name": "Larvaz",
+  "description": "Comunidad digital de cultura hip-hop. Un solo feed, todos los elementos: MC, DJ, Breaking, Graffiti y Beatmaking.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0A0A",
+  "theme_color": "#C6FF00",
+  "categories": ["music", "social", "entertainment", "culture"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
