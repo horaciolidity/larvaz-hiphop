@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { ContentType } from '@/types';
 
-export default function ExplorarPage() {
+function ExplorarContent() {
   const searchParams = useSearchParams();
   const initialTag = searchParams.get('tag') || '';
   const initialTab = searchParams.get('tab') || 'todo';
@@ -315,5 +315,19 @@ export default function ExplorarPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ExplorarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-content-muted">
+          Cargando explorador...
+        </div>
+      }
+    >
+      <ExplorarContent />
+    </Suspense>
   );
 }
