@@ -532,6 +532,10 @@ class LarvazDataStore {
     return this.profiles.find((p) => p.username.toLowerCase() === username.toLowerCase());
   }
 
+  getProfileById(id: string): Profile | undefined {
+    return this.profiles.find((p) => p.id === id);
+  }
+
   getAllProfiles(): Profile[] {
     return this.profiles;
   }
@@ -662,11 +666,18 @@ class LarvazDataStore {
     return newPost;
   }
 
-  deletePost(postId: string, userId: string): boolean {
+  deletePost(postId: string, userId?: string): boolean {
     const index = this.posts.findIndex((p) => p.id === postId);
     if (index === -1) return false;
     const post = this.posts[index];
-    if (post.user_id !== userId && this.currentUser.role !== 'admin') return false;
+    if (
+      userId &&
+      post.user_id !== userId &&
+      this.currentUser.role !== 'admin' &&
+      this.currentUser.role !== 'super_admin'
+    ) {
+      return false;
+    }
 
     this.posts.splice(index, 1);
     this.saveToStorage();
@@ -873,16 +884,6 @@ class LarvazDataStore {
   }
 
   // --- Super Admin & Content Management ---
-  deletePost(postId: string): boolean {
-    const initialLen = this.posts.length;
-    this.posts = this.posts.filter((p) => p.id !== postId);
-    if (this.posts.length !== initialLen) {
-      this.saveToStorage();
-      return true;
-    }
-    return false;
-  }
-
   updateUserRole(userId: string, newRole: UserRole): boolean {
     const profile = this.profiles.find((p) => p.id === userId);
     if (!profile) return false;

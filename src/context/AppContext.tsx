@@ -177,8 +177,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    const defaultUser = dataStore.getAllProfiles()[1] || INITIAL_PROFILES[1];
-    setCurrentUser(defaultUser);
+    const all = dataStore.getAllProfiles();
+    const defaultUser = all[1] || all[0];
+    if (defaultUser) {
+      setCurrentUser(defaultUser);
+    }
   };
 
   const updateProfile = (data: Partial<Profile>) => {
