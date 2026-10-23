@@ -3,6 +3,10 @@
 -- Estos datos están claramente identificados como perfiles y posts de prueba.
 -- ==============================================================================
 
+-- ⚠️  BYPASS DE FOREIGN KEYS para datos de demo
+-- Permite insertar perfiles sin que existan en auth.users (solo para seed de desarrollo)
+SET session_replication_role = replica;
+
 -- 1. PERFILES DE PRUEBA (UUIDs estáticos para pruebas reproducibles)
 INSERT INTO public.profiles (id, username, full_name, bio, avatar_url, banner_url, location, website, portfolio_url, artistic_disciplines, role)
 VALUES
@@ -164,3 +168,6 @@ VALUES
     ARRAY['dj', 'scratch', 'vinilos', 'turntablism']
   )
 ON CONFLICT (id) DO NOTHING;
+
+-- ✅  Restaurar verificación de FKs
+SET session_replication_role = DEFAULT;
