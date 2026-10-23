@@ -21,10 +21,21 @@ import {
   Save,
   Radio,
   ExternalLink,
+  AlertCircle,
+  Wallet,
+  ArrowDownToLine,
 } from 'lucide-react';
 
 export default function UserPanelPage() {
-  const { currentUser, updateProfile, posts, events, availableProfiles, setCurrentUser } = useApp();
+  const {
+    currentUser,
+    updateProfile,
+    posts,
+    events,
+    balance,
+    withdrawals,
+    requestWithdrawal,
+  } = useApp();
   const [activeTab, setActiveTab] = useState<'resumen' | 'cripto' | 'publicaciones' | 'eventos'>('resumen');
 
   // Wallet form state
@@ -33,6 +44,13 @@ export default function UserPanelPage() {
   const [btcWallet, setBtcWallet] = useState(currentUser.wallet_addresses?.btc || '');
   const [ethWallet, setEthWallet] = useState(currentUser.wallet_addresses?.eth || '');
   const [walletsSaved, setWalletsSaved] = useState(false);
+
+  // Withdrawal form state
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawAddress, setWithdrawAddress] = useState('');
+  const [withdrawNetwork, setWithdrawNetwork] = useState<'Solana' | 'Polygon' | 'Ethereum'>('Solana');
+  const [withdrawResult, setWithdrawResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const userPosts = posts.filter((p) => p.user_id === currentUser.id);
   const userEvents = events.filter((e) => e.organizer_id === currentUser.id);
@@ -53,6 +71,26 @@ export default function UserPanelPage() {
     });
     setWalletsSaved(true);
     setTimeout(() => setWalletsSaved(false), 2500);
+  };
+
+  const handleWithdraw = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsWithdrawing(true);
+    setWithdrawResult(null);
+    const amount = parseFloat(withdrawAmount);
+    const res = requestWithdrawal({
+      amountUsdc: amount,
+      walletAddress: withdrawAddress,
+      network: withdrawNetwork,
+    });
+    setIsWithdrawing(false);
+    if (res.success) {
+      setWithdrawResult({ success: true, message: `✅ Retiro de ${amount} USDC solicitado. TX: ${res.withdrawal?.tx_hash}` });
+      setWithdrawAmount('');
+      setWithdrawAddress('');
+    } else {
+      setWithdrawResult({ success: false, message: res.error || 'Error al procesar el retiro.' });
+    }
   };
 
   return (
@@ -368,6 +406,140 @@ export default function UserPanelPage() {
                       <p className="text-[10px] text-content-muted">
                         ${tip.amount_usd} USD
                       </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Balance & Withdrawal Section */}
+          <div className="space-y-4">
+            {/* Balance Card */}
+            <div className="p-4 rounded-2xl bg-surface border border-surface-border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-acid/10">
+                  <Wallet className="w-5 h-5 text-acid" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-content-secondary uppercase tracking-wider">
+                    Saldo Disponible
+                  </p>
+                  <p className="font-display font-black text-2xl text-acid">
+                    {balance.toFixed(2)} <span className="text-sm font-bold">USDC</span>
+                  </p>
+                </div>
+              </div>
+              <div className="text-right text-[10px] text-content-muted leading-relaxed">
+                <p>Retiro mínimo:</p>
+                <p className="font-bold text-content-secondary">10 USDC</p>
+              </div>
+            </div>
+
+            {/* Withdrawal Form */}
+            <div className="p-4 rounded-2xl bg-surface border border-surface-border space-y-3">
+              <h3 className="font-display font-black text-sm text-content-primary uppercase tracking-wider flex items-center gap-2">
+                <ArrowDownToLine className="w-4 h-4 text-acid" />
+                Solicitar Retiro
+              </h3>
+              <p className="text-[11px] text-content-secondary leading-relaxed">
+                Retirá las propinas recibidas directamente a tu billetera cripto. Disponible a partir de <span className="font-bold text-acid">10 USDC</span>. Sin comisiones de la plataforma.
+              </p>
+
+              {withdrawResult && (
+                <div className={`flex items-start gap-2 p-3 rounded-xl text-xs border ${withdrawResult.success ? 'bg-acid/10 border-acid/40 text-acid' : 'bg-magenta/10 border-magenta/30 text-magenta'}`}>
+                  {withdrawResult.success
+                    ? <Check className="w-4 h-4 flex-shrink-0 mt-0.5 stroke-[3]" />
+                    : <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                  <p className="font-mono break-all">{withdrawResult.message}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleWithdraw} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-content-secondary uppercase tracking-wider mb-1">
+                    Monto (USDC)
+                  </label>
+                  <input
+                    type="number"
+                    min="10"
+                    step="0.01"
+                    required
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    placeholder="Ej: 10.00"
+                    className="w-full px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border font-mono text-xs text-content-primary focus:border-acid focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-content-secondary uppercase tracking-wider mb-1">
+                    Red de Destino
+                  </label>
+                  <select
+                    value={withdrawNetwork}
+                    onChange={(e) => setWithdrawNetwork(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border text-xs text-content-primary focus:border-acid focus:outline-none"
+                  >
+                    <option value="Solana">Solana (SOL) — Comisiones mínimas</option>
+                    <option value="Polygon">Polygon (USDT/USDC EVM)</option>
+                    <option value="Ethereum">Ethereum (ETH Mainnet)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-content-secondary uppercase tracking-wider mb-1">
+                    Dirección de Billetera Destino
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={withdrawAddress}
+                    onChange={(e) => setWithdrawAddress(e.target.value)}
+                    placeholder={withdrawNetwork === 'Solana' ? 'Ej: 7nY2kro...' : 'Ej: 0x32A4...'}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border font-mono text-xs text-content-primary focus:border-acid focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isWithdrawing || balance < 10}
+                  className="w-full py-2.5 rounded-xl bg-acid hover:bg-acid-hover disabled:opacity-40 text-background font-display font-black text-sm tracking-wider uppercase shadow-acid-glow flex items-center justify-center gap-2 transition-all"
+                >
+                  <ArrowDownToLine className="w-4 h-4" />
+                  {isWithdrawing ? 'Procesando...' : balance < 10 ? `Saldo insuficiente (mín. 10 USDC)` : 'Solicitar Retiro'}
+                </button>
+              </form>
+            </div>
+
+            {/* Withdrawal History */}
+            {withdrawals.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-display font-black text-sm text-content-primary uppercase tracking-wider">
+                  Historial de Retiros ({withdrawals.length})
+                </h3>
+                {withdrawals.map((w) => (
+                  <div key={w.id} className="p-3 rounded-xl bg-surface border border-surface-border flex items-center justify-between text-xs">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${w.status === 'completed' ? 'bg-acid/20 text-acid' : w.status === 'pending' ? 'bg-yellow-400/20 text-yellow-400' : 'bg-magenta/20 text-magenta'}`}>
+                          {w.status}
+                        </span>
+                        <span className="text-content-muted">·</span>
+                        <span className="text-content-secondary">{w.network}</span>
+                      </div>
+                      <p className="font-mono text-[10px] text-content-muted mt-1 truncate max-w-[200px]">
+                        → {w.wallet_address}
+                      </p>
+                      {w.tx_hash && (
+                        <p className="font-mono text-[10px] text-content-muted truncate max-w-[200px]">
+                          TX: {w.tx_hash}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-acid text-sm">-{w.amount_usdc} USDC</p>
+                      <p className="text-[10px] text-content-muted">{new Date(w.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
                 ))}

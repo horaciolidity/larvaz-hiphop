@@ -13,9 +13,10 @@ import {
   CryptoTip,
   RadioStation,
   UserRole,
+  WithdrawalRequest,
 } from '@/types';
 import { dataStore } from '@/lib/data-store';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { isSupabaseConfigured, createClient } from '@/lib/supabase/client';
 
 interface AppContextType {
   currentUser: Profile;
@@ -40,7 +41,7 @@ interface AppContextType {
   toggleRadio: () => void;
   changeStation: (stationId: string) => void;
 
-  // Crypto Tipping
+  // Crypto Tipping, Balance & Withdrawals
   sendCryptoTip: (data: {
     postId: string;
     recipientId: string;
@@ -50,15 +51,28 @@ interface AppContextType {
     message?: string;
   }) => CryptoTip;
   getCryptoTips: (postId?: string) => CryptoTip[];
+  balance: number;
+  withdrawals: WithdrawalRequest[];
+  requestWithdrawal: (data: {
+    amountUsdc: number;
+    walletAddress: string;
+    network: 'Solana' | 'Polygon' | 'Ethereum';
+  }) => { success: boolean; error?: string; withdrawal?: WithdrawalRequest };
 
   // Super Admin Management
   updateUserRole: (userId: string, newRole: UserRole) => boolean;
   toggleUserBan: (userId: string) => boolean;
   deletePost: (postId: string) => boolean;
 
-  // Auth
-  login: (username: string) => boolean;
-  logout: () => void;
+  // Auth (Supabase + Local fallback)
+  login: (usernameOrEmail: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  register: (data: {
+    email: string;
+    password?: string;
+    fullName: string;
+    username: string;
+  }) => Promise<{ success: boolean; error?: string; message?: string }>;
+  logout: () => Promise<void>;
 
   // Core Actions
   refreshPosts: () => void;
@@ -157,31 +171,206 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setNotifications(dataStore.getNotifications());
   }, [feedFilter, contentTypeFilter, currentUser]);
 
+  const supabase = createClient();
+  const [balance, setBalance] = useState<number>(dataStore.getUserBalance(currentUser.id));
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>(dataStore.getUserWithdrawals(currentUser.id));
+
+  const refreshBalance = (userId: string = currentUser.id) => {
+    setBalance(dataStore.getUserBalance(userId));
+    setWithdrawals(dataStore.getUserWithdrawals(userId));
+  };
+
+  const syncSupabaseProfile = async (authUser: any) => {
+    if (!supabase) return;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profile) {
+        setCurrentUser(profile);
+      } else {
+        const newProf: Profile = {
+          id: authUser.id,
+          username:
+            authUser.user_metadata?.username ||
+            authUser.email?.split('@')[0] ||
+            'artista_' + authUser.id.substring(0, 5),
+          full_name: authUser.user_metadata?.full_name || 'Artista Larvaz',
+          bio: 'Creador en la comunidad Larvaz Hip-Hop.',
+          avatar_url:
+            authUser.user_metadata?.avatar_url ||
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+          role: 'user',
+          is_banned: false,
+          created_at: new Date().toISOString(),
+        };
+        await supabase.from('profiles').insert(newProf);
+        setCurrentUser(newProf);
+      }
+    } catch (err) {
+      console.warn('Error syncing profile:', err);
+    }
+  };
+
+  // Auth listener for Supabase
+  useEffect(() => {
+    if (!supabase) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        syncSupabaseProfile(session.user);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        syncSupabaseProfile(session.user);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
   const setCurrentUser = (user: Profile) => {
     dataStore.setCurrentUser(user);
     setCurrentUserState(user);
     refreshPosts();
     setNotifications(dataStore.getNotifications());
+    refreshBalance(user.id);
   };
 
-  const login = (username: string): boolean => {
+  const login = async (
+    usernameOrEmail: string,
+    password?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const cleanInput = usernameOrEmail.trim();
+
+    // 1. Supabase Auth if configured and password is provided with an email
+    if (isSupabaseConnected && supabase && password && cleanInput.includes('@')) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanInput,
+        password: password,
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      if (data.user) {
+        await syncSupabaseProfile(data.user);
+        return { success: true };
+      }
+    }
+
+    // 2. Local fallback or quick profile matching
     const profiles = dataStore.getAllProfiles();
+    const cleanSearch = cleanInput.toLowerCase().replace('@', '');
     const found = profiles.find(
-      (p) => p.username.toLowerCase() === username.toLowerCase()
+      (p) =>
+        p.username.toLowerCase() === cleanSearch ||
+        p.full_name.toLowerCase().includes(cleanSearch)
     );
     if (found) {
       setCurrentUser(found);
-      return true;
+      return { success: true };
     }
-    return false;
+
+    // Demo fallback to standard artist
+    const fallbackUser = profiles[1] || profiles[0];
+    if (fallbackUser) {
+      setCurrentUser(fallbackUser);
+      return { success: true };
+    }
+    return { success: false, error: 'Usuario no encontrado' };
   };
 
-  const logout = () => {
+  const register = async (data: {
+    email: string;
+    password?: string;
+    fullName: string;
+    username: string;
+  }): Promise<{ success: boolean; error?: string; message?: string }> => {
+    if (isSupabaseConnected && supabase && data.password) {
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            username: data.username,
+            full_name: data.fullName,
+          },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (authData.user) {
+        await syncSupabaseProfile(authData.user);
+        return {
+          success: true,
+          message: authData.session
+            ? '¡Bienvenido! Sesión iniciada con éxito.'
+            : '¡Cuenta creada! Revisa tu correo si requiere confirmación de cuenta.',
+        };
+      }
+    }
+
+    // Local fallback
+    const newProfile: Profile = {
+      id: 'user-' + Date.now(),
+      username: data.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+      full_name: data.fullName.trim(),
+      bio: 'Nuevo creador y apasionado de la cultura hip-hop en Larvaz.',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+      artistic_disciplines: 'MC / Hip Hop',
+      role: 'user',
+      is_banned: false,
+      created_at: new Date().toISOString(),
+      followers_count: 0,
+      following_count: 0,
+      posts_count: 0,
+    };
+    setCurrentUser(newProfile);
+    return { success: true };
+  };
+
+  const logout = async () => {
+    if (isSupabaseConnected && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.warn('Error signing out:', e);
+      }
+    }
     const all = dataStore.getAllProfiles();
     const defaultUser = all[1] || all[0];
     if (defaultUser) {
       setCurrentUser(defaultUser);
     }
+  };
+
+  const requestWithdrawal = (data: {
+    amountUsdc: number;
+    walletAddress: string;
+    network: 'Solana' | 'Polygon' | 'Ethereum';
+  }) => {
+    const res = dataStore.requestWithdrawal({
+      userId: currentUser.id,
+      amountUsdc: data.amountUsdc,
+      walletAddress: data.walletAddress,
+      network: data.network,
+    });
+    if (res.success) {
+      refreshBalance(currentUser.id);
+    }
+    return res;
   };
 
   const updateProfile = (data: Partial<Profile>) => {
@@ -325,10 +514,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         changeStation,
         sendCryptoTip,
         getCryptoTips,
+        balance,
+        withdrawals,
+        requestWithdrawal,
         updateUserRole,
         toggleUserBan,
         deletePost,
         login,
+        register,
         logout,
         refreshPosts,
         toggleLike,

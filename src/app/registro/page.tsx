@@ -9,7 +9,7 @@ import { Lock, Mail, User, AtSign, Eye, EyeOff, AlertCircle, Check } from 'lucid
 
 export default function RegistroPage() {
   const router = useRouter();
-  const { setCurrentUser } = useApp();
+  const { register } = useApp();
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -17,35 +17,36 @@ export default function RegistroPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    setTimeout(() => {
-      const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
-      const newProfile: any = {
-        id: 'user-' + Date.now(),
-        username: cleanUsername,
-        full_name: fullName.trim(),
-        bio: 'Nuevo creador y apasionado de la cultura hip-hop en Larvaz.',
-        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-        artistic_disciplines: 'MC / Hip Hop',
-        role: 'user',
-        is_banned: false,
-        created_at: new Date().toISOString(),
-        followers_count: 0,
-        following_count: 0,
-        posts_count: 0,
-      };
+    try {
+      const res = await register({
+        email,
+        password,
+        fullName,
+        username,
+      });
 
-      setCurrentUser(newProfile);
+      if (res.success) {
+        setSuccess(true);
+        if (res.message) setMessage(res.message);
+        setTimeout(() => {
+          router.push('/panel');
+        }, 800);
+      } else {
+        setError(res.error || 'No se pudo crear la cuenta.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error al conectar.');
+    } finally {
       setIsLoading(false);
-      setSuccess(true);
-      setTimeout(() => {
-        router.push('/panel');
-      }, 700);
-    }, 500);
+    }
   };
 
   return (
@@ -72,8 +73,17 @@ export default function RegistroPage() {
               <Check className="w-5 h-5 stroke-[3]" />
               <div>
                 <p className="font-bold text-xs">¡Cuenta creada con éxito!</p>
-                <p className="text-[11px] text-content-secondary">Configurando tu panel de artista...</p>
+                <p className="text-[11px] text-content-secondary">
+                  {message || 'Configurando tu panel de artista...'}
+                </p>
               </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-magenta/10 border border-magenta/30 text-xs text-magenta">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <p>{error}</p>
             </div>
           )}
 

@@ -15,6 +15,18 @@ export interface CryptoWalletInfo {
   eth?: string;
   sol?: string;
   usdt?: string;
+  usdc?: string;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  user_id: string;
+  amount_usdc: number;
+  wallet_address: string;
+  network: 'Solana' | 'Polygon' | 'Ethereum';
+  status: 'pending' | 'completed' | 'rejected';
+  created_at: string;
+  tx_hash?: string;
 }
 
 export interface Profile {

@@ -10,6 +10,7 @@ import {
   CryptoTip,
   RadioStation,
   UserRole,
+  WithdrawalRequest,
 } from '@/types';
 
 // ==============================================================================
@@ -468,6 +469,7 @@ class LarvazDataStore {
   private notifications: Notification[] = [...INITIAL_NOTIFICATIONS];
   private reports: Report[] = [...INITIAL_REPORTS];
   private cryptoTips: CryptoTip[] = [...INITIAL_CRYPTO_TIPS];
+  private withdrawals: WithdrawalRequest[] = [];
   private radioStations: RadioStation[] = [...INITIAL_RADIO_STATIONS];
   private activeStationId: string = 'station-boombap-90s';
   private currentUser: Profile = INITIAL_PROFILES[0]; // defaults to super_admin for demo review
@@ -488,6 +490,9 @@ class LarvazDataStore {
       const storedEvents = localStorage.getItem('larvaz_events');
       if (storedEvents) this.events = JSON.parse(storedEvents);
 
+      const storedWithdrawals = localStorage.getItem('larvaz_withdrawals');
+      if (storedWithdrawals) this.withdrawals = JSON.parse(storedWithdrawals);
+
       const storedUser = localStorage.getItem('larvaz_current_user');
       if (storedUser) this.currentUser = JSON.parse(storedUser);
     } catch {
@@ -500,6 +505,7 @@ class LarvazDataStore {
     try {
       localStorage.setItem('larvaz_posts', JSON.stringify(this.posts));
       localStorage.setItem('larvaz_events', JSON.stringify(this.events));
+      localStorage.setItem('larvaz_withdrawals', JSON.stringify(this.withdrawals));
       localStorage.setItem('larvaz_current_user', JSON.stringify(this.currentUser));
     } catch {
       // ignore
@@ -977,6 +983,63 @@ class LarvazDataStore {
       received: this.cryptoTips.filter((t) => t.recipient_id === userId),
       sent: this.cryptoTips.filter((t) => t.sender_id === userId),
     };
+  }
+
+  // --- Retiros de Criptomonedas & Balance ---
+  getUserBalance(userId: string): number {
+    const receivedUsd = this.cryptoTips
+      .filter((t) => t.recipient_id === userId)
+      .reduce((sum, t) => sum + t.amount_usd, 0);
+    const withdrawnUsd = this.withdrawals
+      .filter((w) => w.user_id === userId && (w.status === 'completed' || w.status === 'pending'))
+      .reduce((sum, w) => sum + w.amount_usdc, 0);
+    return Math.max(0, receivedUsd - withdrawnUsd);
+  }
+
+  getUserWithdrawals(userId: string): WithdrawalRequest[] {
+    return this.withdrawals.filter((w) => w.user_id === userId);
+  }
+
+  requestWithdrawal(data: {
+    userId: string;
+    amountUsdc: number;
+    walletAddress: string;
+    network: 'Solana' | 'Polygon' | 'Ethereum';
+  }): { success: boolean; error?: string; withdrawal?: WithdrawalRequest } {
+    // Recordatorio y validación: el retiro se habilita a partir de 10 USDC
+    if (data.amountUsdc < 10) {
+      return { success: false, error: 'El monto mínimo para solicitar retiro es de 10 USDC.' };
+    }
+    const currentBalance = this.getUserBalance(data.userId);
+    if (currentBalance < data.amountUsdc) {
+      return {
+        success: false,
+        error: `Saldo insuficiente. Tu saldo disponible actual es de ${currentBalance.toFixed(2)} USDC.`,
+      };
+    }
+    if (!data.walletAddress || data.walletAddress.trim().length < 8) {
+      return { success: false, error: 'Ingresa una dirección de billetera válida.' };
+    }
+
+    const randomHash =
+      data.network === 'Solana'
+        ? `${Math.random().toString(36).substring(2, 8)}...${Math.random().toString(36).substring(2, 6)}SolRetiro`
+        : `0x${Math.random().toString(16).substring(2, 8)}...${Math.random().toString(16).substring(2, 6)}`;
+
+    const newWithdrawal: WithdrawalRequest = {
+      id: 'ret-' + Date.now(),
+      user_id: data.userId,
+      amount_usdc: data.amountUsdc,
+      wallet_address: data.walletAddress.trim(),
+      network: data.network,
+      status: 'completed',
+      tx_hash: randomHash,
+      created_at: new Date().toISOString(),
+    };
+
+    this.withdrawals.unshift(newWithdrawal);
+    this.saveToStorage();
+    return { success: true, withdrawal: newWithdrawal };
   }
 
   // --- Radio Underground Streaming ---

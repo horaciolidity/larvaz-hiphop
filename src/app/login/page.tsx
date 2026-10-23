@@ -20,7 +20,7 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { availableProfiles, setCurrentUser, isSupabaseConnected } = useApp();
+  const { availableProfiles, setCurrentUser, isSupabaseConnected, login } = useApp();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,37 +36,26 @@ export default function LoginPage() {
     }, 600);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    setTimeout(() => {
-      // Find matching profile by username or part of email
-      const cleanInput = usernameOrEmail.trim().toLowerCase().replace('@', '');
-      const found = availableProfiles.find(
-        (p) =>
-          p.username.toLowerCase() === cleanInput ||
-          p.full_name.toLowerCase().includes(cleanInput)
-      );
-
-      if (found) {
-        setCurrentUser(found);
+    try {
+      const res = await login(usernameOrEmail, password);
+      if (res.success) {
         setSuccess(true);
         setTimeout(() => {
           router.push('/panel');
-        }, 600);
+        }, 500);
       } else {
-        // If not found in presets, log in as Kronos or create local session
-        const demoUser = availableProfiles[1]; // kronos
-        setCurrentUser(demoUser);
-        setSuccess(true);
-        setTimeout(() => {
-          router.push('/panel');
-        }, 600);
+        setError(res.error || 'No se pudo iniciar sesión. Verifica los datos ingresados.');
       }
+    } catch (err: any) {
+      setError(err?.message || 'Ocurrió un error al conectar.');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
