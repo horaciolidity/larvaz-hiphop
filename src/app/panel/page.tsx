@@ -147,26 +147,6 @@ export default function UserPanelPage() {
             </Link>
           </div>
         </div>
-
-        {/* User Switcher Quick Bar */}
-        <div className="mt-4 pt-3 border-t border-surface-border/60 flex items-center justify-between text-[11px] text-content-secondary">
-          <span className="font-bold text-content-muted">Probar como otro usuario:</span>
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {availableProfiles.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setCurrentUser(p)}
-                className={`px-2 py-0.5 rounded-lg font-bold transition-all ${
-                  p.id === currentUser.id
-                    ? 'bg-acid text-background'
-                    : 'bg-surface-elevated hover:text-content-primary border border-surface-border'
-                }`}
-              >
-                @{p.username}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* 2. Key Metrics Grid */}

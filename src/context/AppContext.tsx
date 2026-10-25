@@ -252,22 +252,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ): Promise<{ success: boolean; error?: string }> => {
     const cleanInput = usernameOrEmail.trim();
 
-    // 1. Supabase Auth if configured and password is provided with an email
-    if (isSupabaseConnected && supabase && password && cleanInput.includes('@')) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanInput,
-        password: password,
-      });
-      if (error) {
-        return { success: false, error: error.message };
+    // 1. Supabase Auth if configured
+    if (isSupabaseConnected && supabase && password) {
+      let emailToLogin = cleanInput;
+      if (!emailToLogin.includes('@')) {
+        // Query profile by username to retrieve email
+        try {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('*')
+            .ilike('username', cleanInput)
+            .maybeSingle();
+
+          if (prof && (prof as any).email) {
+            emailToLogin = (prof as any).email;
+          }
+        } catch {
+          // continue with input
+        }
       }
-      if (data.user) {
-        await syncSupabaseProfile(data.user);
-        return { success: true };
+
+      if (emailToLogin.includes('@')) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: emailToLogin,
+          password: password,
+        });
+        if (error) {
+          return {
+            success: false,
+            error:
+              error.message === 'Invalid login credentials'
+                ? 'Credenciales incorrectas. Verifica tu usuario/correo y contraseña.'
+                : error.message,
+          };
+        }
+        if (data.user) {
+          await syncSupabaseProfile(data.user);
+          return { success: true };
+        }
+      } else {
+        return {
+          success: false,
+          error: 'Por favor ingresa un correo electrónico válido o nombre de usuario registrado.',
+        };
       }
     }
 
-    // 2. Local fallback or quick profile matching
+    // 2. Local profile matching (when running offline/local store)
     const profiles = dataStore.getAllProfiles();
     const cleanSearch = cleanInput.toLowerCase().replace('@', '');
     const found = profiles.find(
@@ -280,13 +311,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     }
 
-    // Demo fallback to standard artist
-    const fallbackUser = profiles[1] || profiles[0];
-    if (fallbackUser) {
-      setCurrentUser(fallbackUser);
-      return { success: true };
-    }
-    return { success: false, error: 'Usuario no encontrado' };
+    return {
+      success: false,
+      error: 'Usuario o credenciales no encontrados. Por favor verifica tus datos.',
+    };
   };
 
   const register = async (data: {

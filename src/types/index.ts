@@ -204,6 +204,8 @@ export interface CryptoTip {
 export interface RadioStation {
   id: string;
   name: string;
+  dial?: string;
+  region?: string;
   tagline: string;
   stream_url: string;
   genre: string;

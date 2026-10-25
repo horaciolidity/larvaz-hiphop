@@ -7,34 +7,22 @@ import { useApp } from '@/context/AppContext';
 import { Logo } from '@/components/common/Logo';
 import {
   Lock,
-  Mail,
   User,
   Eye,
   EyeOff,
   AlertCircle,
   Check,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { availableProfiles, setCurrentUser, isSupabaseConnected, login } = useApp();
+  const { login } = useApp();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-
-  const handleQuickLogin = (profile: any) => {
-    setCurrentUser(profile);
-    setSuccess(true);
-    setTimeout(() => {
-      router.push('/panel');
-    }, 600);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,36 +136,6 @@ export default function LoginPage() {
               {isLoading ? 'Verificando credenciales...' : 'Iniciar Sesión'}
             </button>
           </form>
-
-          {/* Quick 1-Click Login Selector */}
-          <div className="pt-2 border-t border-surface-border">
-            <p className="text-[11px] font-bold text-content-secondary uppercase tracking-wider mb-2 text-center">
-              O entra directamente con 1 clic:
-            </p>
-            <div className="space-y-1.5">
-              {availableProfiles.slice(0, 4).map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleQuickLogin(p)}
-                  className="w-full p-2.5 rounded-xl bg-surface-elevated hover:bg-surface-hover border border-surface-border hover:border-acid/40 flex items-center justify-between text-xs transition-colors"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                      alt={p.username}
-                      className="w-7 h-7 rounded-full object-cover"
-                    />
-                    <div className="text-left">
-                      <p className="font-bold text-content-primary">{p.full_name}</p>
-                      <p className="text-[10px] text-content-muted">@{p.username} · {p.role}</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-acid" />
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className="flex items-center justify-between text-xs text-content-secondary pt-2 border-t border-surface-border/50">
             <Link href="/registro" className="text-acid font-bold hover:underline">

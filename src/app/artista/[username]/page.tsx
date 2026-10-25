@@ -16,6 +16,7 @@ import {
   Disc3,
   Layers,
   Check,
+  MessageCircle,
 } from 'lucide-react';
 
 export default function ArtistProfilePage() {
@@ -101,16 +102,25 @@ export default function ArtistProfilePage() {
                 <span>Editar Perfil</span>
               </Link>
             ) : (
-              <button
-                onClick={() => toggleFollow(profile.id)}
-                className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
-                  following
-                    ? 'bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary'
-                    : 'bg-acid text-background hover:bg-acid-hover shadow-acid-glow'
-                }`}
-              >
-                {following ? 'Siguiendo' : 'Seguir Creador'}
-              </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/mensajes?user=${profile.username}`}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface border border-surface-border hover:border-acid text-content-primary text-xs font-bold transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-acid" />
+                  <span>Mensaje</span>
+                </Link>
+                <button
+                  onClick={() => toggleFollow(profile.id)}
+                  className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
+                    following
+                      ? 'bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary'
+                      : 'bg-acid text-background hover:bg-acid-hover shadow-acid-glow'
+                  }`}
+                >
+                  {following ? 'Siguiendo' : 'Seguir Creador'}
+                </button>
+              </div>
             )}
           </div>
         </div>

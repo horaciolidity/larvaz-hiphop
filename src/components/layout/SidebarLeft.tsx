@@ -21,6 +21,8 @@ import {
   LogOut,
   Radio,
   UserCheck,
+  MessageCircle,
+  Zap,
 } from 'lucide-react';
 
 export const SidebarLeft: React.FC = () => {
@@ -47,6 +49,8 @@ export const SidebarLeft: React.FC = () => {
       badge: isRadioPlaying ? 'VIVO' : undefined,
       badgeColor: 'bg-acid text-background',
     },
+    { label: 'B-Boys & Breaking', href: '/breaking', icon: Zap },
+    { label: 'Mensajes', href: '/mensajes', icon: MessageCircle },
     { label: 'Eventos', href: '/eventos', icon: Calendar },
     { label: 'Mi Panel', href: '/panel', icon: UserCheck },
     { label: 'Guardados', href: '/guardados', icon: Bookmark },
@@ -69,18 +73,7 @@ export const SidebarLeft: React.FC = () => {
           <Logo size="md" showTagline={true} />
         </div>
 
-        {/* Database Status Alert Banner */}
-        {!isSupabaseConnected && (
-          <div className="mx-2 p-2.5 rounded-lg bg-surface border border-surface-border text-xs text-content-secondary flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-acid font-bold text-[11px] uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-acid animate-ping" />
-              Modo Demostración Activo
-            </div>
-            <p className="text-[11px] leading-relaxed">
-              Base de datos local activa. Puedes probar publicaciones, me gusta, comentarios y perfiles libremente.
-            </p>
-          </div>
-        )}
+
 
         {/* Navigation list */}
         <nav className="space-y-1">

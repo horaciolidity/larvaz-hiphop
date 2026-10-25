@@ -69,6 +69,22 @@ export default function RadioPage() {
     setNewShoutout('');
   };
 
+  const [selectedRegion, setSelectedRegion] = useState<string>('Todas');
+
+  const regions = [
+    'Todas',
+    'Costa Oeste (GTA Style)',
+    'Nueva York (East Coast)',
+    'Cono Sur (ARG / CHI / URY)',
+    'México & Chicano',
+    'Mundial B-Boy / Cyphers',
+    'DJs & Vinilo',
+  ];
+
+  const filteredStations = selectedRegion === 'Todas'
+    ? radioStations
+    : radioStations.filter(s => s.region?.includes(selectedRegion) || s.region === selectedRegion);
+
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
       {/* 1. Radio Station Player Card */}
@@ -83,6 +99,11 @@ export default function RadioPage() {
             <span className="font-display font-black text-xs text-acid tracking-widest uppercase">
               SEÑAL EN DIRECTO · 24/7
             </span>
+            {currentStation.dial && (
+              <span className="px-2 py-0.5 rounded-md bg-acid/20 text-acid font-black text-[10px] tracking-wider border border-acid/40">
+                {currentStation.dial}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-elevated border border-surface-border text-xs text-content-secondary">
@@ -134,6 +155,11 @@ export default function RadioPage() {
 
         {/* Current Track Info */}
         <div className="space-y-1 relative z-10">
+          <div className="flex items-center justify-center gap-2">
+            <span className="px-2 py-0.5 rounded-full bg-magenta/20 text-magenta text-[10px] font-bold border border-magenta/30 uppercase">
+              {currentStation.region || 'Global Hip-Hop'}
+            </span>
+          </div>
           <h2 className="font-display font-black text-2xl text-content-primary tracking-wide">
             {currentStation.current_track?.title || 'Boom-Bap Underground Session'}
           </h2>
@@ -167,42 +193,76 @@ export default function RadioPage() {
         </div>
       </div>
 
-      {/* 2. Choose Station Selector */}
+      {/* 2. Choose Station Selector (GTA Style Dial + Regions) */}
       <div className="space-y-3">
-        <h3 className="font-display font-black text-sm text-content-primary uppercase tracking-wider flex items-center gap-2">
-          <Radio className="w-4 h-4 text-acid" />
-          Sintonizar Otras Emisoras
-        </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h3 className="font-display font-black text-sm text-content-primary uppercase tracking-wider flex items-center gap-2">
+            <Radio className="w-4 h-4 text-acid" />
+            Emisoras por Región · Estilo GTA
+          </h3>
+          <span className="text-[11px] text-content-muted">
+            Transmisiones en vivo
+          </span>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {radioStations.map((station) => {
+        {/* Region Filter Buttons */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          {regions.map((reg) => (
+            <button
+              key={reg}
+              onClick={() => setSelectedRegion(reg)}
+              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
+                selectedRegion === reg
+                  ? 'bg-acid text-background shadow-acid-glow'
+                  : 'bg-surface-elevated text-content-secondary hover:text-content-primary border border-surface-border'
+              }`}
+            >
+              {reg}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {filteredStations.map((station) => {
             const isSelected = currentStation.id === station.id;
             return (
               <button
                 key={station.id}
                 onClick={() => changeStation(station.id)}
-                className={`p-3.5 rounded-2xl text-left border transition-all flex flex-col justify-between ${
+                className={`p-4 rounded-2xl text-left border transition-all flex flex-col justify-between group ${
                   isSelected
-                    ? 'bg-surface-elevated border-acid shadow-acid-glow'
+                    ? 'bg-surface-elevated border-acid shadow-acid-glow ring-1 ring-acid/50'
                     : 'bg-surface border-surface-border hover:border-acid/40'
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-display font-black text-sm text-content-primary">
-                      {station.name}
-                    </span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      {station.dial && (
+                        <span className="px-2 py-0.5 rounded-lg bg-surface-border text-acid font-black text-xs font-mono">
+                          {station.dial}
+                        </span>
+                      )}
+                      <span className="font-display font-black text-sm text-content-primary group-hover:text-acid transition-colors">
+                        {station.name}
+                      </span>
+                    </div>
                     {station.is_live && (
-                      <span className="w-2 h-2 rounded-full bg-acid animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-acid animate-pulse flex-shrink-0" />
                     )}
                   </div>
-                  <p className="text-[11px] text-content-secondary mt-1 line-clamp-2">
+                  {station.region && (
+                    <span className="inline-block px-2 py-0.5 rounded-md bg-surface-elevated text-[10px] text-content-secondary border border-surface-border mb-1.5 font-medium">
+                      📍 {station.region}
+                    </span>
+                  )}
+                  <p className="text-[11px] text-content-secondary line-clamp-2">
                     {station.tagline}
                   </p>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between text-[10px] text-content-muted">
-                  <span>{station.genre}</span>
+                <div className="mt-3 pt-2 border-t border-surface-border/50 flex items-center justify-between text-[10px] text-content-muted">
+                  <span className="font-medium text-cyan">{station.genre}</span>
                   <span className="font-bold text-acid">{station.listeners_count} oyentes</span>
                 </div>
               </button>
