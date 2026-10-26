@@ -2,16 +2,20 @@
 
 import React, { useState } from 'react';
 import { PostMetadata, ContentProvider } from '@/types';
-import { ExternalLink, Play, Disc3, Radio, Music } from 'lucide-react';
+import { ExternalLink, Play, Disc3, Radio } from 'lucide-react';
 
 interface MediaEmbedProps {
   metadata?: PostMetadata;
   provider: ContentProvider;
-  externalUrl: string;
+  externalUrl?: string;
 }
 
 export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, externalUrl }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+
+  if (!externalUrl || !externalUrl.trim()) {
+    return null;
+  }
 
   const title = metadata?.title || 'Contenido externo compartido';
   const author = metadata?.author_name || 'Autor';
@@ -159,7 +163,13 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
 
           <div className="flex items-center justify-between pt-2 border-t border-surface-border/60 mt-1">
             <span className="text-[10px] text-content-secondary font-mono truncate max-w-[150px]">
-              {new URL(externalUrl).hostname}
+              {(() => {
+                try {
+                  return new URL(externalUrl).hostname;
+                } catch {
+                  return externalUrl;
+                }
+              })()}
             </span>
 
             <a

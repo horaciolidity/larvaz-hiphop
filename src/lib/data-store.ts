@@ -137,6 +137,21 @@ export const INITIAL_PROFILES: Profile[] = [
 
 export const INITIAL_POSTS: Post[] = [
   {
+    id: 'post-text-freestyle',
+    user_id: 'user-mc-asfalto',
+    content_type: 'text',
+    provider: 'generic',
+    description: `«Escribo en la libreta con tinta de madrugada,\nel asfalto me enseña más que cualquier fachada.\nCuatro elementos vivos, sin pose ni contrato,\nel verdadero hip-hop se siente en el contacto.»\n\n¿Quién se suma al cypher de rimas este fin de semana en la plaza? Dejen sus barras en los comentarios. 🎤🔥`,
+    tags: ['freestyle', 'letras', 'barras', 'cultura'],
+    likes_count: 63,
+    comments_count: 9,
+    is_hidden: false,
+    created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    author: INITIAL_PROFILES[3],
+    user_has_liked: true,
+    user_has_bookmarked: false,
+  },
+  {
     id: 'post-1',
     user_id: 'user-graffiti-krew',
     external_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -726,20 +741,21 @@ class LarvazDataStore {
   }
 
   createPost(data: {
-    externalUrl: string;
+    externalUrl?: string;
     description: string;
     tags?: string[];
     contentType?: ContentType;
     provider?: any;
     metadata?: any;
   }): Post {
+    const hasUrl = Boolean(data.externalUrl && data.externalUrl.trim());
     const newPost: Post = {
       id: 'post-' + Date.now(),
       user_id: this.currentUser.id,
-      external_url: data.externalUrl,
-      normalized_url: data.externalUrl,
-      provider: data.provider || 'generic',
-      content_type: data.contentType || 'link',
+      external_url: hasUrl ? data.externalUrl!.trim() : undefined,
+      normalized_url: hasUrl ? data.externalUrl!.trim() : undefined,
+      provider: data.provider || (hasUrl ? 'generic' : 'generic'),
+      content_type: data.contentType || (hasUrl ? 'link' : 'text'),
       description: data.description,
       tags: data.tags || [],
       likes_count: 0,

@@ -60,7 +60,7 @@ export type ContentProvider =
   | 'bandcamp'
   | 'generic';
 
-export type ContentType = 'music' | 'video' | 'visual_art' | 'link';
+export type ContentType = 'music' | 'video' | 'visual_art' | 'link' | 'text';
 
 export interface PostMetadata {
   id?: string;
@@ -77,7 +77,7 @@ export interface PostMetadata {
 export interface Post {
   id: string;
   user_id: string;
-  external_url: string;
+  external_url?: string;
   normalized_url?: string;
   provider: ContentProvider;
   content_type: ContentType;

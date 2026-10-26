@@ -148,12 +148,14 @@ export default function PostDetailPage() {
         )}
       </div>
 
-      {/* Media Player / External Embed */}
-      <MediaEmbed
-        metadata={post.metadata}
-        provider={post.provider}
-        externalUrl={post.external_url}
-      />
+      {/* Media Player / External Embed (only if URL present) */}
+      {post.external_url && (
+        <MediaEmbed
+          metadata={post.metadata}
+          provider={post.provider}
+          externalUrl={post.external_url}
+        />
+      )}
 
       {/* Action Bar */}
       <div className="flex items-center justify-between py-3 border-y border-surface-border text-sm">

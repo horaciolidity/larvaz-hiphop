@@ -3,7 +3,7 @@
 import React from 'react';
 import { useApp } from '@/context/AppContext';
 import { FeedFilter, ContentType } from '@/types';
-import { Sparkles, Clock, Flame, Disc3, Video, Palette, Globe } from 'lucide-react';
+import { Sparkles, Clock, Flame, Disc3, Video, Palette, Globe, MessageSquare } from 'lucide-react';
 
 export const FeedFilters: React.FC = () => {
   const { feedFilter, setFeedFilter, contentTypeFilter, setContentTypeFilter } = useApp();
@@ -16,6 +16,7 @@ export const FeedFilters: React.FC = () => {
 
   const contentFilters: { key: ContentType | 'all'; label: string; icon?: React.ComponentType<{ className?: string }> }[] = [
     { key: 'all', label: 'Todos' },
+    { key: 'text', label: 'Letras & Barras', icon: MessageSquare },
     { key: 'music', label: 'Música & Beats', icon: Disc3 },
     { key: 'video', label: 'Videos', icon: Video },
     { key: 'visual_art', label: 'Graffiti & Arte', icon: Palette },

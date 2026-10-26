@@ -205,12 +205,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
         )}
       </div>
 
-      {/* 3. Media Preview / Embedded Player */}
-      <MediaEmbed
-        metadata={post.metadata}
-        provider={post.provider}
-        externalUrl={post.external_url}
-      />
+      {/* 3. Media Preview / Embedded Player (only if externalUrl is present) */}
+      {post.external_url && (
+        <MediaEmbed
+          metadata={post.metadata}
+          provider={post.provider}
+          externalUrl={post.external_url}
+        />
+      )}
 
       {/* 4. Action Bar (Likes, Comments, Crypto Tip, Bookmarks, Share) */}
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-border/50 text-content-secondary text-xs">

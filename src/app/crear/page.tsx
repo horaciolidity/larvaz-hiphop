@@ -91,20 +91,35 @@ export default function CrearPublicacionPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim() || !description.trim()) return;
+    if (!description.trim() && !url.trim()) return;
 
     setIsSubmitting(true);
     try {
+      const cleanUrl = url.trim();
+      const finalContentType: ContentType = cleanUrl ? contentType : 'text';
+
+      let postMetadata = metadata;
+      if (cleanUrl && !postMetadata) {
+        try {
+          postMetadata = {
+            title: new URL(cleanUrl).hostname,
+            provider: detectedProvider,
+          };
+        } catch {
+          postMetadata = {
+            title: cleanUrl,
+            provider: detectedProvider,
+          };
+        }
+      }
+
       createPost({
-        externalUrl: url.trim(),
-        description: description.trim(),
+        externalUrl: cleanUrl || undefined,
+        description: description.trim() || (cleanUrl ? `Compartiendo: ${cleanUrl}` : ''),
         tags,
-        contentType,
-        provider: detectedProvider,
-        metadata: metadata || {
-          title: new URL(url.trim()).hostname,
-          provider: detectedProvider,
-        },
+        contentType: finalContentType,
+        provider: cleanUrl ? detectedProvider : 'generic',
+        metadata: cleanUrl ? postMetadata : undefined,
       });
 
       router.push('/');
@@ -121,15 +136,15 @@ export default function CrearPublicacionPage() {
           PUBLICAR EN EL MURO
         </h1>
         <p className="text-xs text-content-secondary mt-1">
-          Comparte música, batallas, sesiones de breaking, graffiti y fanzines mediante enlaces externos seguros.
+          Comparte tus barras, reflexiones, freestyle, música, batallas, graffiti o novedades en el muro comunitario.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* URL Input with fetch button */}
+        {/* URL Input with fetch button (OPTIONAL) */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-content-secondary uppercase tracking-wider">
-            Enlace Externo (YouTube, Spotify, SoundCloud, Instagram, etc.) *
+            Enlace Multimedia (Opcional — YouTube, Spotify, SoundCloud, etc.)
           </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -138,10 +153,9 @@ export default function CrearPublicacionPage() {
               </div>
               <input
                 type="url"
-                required
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
+                placeholder="https://www.youtube.com/watch?v=... (opcional)"
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
               />
             </div>
@@ -186,12 +200,13 @@ export default function CrearPublicacionPage() {
           <label className="block text-xs font-bold text-content-secondary uppercase tracking-wider">
             Tipo de Expresión Cultural
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {[
+              { id: 'text', label: 'Letras / Barras' },
               { id: 'music', label: 'Música / Beat' },
               { id: 'video', label: 'Video / Clip' },
               { id: 'visual_art', label: 'Graffiti / Arte' },
-              { id: 'link', label: 'Enlace General' },
+              { id: 'link', label: 'Enlace Web' },
             ].map((item) => (
               <button
                 key={item.id}
@@ -212,15 +227,19 @@ export default function CrearPublicacionPage() {
         {/* Description Field */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-content-secondary uppercase tracking-wider">
-            Descripción y Respeto Cultural *
+            {url.trim() ? 'Descripción y Respeto Cultural *' : 'Tus Barras, Letras o Pensamiento *'}
           </label>
           <textarea
             required
-            rows={4}
+            rows={5}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Cuenta la historia detrás de este material, quiénes participaron, qué elementos representa o por qué es relevante..."
-            className="w-full p-3 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none resize-none leading-relaxed"
+            placeholder={
+              url.trim()
+                ? 'Cuenta la historia detrás de este material, quiénes participaron o qué elementos representa...'
+                : 'Escribe tus barras, letras de freestyle, anuncios de eventos, reflexiones sobre la cultura hip-hop o un mensaje para la comunidad...'
+            }
+            className="w-full p-3 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none resize-none leading-relaxed font-mono"
           />
         </div>
 
@@ -240,7 +259,7 @@ export default function CrearPublicacionPage() {
                   handleAddTag();
                 }
               }}
-              placeholder="Ej: boombap, breaking, mural, 90bpm..."
+              placeholder="Ej: freestyle, boombap, breaking, letras, 90bpm..."
               className="flex-1 px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
             />
             <button
@@ -277,7 +296,7 @@ export default function CrearPublicacionPage() {
         <div className="pt-3">
           <button
             type="submit"
-            disabled={isSubmitting || !url.trim() || !description.trim()}
+            disabled={isSubmitting || (!description.trim() && !url.trim())}
             className="w-full py-3.5 rounded-xl bg-acid hover:bg-acid-hover text-background font-display font-black text-lg tracking-wider uppercase shadow-acid-glow flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none transition-all"
           >
             {isSubmitting ? (

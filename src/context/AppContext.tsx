@@ -83,7 +83,7 @@ interface AppContextType {
   addComment: (postId: string, content: string) => Comment;
   deleteComment: (commentId: string) => boolean;
   createPost: (data: {
-    externalUrl: string;
+    externalUrl?: string;
     description: string;
     tags?: string[];
     contentType?: ContentType;
