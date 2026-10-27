@@ -23,21 +23,26 @@ import {
   UserCheck,
   MessageCircle,
   Zap,
+  LogIn,
+  UserPlus,
+  User,
+  Sparkles,
+  Share2,
 } from 'lucide-react';
 
 export const SidebarLeft: React.FC = () => {
   const pathname = usePathname();
   const {
     currentUser,
-    setCurrentUser,
-    availableProfiles,
     unreadNotifsCount,
     isSupabaseConnected,
     isRadioPlaying,
     isAdmin,
     isSuperAdmin,
+    logout,
   } = useApp();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
 
   const mainLinks = [
     { label: 'Inicio', href: '/', icon: Home },
@@ -104,25 +109,25 @@ export const SidebarLeft: React.FC = () => {
             );
           })}
 
-          {/* Admin / Super Admin link */}
-          <Link
-            href="/admin"
-            className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all group ${
-              pathname === '/admin' || pathname === '/superadmin'
-                ? 'bg-surface text-acid border border-acid/40'
-                : 'text-content-secondary hover:text-acid hover:bg-surface/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="w-5 h-5 text-acid" />
-              <span>{isSuperAdmin ? 'Super Admin' : 'Moderación / Admin'}</span>
-            </div>
-            {isAdmin && (
+          {/* Super Admin link - ONLY visible for super_admin */}
+          {isSuperAdmin && (
+            <Link
+              href="/admin"
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all group ${
+                pathname === '/admin' || pathname === '/superadmin'
+                  ? 'bg-surface text-acid border border-acid/40'
+                  : 'text-content-secondary hover:text-acid hover:bg-surface/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="w-5 h-5 text-acid" />
+                <span>Super Admin</span>
+              </div>
               <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-acid/20 text-acid border border-acid/40">
-                {currentUser.role}
+                Super Admin
               </span>
-            )}
-          </Link>
+            </Link>
+          )}
         </nav>
 
         {/* Primary CTA: Publicar */}
@@ -135,83 +140,102 @@ export const SidebarLeft: React.FC = () => {
         </Link>
       </div>
 
-      {/* Bottom User Area & Quick Switcher for Demo */}
+      {/* Bottom User Area: Real Session or Login/Register */}
       <div className="pt-4 border-t border-surface-border relative">
-        <button
-          onClick={() => setShowUserMenu(!showUserMenu)}
-          className="w-full flex items-center justify-between p-2 rounded-xl bg-surface border border-surface-border hover:border-acid transition-colors text-left"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <img
-              src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-              alt={currentUser.full_name}
-              className="w-10 h-10 rounded-full object-cover border border-surface-elevated flex-shrink-0"
-            />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-content-primary truncate">
-                {currentUser.full_name}
-              </p>
-              <p className="text-[11px] text-content-secondary truncate">
-                @{currentUser.username}
-              </p>
-            </div>
+        {currentUser.is_guest ? (
+          <div className="space-y-2">
+            <Link
+              href="/login"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface border border-surface-border hover:border-acid text-content-primary text-xs font-bold transition-all"
+            >
+              <LogIn className="w-4 h-4 text-acid" />
+              <span>Iniciar Sesión</span>
+            </Link>
+            <Link
+              href="/registro"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-acid text-background hover:bg-acid-hover text-xs font-black uppercase tracking-wider shadow-acid-glow transition-all"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Crear Cuenta</span>
+            </Link>
           </div>
-          <ChevronDown className="w-4 h-4 text-content-secondary flex-shrink-0 ml-1" />
-        </button>
-
-        {/* User Switcher Dropdown */}
-        {showUserMenu && (
-          <div className="absolute bottom-full left-0 right-0 mb-2 p-2 rounded-xl bg-surface-elevated border border-surface-border shadow-2xl z-50 space-y-1">
-            <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-content-secondary flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-acid" />
-              <span>Cambiar Perfil de Prueba</span>
-            </div>
-            {availableProfiles.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setCurrentUser(p);
-                  setShowUserMenu(false);
-                }}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface text-left transition-colors text-xs"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <img
-                    src={p.avatar_url}
-                    alt={p.username}
-                    className="w-6 h-6 rounded-full object-cover"
-                  />
-                  <div className="truncate">
-                    <span className="font-semibold text-content-primary block truncate">
-                      {p.full_name}
-                    </span>
-                    <span className="text-[10px] text-content-secondary block">
-                      @{p.username} {p.role === 'admin' ? '(Admin)' : ''}
-                    </span>
-                  </div>
+        ) : (
+          <div>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-surface border border-surface-border hover:border-acid transition-colors text-left"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img
+                  src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                  alt={currentUser.full_name}
+                  className="w-10 h-10 rounded-full object-cover border border-surface-elevated flex-shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-content-primary truncate">
+                    {currentUser.full_name}
+                  </p>
+                  <p className="text-[11px] text-content-secondary truncate">
+                    @{currentUser.username}
+                  </p>
                 </div>
-                {currentUser.id === p.id && (
-                  <Check className="w-4 h-4 text-acid flex-shrink-0" />
-                )}
-              </button>
-            ))}
+              </div>
+              <ChevronDown className="w-4 h-4 text-content-secondary flex-shrink-0 ml-1" />
+            </button>
 
-            <div className="border-t border-surface-border pt-1 mt-1 flex justify-between px-2 text-[11px]">
-              <Link
-                href="/login"
-                className="text-content-secondary hover:text-acid py-1"
-                onClick={() => setShowUserMenu(false)}
-              >
-                Iniciar Sesión
-              </Link>
-              <Link
-                href="/registro"
-                className="text-acid font-bold py-1"
-                onClick={() => setShowUserMenu(false)}
-              >
-                Registrarse
-              </Link>
-            </div>
+            {/* User Real Session Dropdown */}
+            {showUserMenu && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 p-2 rounded-xl bg-surface-elevated border border-surface-border shadow-2xl z-50 space-y-1 text-xs">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-content-secondary">
+                  Sesión Activa
+                </div>
+                <Link
+                  href={`/artista/${currentUser.username}`}
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-surface text-content-primary transition-colors"
+                >
+                  <User className="w-4 h-4 text-acid" />
+                  <span>Mi Perfil Cultural</span>
+                </Link>
+                <Link
+                  href="/panel"
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-surface text-content-primary transition-colors"
+                >
+                  <Sparkles className="w-4 h-4 text-cyan" />
+                  <span>Mi Panel & Billetera</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const refLink = `${window.location.origin}/registro?ref=${currentUser.username}`;
+                    navigator.clipboard?.writeText(refLink);
+                    setCopiedRef(true);
+                    setTimeout(() => setCopiedRef(false), 2000);
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface text-content-primary transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Share2 className="w-4 h-4 text-magenta" />
+                    <span>Copiar Mi Link de Referido</span>
+                  </div>
+                  {copiedRef && <Check className="w-3.5 h-3.5 text-acid" />}
+                </button>
+                <div className="border-t border-surface-border/60 my-1 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-magenta/10 text-magenta transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Cerrar Sesión</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

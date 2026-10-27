@@ -1,24 +1,42 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Logo } from '@/components/common/Logo';
-import { Lock, Mail, User, AtSign, Eye, EyeOff, AlertCircle, Check } from 'lucide-react';
+import { Lock, Mail, User, AtSign, Eye, EyeOff, AlertCircle, Check, Gift } from 'lucide-react';
 
-export default function RegistroPage() {
+function RegistroContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const refFromUrl = searchParams.get('ref') || '';
   const { register } = useApp();
+
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState(refFromUrl);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (refFromUrl) {
+      setReferralCode(refFromUrl);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('larvaz_referral_code', refFromUrl);
+        } catch {}
+      }
+    } else if (typeof window !== 'undefined') {
+      const savedRef = localStorage.getItem('larvaz_referral_code');
+      if (savedRef) setReferralCode(savedRef);
+    }
+  }, [refFromUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +49,7 @@ export default function RegistroPage() {
         password,
         fullName,
         username,
+        referralCode: referralCode.trim() || undefined,
       });
 
       if (res.success) {
@@ -67,6 +86,19 @@ export default function RegistroPage() {
               Crea tu perfil como artista, colectivo o seguidor de la cultura hip-hop.
             </p>
           </div>
+
+          {/* Referral Banner */}
+          {referralCode && (
+            <div className="p-3.5 rounded-2xl bg-acid/10 border border-acid/40 flex items-center gap-2.5 text-xs text-acid">
+              <Gift className="w-4 h-4 flex-shrink-0" />
+              <div>
+                <p className="font-bold">Invitación Cultural Activa</p>
+                <p className="text-[11px] text-content-secondary">
+                  Te invitó <span className="font-bold text-acid">@{referralCode}</span>. ¡Ambos ganan +50 Props comunitarios al registrarte!
+                </p>
+              </div>
+            </div>
+          )}
 
           {success && (
             <div className="p-4 rounded-2xl bg-acid/10 border border-acid/50 flex items-center gap-3 text-acid animate-fade-in">
@@ -164,6 +196,23 @@ export default function RegistroPage() {
               </div>
             </div>
 
+            {/* Optional Referral Code field */}
+            <div>
+              <label className="block text-[11px] font-bold text-content-secondary uppercase tracking-wider mb-1">
+                Código o Usuario de Referido (Opcional)
+              </label>
+              <div className="relative">
+                <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
+                <input
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  placeholder="ej: kronos_graff"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-elevated border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading || success}
@@ -182,5 +231,13 @@ export default function RegistroPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegistroPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center text-xs text-content-muted">Cargando registro...</div>}>
+      <RegistroContent />
+    </Suspense>
   );
 }

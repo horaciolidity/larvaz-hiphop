@@ -48,6 +48,11 @@ export interface Profile {
   followers_count?: number;
   following_count?: number;
   posts_count?: number;
+  referral_code?: string;
+  referred_by?: string;
+  referrals_count?: number;
+  referral_props_earned?: number;
+  is_guest?: boolean;
 }
 
 export type ContentProvider = 
@@ -201,6 +206,21 @@ export interface CryptoTip {
   created_at: string;
 }
 
+export interface RadioTrack {
+  id: string;
+  title: string;
+  artist: string;
+  url?: string;
+  audio_url?: string;
+  album_art?: string;
+  user_id?: string;
+  username?: string;
+  submitted_by?: string;
+  genre?: string;
+  post_id?: string;
+  created_at: string;
+}
+
 export interface RadioStation {
   id: string;
   name: string;
@@ -216,6 +236,7 @@ export interface RadioStation {
   };
   listeners_count: number;
   is_live: boolean;
+  tracks?: RadioTrack[];
 }
 
 export type FeedFilter = 'para_ti' | 'reciente' | 'popular';

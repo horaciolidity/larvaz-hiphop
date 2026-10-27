@@ -142,44 +142,67 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
           </div>
         </Link>
 
-        {/* Dropdown Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 rounded-lg text-content-secondary hover:text-content-primary hover:bg-surface-elevated transition-colors"
-            aria-label="Opciones de publicación"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
+        {/* Action Controls & Dropdown Menu */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {post.user_id !== currentUser?.id && (
+            <Link
+              href={`/mensajes?user=${post.author.username}`}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface border border-surface-border hover:border-acid text-content-secondary hover:text-acid text-[11px] font-bold transition-all shadow-sm"
+              title={`Enviar mensaje directo a @${post.author.username}`}
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-acid" />
+              <span className="hidden sm:inline">Mensaje</span>
+            </Link>
+          )}
 
-          {showMenu && (
-            <div className="absolute right-0 top-full mt-1 w-44 rounded-xl bg-surface-elevated border border-surface-border shadow-2xl z-30 py-1 text-xs">
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  setShowReportModal(true);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-content-secondary hover:text-magenta hover:bg-surface transition-colors"
-              >
-                <Flag className="w-3.5 h-3.5" />
-                <span>Denunciar</span>
-              </button>
-              {(isAdmin || post.user_id === currentUser.id) && (
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1.5 rounded-lg text-content-secondary hover:text-content-primary hover:bg-surface-elevated transition-colors"
+              aria-label="Opciones de publicación"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 w-44 rounded-xl bg-surface-elevated border border-surface-border shadow-2xl z-30 py-1 text-xs">
+                {post.user_id !== currentUser?.id && (
+                  <Link
+                    href={`/mensajes?user=${post.author.username}`}
+                    onClick={() => setShowMenu(false)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-content-primary hover:text-acid hover:bg-surface transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-acid" />
+                    <span>Enviar mensaje</span>
+                  </Link>
+                )}
                 <button
                   onClick={() => {
                     setShowMenu(false);
-                    if (window.confirm('¿Seguro que deseas eliminar esta publicación del muro?')) {
-                      deletePost(post.id);
-                    }
+                    setShowReportModal(true);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-magenta hover:bg-magenta/10 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-content-secondary hover:text-magenta hover:bg-surface transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Eliminar post</span>
+                  <Flag className="w-3.5 h-3.5" />
+                  <span>Denunciar</span>
                 </button>
-              )}
-            </div>
-          )}
+                {(isAdmin || post.user_id === currentUser.id) && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      if (window.confirm('¿Seguro que deseas eliminar esta publicación del muro?')) {
+                        deletePost(post.id);
+                      }
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-magenta hover:bg-magenta/10 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar post</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -342,6 +365,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
                       <span className="text-[10px] text-content-muted">
                         @{c.author?.username}
                       </span>
+                      {c.user_id !== currentUser?.id && c.author?.username && (
+                        <Link
+                          href={`/mensajes?user=${c.author.username}`}
+                          className="text-content-muted hover:text-acid p-0.5 transition-colors ml-1"
+                          title={`Enviar mensaje a @${c.author.username}`}
+                        >
+                          <MessageCircle className="w-3 h-3 text-acid" />
+                        </Link>
+                      )}
                     </div>
                     <p className="text-content-secondary leading-relaxed break-words">
                       {c.content}

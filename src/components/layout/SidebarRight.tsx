@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
-import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause } from 'lucide-react';
+import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle } from 'lucide-react';
 
 export const SidebarRight: React.FC = () => {
   const {
@@ -121,16 +121,26 @@ export const SidebarRight: React.FC = () => {
                   </div>
                 </Link>
 
-                <button
-                  onClick={() => toggleFollow(artist.id)}
-                  className={`text-xs px-3 py-1 rounded-full font-bold transition-all flex-shrink-0 ${
-                    following
-                      ? 'bg-surface-elevated text-content-secondary hover:text-content-primary hover:border-surface-border border border-transparent'
-                      : 'bg-acid text-background hover:bg-acid-hover shadow-acid-sm'
-                  }`}
-                >
-                  {following ? 'Siguiendo' : 'Seguir'}
-                </button>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Link
+                    href={`/mensajes?user=${artist.username}`}
+                    className="p-1.5 rounded-full bg-surface-elevated hover:bg-surface border border-surface-border hover:border-acid text-content-secondary hover:text-acid transition-colors"
+                    title={`Enviar mensaje a @${artist.username}`}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                  </Link>
+
+                  <button
+                    onClick={() => toggleFollow(artist.id)}
+                    className={`text-xs px-3 py-1 rounded-full font-bold transition-all flex-shrink-0 ${
+                      following
+                        ? 'bg-surface-elevated text-content-secondary hover:text-content-primary hover:border-surface-border border border-transparent'
+                        : 'bg-acid text-background hover:bg-acid-hover shadow-acid-sm'
+                    }`}
+                  >
+                    {following ? 'Siguiendo' : 'Seguir'}
+                  </button>
+                </div>
               </div>
             );
           })}

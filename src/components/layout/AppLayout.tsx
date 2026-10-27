@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { SidebarLeft } from './SidebarLeft';
 import { SidebarRight } from './SidebarRight';
 import { Navbar } from './Navbar';
+import { TopLocationBar } from './TopLocationBar';
 import { BottomNav } from './BottomNav';
 import { RadioMiniPlayer } from '@/components/radio/RadioMiniPlayer';
 
@@ -27,6 +28,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* 2. Central Feed & Content Area */}
       <div className="flex-1 max-w-2xl min-h-screen border-x border-surface-border/50 flex flex-col">
+        <TopLocationBar />
         <Navbar />
         <main className="flex-1 pb-24 md:pb-12">{children}</main>
       </div>

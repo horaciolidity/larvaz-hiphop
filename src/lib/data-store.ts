@@ -9,13 +9,33 @@ import {
   ContentType,
   CryptoTip,
   RadioStation,
+  RadioTrack,
   UserRole,
   WithdrawalRequest,
 } from '@/types';
 
+
 // ==============================================================================
 // INITIAL DEMO CULTURAL DATA (Authentic Hip-Hop Underground Profiles & Content)
 // ==============================================================================
+
+export const GUEST_USER: Profile = {
+  id: 'user-guest',
+  username: 'visitante',
+  full_name: 'Visitante Larvaz',
+  bio: 'Explorando la cultura Hip-Hop en el muro comunitario.',
+  avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100',
+  role: 'user',
+  is_banned: false,
+  created_at: '2026-01-01T00:00:00Z',
+  followers_count: 0,
+  following_count: 0,
+  posts_count: 0,
+  referral_code: 'larvaz-invitado',
+  referrals_count: 0,
+  referral_props_earned: 0,
+  is_guest: true,
+};
 
 export const INITIAL_PROFILES: Profile[] = [
   {
@@ -25,13 +45,16 @@ export const INITIAL_PROFILES: Profile[] = [
     bio: 'Equipo central de cuidado comunitario, soporte técnico y archivo cultural de Larvaz Hip-Hop.',
     avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop',
     banner_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200&h=400&fit=crop',
-    location: 'Buenos Aires, Argentina',
+    location: 'Mendoza, Argentina',
     website: 'https://larvazhiphop.org',
     portfolio_url: 'https://larvazhiphop.org/manifiesto',
     artistic_disciplines: 'Archivo cultural, gestión comunitaria y sonido underground',
     role: 'super_admin',
     is_banned: false,
     verified_artist: true,
+    referral_code: 'larvaz-admin_larvaz',
+    referrals_count: 6,
+    referral_props_earned: 300,
     wallet_addresses: {
       usdt: '0x71C...larvazTreasury',
       sol: 'LarvazSuperAdminSolanaTreasuryAddress11111111',
@@ -55,6 +78,9 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'user',
     is_banned: false,
     verified_artist: true,
+    referral_code: 'larvaz-kronos_graff',
+    referrals_count: 9,
+    referral_props_earned: 450,
     wallet_addresses: {
       sol: '7nY2kroNosSolanaGraffitiCrewAddress9999999999',
       usdt: '0x32A489F2f1eC855B68A78351B2DbA2718E70441E',
@@ -78,6 +104,9 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'user',
     is_banned: false,
     verified_artist: true,
+    referral_code: 'larvaz-dj_frecuencia',
+    referrals_count: 14,
+    referral_props_earned: 700,
     wallet_addresses: {
       sol: '4mQxFrecuenciaDjTurntableSolanaAddress88888888',
       usdt: '0x88C45a279B6C3F2d6d1d4f997C2245b1E1719B5E',
@@ -101,6 +130,9 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'user',
     is_banned: false,
     verified_artist: true,
+    referral_code: 'larvaz-rimas_del_sur',
+    referrals_count: 8,
+    referral_props_earned: 400,
     wallet_addresses: {
       usdt: '0x55B33F73b64082531C28Fe396Abf49F09590B22A',
       btc: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
@@ -124,6 +156,9 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'user',
     is_banned: false,
     verified_artist: false,
+    referral_code: 'larvaz-bboy_vortex',
+    referrals_count: 4,
+    referral_props_earned: 200,
     wallet_addresses: {
       sol: '5tK9VortexBboyCypherCrewSolanaAddress66666666',
       usdt: '0x12F988d4Fe80F5374466b7A48E44f77259699B4',
@@ -382,18 +417,60 @@ export const INITIAL_REPORTS: Report[] = [
   },
 ];
 
+export const INITIAL_COMMUNITY_TRACKS: RadioTrack[] = [
+  {
+    id: 'track-cintas-asfalto',
+    title: 'Raw Tape Session #4 (Vinyl Digging & Boom-Bap)',
+    artist: 'DJ Frecuencia Raw',
+    url: 'https://soundcloud.com/sample-track/underground-cypher-beat',
+    album_art: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=450&fit=crop',
+    user_id: 'user-dj-raw',
+    username: 'dj_frecuencia',
+    post_id: 'post-2',
+    created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+  },
+  {
+    id: 'track-resistencia-cemento',
+    title: 'Resistencia de Cemento — Single Oficial',
+    artist: 'Lírica & Asfalto',
+    url: 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT',
+    album_art: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=450&fit=crop',
+    user_id: 'user-mc-asfalto',
+    username: 'rimas_del_sur',
+    post_id: 'post-3',
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+  },
+];
+
 export const INITIAL_RADIO_STATIONS: RadioStation[] = [
+  {
+    id: 'station-comunidad-larvaz',
+    name: 'RADIO AUTOMÁTICA COMUNITARIA 99.9 FM',
+    dial: '99.9 FM',
+    region: 'Comunidad Larvaz (Global)',
+    tagline: 'Temas, enlaces y beats subidos en directo por artistas de la comunidad',
+    stream_url: 'https://listen.181fm.com/181-beat_128k.mp3',
+    genre: 'Subidas por Usuarios / Rap & Trap',
+    current_track: {
+      title: 'Raw Tape Session #4 (Vinyl Digging & Boom-Bap)',
+      artist: 'DJ Frecuencia Raw',
+      album_art: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop',
+    },
+    listeners_count: 640,
+    is_live: true,
+    tracks: INITIAL_COMMUNITY_TRACKS,
+  },
   {
     id: 'station-los-santos',
     name: 'RADIO LOS SANTOS 106.1 FM',
     dial: '106.1 FM',
     region: 'Costa Oeste (GTA Style)',
-    tagline: 'Sonido puro West Coast, G-Funk y leyendas de la Costa Oeste',
-    stream_url: 'https://stream.zeno.fm/f3wvbbqmdg8uv',
-    genre: 'West Coast / G-Funk / Golden Era',
+    tagline: 'Sonido puro West Coast, G-Funk, Trap y leyendas de la Costa Oeste',
+    stream_url: 'https://listen.181fm.com/181-beat_128k.mp3',
+    genre: 'West Coast / Trap / Hip-Hop Actual',
     current_track: {
-      title: 'West Coast Anthem Live',
-      artist: 'Radio Los Santos 106.1',
+      title: 'West Coast & Trap Live 24/7',
+      artist: 'The Beat 106.1 FM',
       album_art: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop',
     },
     listeners_count: 512,
@@ -404,31 +481,31 @@ export const INITIAL_RADIO_STATIONS: RadioStation[] = [
     name: 'THE BEAT NYC 94.5 FM',
     dial: '94.5 FM',
     region: 'Nueva York (East Coast)',
-    tagline: 'Boom-Bap crudo desde Queensbridge, Bronx y Brooklyn',
-    stream_url: 'https://stream.zeno.fm/f3wvbbqmdg8uv',
-    genre: 'Boom-Bap / 90s Underground',
+    tagline: 'Boom-Bap crudo desde Queensbridge, Bronx y Brooklyn (90s Golden Era)',
+    stream_url: 'https://listen.181fm.com/181-oldschool_128k.mp3',
+    genre: 'Boom-Bap / 90s Underground Golden Era',
     current_track: {
-      title: 'NYC Underground Golden Era',
+      title: 'NYC Underground Golden Era Classics',
       artist: 'Boom-Bap 94.5 FM',
       album_art: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop',
     },
-    listeners_count: 384,
+    listeners_count: 480,
     is_live: true,
   },
   {
     id: 'station-cono-sur',
-    name: 'CONO SUR FRECUENCIA 89.9 FM',
+    name: 'CONO SUR URBANO 89.9 FM',
     dial: '89.9 FM',
     region: 'Cono Sur (ARG / CHI / URY)',
-    tagline: 'Rap subterráneo de Buenos Aires, Santiago y Montevideo',
-    stream_url: 'https://stream.zeno.fm/0r0xa792kwzuv',
-    genre: 'Rap Rioplatense & Andino',
+    tagline: 'Grooves urbanos, hip hop latinoamericano y rimas independientes',
+    stream_url: 'https://listen.181fm.com/181-jammin_128k.mp3',
+    genre: 'Urban Beats & Rioplatense',
     current_track: {
-      title: 'Underground del Sur en Vivo',
-      artist: 'Frecuencia Cono Sur',
+      title: 'Jammin Frecuencia Cono Sur Live',
+      artist: 'Frecuencia 89.9 FM',
       album_art: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop',
     },
-    listeners_count: 275,
+    listeners_count: 345,
     is_live: true,
   },
   {
@@ -436,11 +513,11 @@ export const INITIAL_RADIO_STATIONS: RadioStation[] = [
     name: 'AZTECA CALLEJERO 98.3 FM',
     dial: '98.3 FM',
     region: 'México & Chicano',
-    tagline: 'Rimas pesadas, sampleos clásicos y cultura chicana de barrio',
-    stream_url: 'https://stream.zeno.fm/0r0xa792kwzuv',
-    genre: 'Rap Mexicano & Chicano',
+    tagline: 'Rimas pesadas, street soul, R&B y cultura urbana de barrio',
+    stream_url: 'https://listen.181fm.com/181-rnb_128k.mp3',
+    genre: 'Street Soul & Urban R&B',
     current_track: {
-      title: 'Callejero 24/7 Mix',
+      title: 'Street Soul & R&B Callejero',
       artist: 'Azteca Rap Radio',
       album_art: 'https://images.unsplash.com/photo-1526478806334-5fd488fcaabc?w=300&h=300&fit=crop',
     },
@@ -452,63 +529,31 @@ export const INITIAL_RADIO_STATIONS: RadioStation[] = [
     name: 'B-BOY & B-GIRL ARENA 101.5 FM',
     dial: '101.5 FM',
     region: 'Mundial B-Boy / Cyphers',
-    tagline: 'El sonido del linóleo: breakbeats, funk y 4x4 para cyphers',
-    stream_url: 'https://stream.zeno.fm/4d36k8jnfw8uv',
-    genre: 'Breakdance / Funk / Breakbeats',
+    tagline: 'El sonido del linóleo: breakbeats, funk y 4x4 para cyphers y batallas',
+    stream_url: 'https://listen.181fm.com/181-party_128k.mp3',
+    genre: 'Breakdance / Funk / Cypher Breaks',
     current_track: {
-      title: 'B-Boy Anthems & Breaks',
-      artist: 'Breakbeat Science Radio',
+      title: 'B-Boy Anthems & Block Party Beats',
+      artist: 'Breakbeat Science 101.5 FM',
       album_art: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=300&h=300&fit=crop',
     },
-    listeners_count: 220,
+    listeners_count: 290,
     is_live: true,
   },
   {
     id: 'station-turntablism',
-    name: 'TURNTABLISM SCRATCH 92.1 FM',
+    name: 'TURNTABLISM & BEATS 92.1 FM',
     dial: '92.1 FM',
     region: 'DJs & Vinilo',
-    tagline: 'Agujas, vinilo, malabares de beat y batallas DMC en vivo',
-    stream_url: 'https://stream.zeno.fm/yn65r868tw8uv',
-    genre: 'Turntablism / DMC Battle Breaks',
+    tagline: 'Agujas, vinilo, malabares de beat, lo-fi y sesiones instrumentales',
+    stream_url: 'https://listen.181fm.com/181-chilled_128k.mp3',
+    genre: 'Lo-Fi Beats / Turntablism / Cypher Lounges',
     current_track: {
-      title: 'DJ Scratch Session Live',
-      artist: 'Zeno DJ Radio',
+      title: 'Lo-Fi Cypher & Scratch Sessions',
+      artist: 'Turntable Chill 92.1 FM',
       album_art: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop',
     },
-    listeners_count: 145,
-    is_live: true,
-  },
-  {
-    id: 'station-trap-drill',
-    name: 'UNDER DRILL & 808s 104.7 FM',
-    dial: '104.7 FM',
-    region: 'Latinoamérica & Caribe',
-    tagline: 'Bajos 808s, barras filosas y drill callejero independiente',
-    stream_url: 'https://stream.zeno.fm/qmz0f76fmf8uv',
-    genre: 'Trap / Drill / 808s',
-    current_track: {
-      title: 'Drill & Trap Latino 24/7',
-      artist: 'Urban Radio LATAM',
-      album_art: 'https://images.unsplash.com/photo-1547910780-d1694e2d41c1?w=300&h=300&fit=crop',
-    },
-    listeners_count: 330,
-    is_live: true,
-  },
-  {
-    id: 'station-europa-hispana',
-    name: 'HIP-HOP IBERO 96.7 FM',
-    dial: '96.7 FM',
-    region: 'España & Europa',
-    tagline: 'Clásicos del rap en español y mensaje social sin filtros',
-    stream_url: 'https://stream.zeno.fm/0r0xa792kwzuv',
-    genre: 'Rap Hispano / Mensaje',
-    current_track: {
-      title: 'Hip-Hop en Español Clásicos',
-      artist: 'Ibero Hip Hop',
-      album_art: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=300&h=300&fit=crop',
-    },
-    listeners_count: 198,
+    listeners_count: 220,
     is_live: true,
   },
 ];
@@ -572,8 +617,9 @@ class LarvazDataStore {
   private cryptoTips: CryptoTip[] = [...INITIAL_CRYPTO_TIPS];
   private withdrawals: WithdrawalRequest[] = [];
   private radioStations: RadioStation[] = [...INITIAL_RADIO_STATIONS];
-  private activeStationId: string = 'station-los-santos';
-  private currentUser: Profile = INITIAL_PROFILES[0]; // defaults to super_admin for demo review
+  private communityTracks: RadioTrack[] = [...INITIAL_COMMUNITY_TRACKS];
+  private activeStationId: string = 'station-comunidad-larvaz';
+  private currentUser: Profile = GUEST_USER; // Default to guest until session is established
   private followingMap: Set<string> = new Set(['user-graffiti-krew', 'user-dj-raw']);
   private bookmarkedPosts: Set<string> = new Set(['post-2']);
   private likedPosts: Set<string> = new Set(['post-2']);
@@ -594,8 +640,43 @@ class LarvazDataStore {
       const storedWithdrawals = localStorage.getItem('larvaz_withdrawals');
       if (storedWithdrawals) this.withdrawals = JSON.parse(storedWithdrawals);
 
-      const storedUser = localStorage.getItem('larvaz_current_user');
-      if (storedUser) this.currentUser = JSON.parse(storedUser);
+      const storedTracks = localStorage.getItem('larvaz_community_tracks');
+      if (storedTracks) {
+        this.communityTracks = JSON.parse(storedTracks);
+      }
+      const commStation = this.radioStations.find(s => s.id === 'station-comunidad-larvaz');
+      if (commStation) {
+        commStation.tracks = this.communityTracks;
+        if (this.communityTracks.length > 0) {
+          commStation.current_track = {
+            title: this.communityTracks[0].title,
+            artist: this.communityTracks[0].artist,
+            album_art: this.communityTracks[0].album_art,
+          };
+        }
+      }
+
+      const storedUser = localStorage.getItem('larvaz_session_user');
+      if (storedUser) {
+        this.currentUser = JSON.parse(storedUser);
+      } else {
+        this.currentUser = GUEST_USER;
+      }
+
+      const storedProfiles = localStorage.getItem('larvaz_profiles');
+      if (storedProfiles) this.profiles = JSON.parse(storedProfiles);
+
+      const storedNotifications = localStorage.getItem('larvaz_notifications');
+      if (storedNotifications) this.notifications = JSON.parse(storedNotifications);
+
+      const storedFollowing = localStorage.getItem('larvaz_following');
+      if (storedFollowing) this.followingMap = new Set(JSON.parse(storedFollowing));
+
+      const storedBookmarks = localStorage.getItem('larvaz_bookmarks');
+      if (storedBookmarks) this.bookmarkedPosts = new Set(JSON.parse(storedBookmarks));
+
+      const storedLikes = localStorage.getItem('larvaz_likes');
+      if (storedLikes) this.likedPosts = new Set(JSON.parse(storedLikes));
     } catch {
       // fallback to memory
     }
@@ -607,7 +688,17 @@ class LarvazDataStore {
       localStorage.setItem('larvaz_posts', JSON.stringify(this.posts));
       localStorage.setItem('larvaz_events', JSON.stringify(this.events));
       localStorage.setItem('larvaz_withdrawals', JSON.stringify(this.withdrawals));
-      localStorage.setItem('larvaz_current_user', JSON.stringify(this.currentUser));
+      localStorage.setItem('larvaz_community_tracks', JSON.stringify(this.communityTracks));
+      if (!this.currentUser.is_guest) {
+        localStorage.setItem('larvaz_session_user', JSON.stringify(this.currentUser));
+      } else {
+        localStorage.removeItem('larvaz_session_user');
+      }
+      localStorage.setItem('larvaz_profiles', JSON.stringify(this.profiles));
+      localStorage.setItem('larvaz_notifications', JSON.stringify(this.notifications));
+      localStorage.setItem('larvaz_following', JSON.stringify(Array.from(this.followingMap)));
+      localStorage.setItem('larvaz_bookmarks', JSON.stringify(Array.from(this.bookmarkedPosts)));
+      localStorage.setItem('larvaz_likes', JSON.stringify(Array.from(this.likedPosts)));
     } catch {
       // ignore
     }
@@ -620,6 +711,13 @@ class LarvazDataStore {
 
   setCurrentUser(user: Profile) {
     this.currentUser = user;
+    if (typeof window !== 'undefined') {
+      if (user.is_guest) {
+        localStorage.removeItem('larvaz_session_user');
+      } else {
+        localStorage.setItem('larvaz_session_user', JSON.stringify(user));
+      }
+    }
     this.saveToStorage();
   }
 
@@ -631,6 +729,15 @@ class LarvazDataStore {
     } else {
       this.profiles.push(this.currentUser);
     }
+
+    // Trigger state update notification for the user
+    this.addNotification({
+      userId: this.currentUser.id,
+      type: 'mention',
+      actor: this.currentUser,
+      read: false,
+    });
+
     this.saveToStorage();
     return this.currentUser;
   }
@@ -657,11 +764,21 @@ class LarvazDataStore {
       this.followingMap.delete(profileId);
       const target = this.profiles.find((p) => p.id === profileId);
       if (target && target.followers_count) target.followers_count--;
+      this.saveToStorage();
       return false;
     } else {
       this.followingMap.add(profileId);
       const target = this.profiles.find((p) => p.id === profileId);
       if (target) target.followers_count = (target.followers_count || 0) + 1;
+
+      // Send follow notification
+      this.addNotification({
+        userId: profileId,
+        type: 'follow',
+        actor: this.currentUser,
+      });
+
+      this.saveToStorage();
       return true;
     }
   }
@@ -740,6 +857,61 @@ class LarvazDataStore {
     };
   }
 
+  getCommunityTracks(): RadioTrack[] {
+    return this.communityTracks;
+  }
+
+  addTrackToCommunityRadio(track: RadioTrack) {
+    // Add to beginning of playlist
+    this.communityTracks.unshift(track);
+    const commStation = this.radioStations.find((s) => s.id === 'station-comunidad-larvaz');
+    if (commStation) {
+      commStation.tracks = this.communityTracks;
+      commStation.current_track = {
+        title: track.title,
+        artist: track.artist,
+        album_art: track.album_art,
+      };
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('larvaz_community_tracks', JSON.stringify(this.communityTracks));
+      } catch {}
+    }
+  }
+
+  getReferredUsers(usernameOrId: string): Profile[] {
+    const clean = usernameOrId.toLowerCase();
+    return this.profiles.filter(
+      (p) =>
+        p.referred_by?.toLowerCase() === clean ||
+        p.referral_code?.toLowerCase() === clean
+    );
+  }
+
+  registerReferral(referrerUsername: string, newProfile: Profile) {
+    const clean = referrerUsername.toLowerCase();
+    const referrer = this.profiles.find(
+      (p) =>
+        p.username.toLowerCase() === clean ||
+        p.referral_code?.toLowerCase() === clean
+    );
+    if (referrer) {
+      referrer.referrals_count = (referrer.referrals_count || 0) + 1;
+      referrer.referral_props_earned = (referrer.referral_props_earned || 0) + 50;
+      newProfile.referred_by = referrer.username;
+
+      this.addNotification({
+        userId: referrer.id,
+        type: 'mention',
+        actor: newProfile,
+        read: false,
+      });
+
+      this.saveToStorage();
+    }
+  }
+
   createPost(data: {
     externalUrl?: string;
     description: string;
@@ -749,13 +921,26 @@ class LarvazDataStore {
     metadata?: any;
   }): Post {
     const hasUrl = Boolean(data.externalUrl && data.externalUrl.trim());
+    const isMusicTrack =
+      data.contentType === 'music' ||
+      data.provider === 'soundcloud' ||
+      data.provider === 'spotify' ||
+      data.provider === 'youtube' ||
+      (data.externalUrl && data.externalUrl.match(/\.(mp3|wav|ogg|m4a|aac)($|\?)/i)) ||
+      (data.tags &&
+        data.tags.some((t) =>
+          ['musica', 'rap', 'hiphop', 'trap', 'beat', 'tema', 'track', 'audio', 'boombap', 'freestyle'].includes(
+            t.toLowerCase()
+          )
+        ));
+
     const newPost: Post = {
       id: 'post-' + Date.now(),
       user_id: this.currentUser.id,
       external_url: hasUrl ? data.externalUrl!.trim() : undefined,
       normalized_url: hasUrl ? data.externalUrl!.trim() : undefined,
       provider: data.provider || (hasUrl ? 'generic' : 'generic'),
-      content_type: data.contentType || (hasUrl ? 'link' : 'text'),
+      content_type: data.contentType || (hasUrl ? (isMusicTrack ? 'music' : 'link') : 'text'),
       description: data.description,
       tags: data.tags || [],
       likes_count: 0,
@@ -770,6 +955,22 @@ class LarvazDataStore {
 
     this.posts.unshift(newPost);
     this.currentUser.posts_count = (this.currentUser.posts_count || 0) + 1;
+
+    // Automatically add track to Radio Automática Comunitaria
+    if (hasUrl && isMusicTrack) {
+      this.addTrackToCommunityRadio({
+        id: 'track-' + Date.now(),
+        title: data.metadata?.title || (data.description ? data.description.slice(0, 40) : `Pista comunitaria de @${this.currentUser.username}`),
+        artist: data.metadata?.author_name || this.currentUser.full_name || `@${this.currentUser.username}`,
+        url: data.externalUrl!.trim(),
+        album_art: data.metadata?.thumbnail_url || this.currentUser.avatar_url,
+        user_id: this.currentUser.id,
+        username: this.currentUser.username,
+        post_id: newPost.id,
+        created_at: newPost.created_at,
+      });
+    }
+
     this.saveToStorage();
     return newPost;
   }
@@ -803,6 +1004,14 @@ class LarvazDataStore {
     } else {
       this.likedPosts.add(postId);
       post.likes_count++;
+      if (post.user_id !== this.currentUser.id) {
+        this.addNotification({
+          userId: post.user_id,
+          type: 'like',
+          actor: this.currentUser,
+          postId: post.id,
+        });
+      }
     }
     this.saveToStorage();
     return { likesCount: post.likes_count, userHasLiked: this.likedPosts.has(postId) };
@@ -812,9 +1021,11 @@ class LarvazDataStore {
   toggleBookmark(postId: string): boolean {
     if (this.bookmarkedPosts.has(postId)) {
       this.bookmarkedPosts.delete(postId);
+      this.saveToStorage();
       return false;
     } else {
       this.bookmarkedPosts.add(postId);
+      this.saveToStorage();
       return true;
     }
   }

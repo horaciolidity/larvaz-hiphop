@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import {
   Radio,
@@ -14,6 +15,9 @@ import {
   Sparkles,
   Flame,
   CheckCircle,
+  Music,
+  ExternalLink,
+  Headphones,
 } from 'lucide-react';
 
 interface Shoutout {
@@ -49,7 +53,16 @@ const INITIAL_SHOUTOUTS: Shoutout[] = [
 ];
 
 export default function RadioPage() {
-  const { isRadioPlaying, currentStation, radioStations, toggleRadio, changeStation, currentUser } = useApp();
+  const {
+    isRadioPlaying,
+    currentStation,
+    radioStations,
+    communityTracks,
+    toggleRadio,
+    changeStation,
+    playCommunityTrack,
+    currentUser,
+  } = useApp();
   const [shoutouts, setShoutouts] = useState<Shoutout[]>(INITIAL_SHOUTOUTS);
   const [newShoutout, setNewShoutout] = useState('');
 
@@ -73,6 +86,7 @@ export default function RadioPage() {
 
   const regions = [
     'Todas',
+    'Comunidad Larvaz (Global)',
     'Costa Oeste (GTA Style)',
     'Nueva York (East Coast)',
     'Cono Sur (ARG / CHI / URY)',
@@ -266,6 +280,150 @@ export default function RadioPage() {
                   <span className="font-bold text-acid">{station.listeners_count} oyentes</span>
                 </div>
               </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Radio Automática Comunitaria: Canciones subidas por usuarios */}
+      <div className="space-y-4 p-5 rounded-3xl bg-surface border border-acid/30 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-acid/20 border border-acid/40 flex items-center justify-center text-acid">
+              <Headphones className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-display font-black text-sm text-content-primary uppercase tracking-wider flex items-center gap-2">
+                Radio Automática Comunitaria 99.9 FM
+                <span className="px-2 py-0.5 rounded-full bg-magenta/20 text-magenta text-[9px] font-black border border-magenta/40">
+                  {communityTracks.length} PISTAS
+                </span>
+              </h3>
+              <p className="text-[11px] text-content-muted">
+                Canciones y enlaces subidos automáticamente por los creadores de la comunidad
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => changeStation('station-comunidad-larvaz')}
+            className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 self-start sm:self-auto ${
+              currentStation.id === 'station-comunidad-larvaz'
+                ? 'bg-acid text-background shadow-acid-glow'
+                : 'bg-surface-elevated text-acid border border-acid/40 hover:bg-acid/10'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>Sintonizar 99.9 FM</span>
+          </button>
+        </div>
+
+        {/* Info Banner */}
+        <div className="p-3 rounded-2xl bg-surface-elevated/70 border border-surface-border/60 text-xs text-content-secondary flex items-start gap-2.5">
+          <Sparkles className="w-4 h-4 text-acid flex-shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            <span className="text-content-primary font-bold">Rotación Automática:</span> Al publicar un post con enlace de música (YouTube, SoundCloud, Spotify, Audio) o etiquetas musicales, tu tema se incorpora automáticamente al reproductor comunitario.
+          </p>
+        </div>
+
+        {/* Tracks List */}
+        <div className="space-y-2">
+          {communityTracks.map((track) => {
+            const isThisTrackPlaying =
+              isRadioPlaying &&
+              currentStation.id === 'station-comunidad-larvaz' &&
+              currentStation.current_track?.title === track.title;
+
+            return (
+              <div
+                key={track.id}
+                className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                  isThisTrackPlaying
+                    ? 'bg-surface-elevated border-acid shadow-acid-glow ring-1 ring-acid/40'
+                    : 'bg-surface-elevated/40 border-surface-border hover:border-acid/30'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-background border border-surface-border flex-shrink-0">
+                    {track.album_art ? (
+                      <img
+                        src={track.album_art}
+                        alt={track.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-acid">
+                        <Disc className="w-6 h-6" />
+                      </div>
+                    )}
+                    {isThisTrackPlaying && (
+                      <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                        <span className="w-2.5 h-2.5 rounded-full bg-acid animate-ping" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <h4 className="font-display font-black text-sm text-content-primary truncate">
+                      {track.title}
+                    </h4>
+                    <div className="flex items-center gap-2 text-xs text-content-secondary flex-wrap">
+                      <span className="text-acid font-bold truncate">{track.artist}</span>
+                      <span>·</span>
+                      <span className="text-content-muted text-[11px]">
+                        por @{track.submitted_by || track.username || 'comunidad'}
+                      </span>
+                      {track.genre && (
+                        <span className="px-1.5 py-0.2 rounded bg-surface-border text-cyan text-[10px] font-mono">
+                          {track.genre}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {(track.audio_url || track.url) && (
+                    <a
+                      href={track.audio_url || track.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl bg-surface-elevated border border-surface-border text-content-muted hover:text-cyan hover:border-cyan/40 transition-colors"
+                      title="Abrir enlace original"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+
+                  <Link
+                    href={`/mensajes?user=${track.submitted_by || track.username || 'comunidad'}`}
+                    className="p-2 rounded-xl bg-surface-elevated border border-surface-border text-content-muted hover:text-acid hover:border-acid/40 transition-colors"
+                    title={`Enviar mensaje a @${track.submitted_by || track.username || 'comunidad'}`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </Link>
+
+                  <button
+                    onClick={() => playCommunityTrack(track)}
+                    className={`px-3 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 ${
+                      isThisTrackPlaying
+                        ? 'bg-acid text-background shadow-acid-glow'
+                        : 'bg-surface border border-acid/50 text-acid hover:bg-acid hover:text-background'
+                    }`}
+                  >
+                    {isThisTrackPlaying ? (
+                      <>
+                        <Pause className="w-3.5 h-3.5 fill-current" />
+                        <span className="hidden sm:inline">Sonando</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span className="hidden sm:inline">Reproducir</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>

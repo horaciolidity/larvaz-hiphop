@@ -12,10 +12,11 @@ import {
   Report,
   CryptoTip,
   RadioStation,
+  RadioTrack,
   UserRole,
   WithdrawalRequest,
 } from '@/types';
-import { dataStore } from '@/lib/data-store';
+import { dataStore, GUEST_USER } from '@/lib/data-store';
 import { isSupabaseConfigured, createClient } from '@/lib/supabase/client';
 
 interface AppContextType {
@@ -34,12 +35,21 @@ interface AppContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
 
-  // Radio Streaming
+  // Geographic Location
+  userLocation: string;
+  setUserLocation: (loc: string) => void;
+
+  // Radio Streaming & Community Tracks
   isRadioPlaying: boolean;
   currentStation: RadioStation;
   radioStations: RadioStation[];
+  communityTracks: RadioTrack[];
   toggleRadio: () => void;
   changeStation: (stationId: string) => void;
+  playCommunityTrack: (track: RadioTrack) => void;
+
+  // Referrals
+  getReferredUsers: () => Profile[];
 
   // Crypto Tipping, Balance & Withdrawals
   sendCryptoTip: (data: {
@@ -71,6 +81,7 @@ interface AppContextType {
     password?: string;
     fullName: string;
     username: string;
+    referralCode?: string;
   }) => Promise<{ success: boolean; error?: string; message?: string }>;
   logout: () => Promise<void>;
 
@@ -107,8 +118,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const isSupabaseConnected = isSupabaseConfigured();
 
-  // Radio streaming state
-  const [radioStations] = useState<RadioStation[]>(dataStore.getRadioStations());
+  // Geographic Location state (default Mendoza, Argentina)
+  const [userLocation, setUserLocationState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('larvaz_user_location');
+      if (saved) return saved;
+    }
+    return 'Mendoza, Argentina';
+  });
+
+  const setUserLocation = (loc: string) => {
+    setUserLocationState(loc);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('larvaz_user_location', loc);
+      } catch {}
+    }
+  };
+
+  // Auto-detect location gently on first visit if not saved
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !localStorage.getItem('larvaz_user_location')) {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`
+              );
+              const data = await res.json();
+              const city = data.address?.city || data.address?.town || data.address?.state || 'Mendoza';
+              const country = data.address?.country || 'Argentina';
+              setUserLocation(`${city}, ${country}`);
+            } catch {
+              // remains Mendoza, Argentina
+            }
+          },
+          () => {},
+          { timeout: 5000 }
+        );
+      }
+    }
+  }, []);
+
+  // Radio streaming state & community uploaded tracks
+  const [radioStations, setRadioStations] = useState<RadioStation[]>(dataStore.getRadioStations());
+  const [communityTracks, setCommunityTracks] = useState<RadioTrack[]>(dataStore.getCommunityTracks());
   const [currentStation, setCurrentStation] = useState<RadioStation>(dataStore.getActiveRadioStation());
   const [isRadioPlaying, setIsRadioPlaying] = useState<boolean>(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
@@ -154,6 +209,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (isRadioPlaying) {
         audioRef.current.play().catch(() => {});
       }
+    }
+  };
+
+  const playCommunityTrack = (track: RadioTrack) => {
+    const commStation = dataStore.setActiveRadioStation('station-comunidad-larvaz');
+    commStation.current_track = {
+      title: track.title,
+      artist: track.artist,
+      album_art: track.album_art,
+    };
+    setCurrentStation({ ...commStation });
+    if (audioRef.current) {
+      if (
+        track.audio_url &&
+        (track.audio_url.endsWith('.mp3') ||
+          track.audio_url.endsWith('.wav') ||
+          track.audio_url.endsWith('.ogg') ||
+          track.audio_url.startsWith('https://listen.181fm'))
+      ) {
+        audioRef.current.src = track.audio_url;
+      } else {
+        audioRef.current.src = commStation.stream_url;
+      }
+      audioRef.current
+        .play()
+        .then(() => setIsRadioPlaying(true))
+        .catch(() => setIsRadioPlaying(true));
     }
   };
 
@@ -322,15 +404,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     password?: string;
     fullName: string;
     username: string;
+    referralCode?: string;
   }): Promise<{ success: boolean; error?: string; message?: string }> => {
+    const cleanUsername = data.username.toLowerCase().replace(/[^a-z0-9_]/g, '');
+
     if (isSupabaseConnected && supabase && data.password) {
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
           data: {
-            username: data.username,
+            username: cleanUsername,
             full_name: data.fullName,
+            referral_code: 'larvaz-' + cleanUsername,
+            referred_by: data.referralCode,
           },
         },
       });
@@ -350,10 +437,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Local fallback
+    // Local registration
     const newProfile: Profile = {
       id: 'user-' + Date.now(),
-      username: data.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+      username: cleanUsername,
       full_name: data.fullName.trim(),
       bio: 'Nuevo creador y apasionado de la cultura hip-hop en Larvaz.',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
@@ -364,7 +451,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       followers_count: 0,
       following_count: 0,
       posts_count: 0,
+      referral_code: 'larvaz-' + cleanUsername,
+      referrals_count: 0,
+      referral_props_earned: 0,
+      is_guest: false,
     };
+
+    if (data.referralCode) {
+      dataStore.registerReferral(data.referralCode, newProfile);
+    }
+
     setCurrentUser(newProfile);
     return { success: true };
   };
@@ -377,11 +473,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.warn('Error signing out:', e);
       }
     }
-    const all = dataStore.getAllProfiles();
-    const defaultUser = all[1] || all[0];
-    if (defaultUser) {
-      setCurrentUser(defaultUser);
-    }
+    setCurrentUser(GUEST_USER);
+  };
+
+  const getReferredUsers = (): Profile[] => {
+    return dataStore.getReferredUsers(currentUser.username);
   };
 
   const requestWithdrawal = (data: {
@@ -453,6 +549,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const createPost = (data: any) => {
     const newPost = dataStore.createPost(data);
     refreshPosts();
+    setRadioStations([...dataStore.getRadioStations()]);
+    setCommunityTracks([...dataStore.getCommunityTracks()]);
     return newPost;
   };
 
@@ -535,11 +633,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isSupabaseConnected,
         isAdmin,
         isSuperAdmin,
+        userLocation,
+        setUserLocation,
         isRadioPlaying,
         currentStation,
         radioStations,
+        communityTracks,
         toggleRadio,
         changeStation,
+        playCommunityTrack,
+        getReferredUsers,
         sendCryptoTip,
         getCryptoTips,
         balance,

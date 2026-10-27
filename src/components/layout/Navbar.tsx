@@ -51,18 +51,27 @@ export const Navbar: React.FC = () => {
           )}
         </Link>
 
-        {/* User Panel Avatar Link */}
-        <Link
-          href="/panel"
-          className="ml-0.5 p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
-          aria-label="Mi Panel"
-        >
-          <img
-            src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-            alt={currentUser.username}
-            className="w-7 h-7 rounded-lg object-cover"
-          />
-        </Link>
+        {/* User Panel or Login Link */}
+        {currentUser.is_guest ? (
+          <Link
+            href="/login"
+            className="ml-1 px-3 py-1.5 rounded-xl bg-acid text-background text-xs font-black uppercase tracking-wider shadow-acid-sm"
+          >
+            Entrar
+          </Link>
+        ) : (
+          <Link
+            href="/panel"
+            className="ml-0.5 p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
+            aria-label="Mi Panel"
+          >
+            <img
+              src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+              alt={currentUser.username}
+              className="w-7 h-7 rounded-lg object-cover"
+            />
+          </Link>
+        )}
       </div>
     </header>
   );

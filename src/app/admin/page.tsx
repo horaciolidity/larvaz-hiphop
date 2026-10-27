@@ -42,9 +42,8 @@ export default function SuperAdminPage() {
   const [stats, setStats] = useState(dataStore.getGlobalStats());
 
   const isSuperAdmin = currentUser.role === 'super_admin';
-  const isAuthorized = currentUser.role === 'admin' || currentUser.role === 'super_admin';
 
-  if (!isAuthorized) {
+  if (!isSuperAdmin) {
     return (
       <div className="p-8 text-center space-y-4 max-w-sm mx-auto">
         <div className="w-14 h-14 rounded-2xl bg-magenta/10 border border-magenta/30 flex items-center justify-center mx-auto">
@@ -54,14 +53,11 @@ export default function SuperAdminPage() {
           ACCESO RESTRINGIDO
         </h1>
         <p className="text-xs text-content-secondary leading-relaxed">
-          Solo los administradores y super administradores pueden acceder a este panel. El servidor verifica tu rol.
+          Este panel de control es exclusivo para la cuenta de Super Administrador de Larvaz Hip-Hop.
         </p>
         <p className="text-[11px] text-content-muted">
-          Usuario actual: @{currentUser.username} · Rol: {currentUser.role}
+          Usuario: @{currentUser.username} · Rol: {currentUser.role}
         </p>
-        <div className="p-3 rounded-xl bg-surface-elevated border border-surface-border text-xs text-acid font-semibold">
-          💡 En el selector de perfiles (barra lateral), selecciona <strong>@admin_larvaz</strong> (Super Admin) para entrar al panel.
-        </div>
       </div>
     );
   }

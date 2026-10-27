@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
@@ -180,7 +181,9 @@ function MensajesContent() {
   useEffect(() => {
     if (targetUserParam) {
       const match = availableProfiles.find(
-        (p) => p.username.toLowerCase() === targetUserParam.toLowerCase()
+        (p) =>
+          p.username.toLowerCase() === targetUserParam.toLowerCase() ||
+          p.id.toLowerCase() === targetUserParam.toLowerCase()
       );
       if (match) {
         startNewConversation(match);
@@ -469,22 +472,36 @@ function MensajesContent() {
 
           {/* Message Input */}
           <div className="p-3.5 border-t border-surface-border bg-surface">
-            <form onSubmit={handleSend} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={`Mensaje a @${activeConv.participant_username}...`}
-                className="flex-1 px-3 py-2.5 rounded-xl bg-surface-elevated border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!newMessage.trim()}
-                className="p-2.5 rounded-xl bg-acid text-background hover:bg-acid-hover disabled:opacity-40 transition-all shadow-acid-glow flex-shrink-0"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+            {currentUser.is_guest ? (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface-elevated border border-surface-border">
+                <p className="text-xs text-content-secondary">
+                  Debes iniciar sesión para chatear con <span className="text-acid font-bold">@{activeConv.participant_username}</span>
+                </p>
+                <Link
+                  href="/login"
+                  className="px-3 py-1.5 rounded-lg bg-acid text-background text-xs font-bold whitespace-nowrap hover:bg-acid-hover shadow-acid-sm"
+                >
+                  Iniciar Sesión
+                </Link>
+              </div>
+            ) : (
+              <form onSubmit={handleSend} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder={`Mensaje a @${activeConv.participant_username}...`}
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-surface-elevated border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!newMessage.trim()}
+                  className="p-2.5 rounded-xl bg-acid text-background hover:bg-acid-hover disabled:opacity-40 transition-all shadow-acid-glow flex-shrink-0"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            )}
           </div>
         </div>
       ) : (

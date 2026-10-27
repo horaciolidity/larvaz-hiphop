@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { dataStore } from '@/lib/data-store';
 import { PostCard } from '@/components/feed/PostCard';
+import AvatarPicker, { EmojiAvatarDisplay, isEmojiAvatar } from '@/components/profile/AvatarPicker';
 import {
   User,
   Coins,
@@ -24,6 +25,9 @@ import {
   AlertCircle,
   Wallet,
   ArrowDownToLine,
+  Gift,
+  Share2,
+  Camera,
 } from 'lucide-react';
 
 export default function UserPanelPage() {
@@ -35,8 +39,13 @@ export default function UserPanelPage() {
     balance,
     withdrawals,
     requestWithdrawal,
+    getReferredUsers,
   } = useApp();
-  const [activeTab, setActiveTab] = useState<'resumen' | 'cripto' | 'publicaciones' | 'eventos'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'cripto' | 'referidos' | 'publicaciones' | 'eventos'>('resumen');
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const referredUsers = getReferredUsers();
+  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/registro?ref=${currentUser.username}` : '';
 
   // Wallet form state
   const [solWallet, setSolWallet] = useState(currentUser.wallet_addresses?.sol || '');
@@ -93,6 +102,11 @@ export default function UserPanelPage() {
     }
   };
 
+  const handleAvatarSelect = (url: string) => {
+    updateProfile({ avatar_url: url });
+    setShowAvatarPicker(false);
+  };
+
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
       {/* 1. Profile Header Card */}
@@ -101,12 +115,33 @@ export default function UserPanelPage() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <img
-                src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
-                alt={currentUser.username}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-acid/50 shadow-lg"
-              />
+            <div className="relative group">
+              {/* Avatar display */}
+              {isEmojiAvatar(currentUser.avatar_url) ? (
+                <div
+                  className="w-16 h-16 rounded-2xl bg-surface-elevated border-2 border-acid/50 shadow-lg flex items-center justify-center text-5xl cursor-pointer hover:border-acid transition-colors"
+                  onClick={() => setShowAvatarPicker(true)}
+                  title="Cambiar avatar"
+                >
+                  <EmojiAvatarDisplay url={currentUser.avatar_url} size="lg" className="!border-0 !rounded-2xl" />
+                </div>
+              ) : (
+                <img
+                  src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
+                  alt={currentUser.username}
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-acid/50 shadow-lg cursor-pointer hover:border-acid transition-colors"
+                  onClick={() => setShowAvatarPicker(true)}
+                  title="Cambiar avatar"
+                />
+              )}
+              {/* Camera overlay on hover */}
+              <button
+                onClick={() => setShowAvatarPicker(true)}
+                className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                title="Cambiar avatar"
+              >
+                <Camera className="w-5 h-5 text-white" />
+              </button>
               {currentUser.verified_artist && (
                 <span className="absolute -bottom-1 -right-1 bg-acid text-background p-1 rounded-full shadow-md" title="Artista Verificado">
                   <ShieldCheck className="w-3.5 h-3.5 stroke-[3]" />
@@ -193,6 +228,17 @@ export default function UserPanelPage() {
           <span>Billetera Cripto ({userTips.received.length})</span>
         </button>
         <button
+          onClick={() => setActiveTab('referidos')}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === 'referidos'
+              ? 'bg-acid text-background shadow-acid-glow font-black'
+              : 'text-content-secondary hover:text-content-primary hover:bg-surface-elevated'
+          }`}
+        >
+          <Gift className="w-3.5 h-3.5" />
+          <span>Referidos ({currentUser.referrals_count || referredUsers.length})</span>
+        </button>
+        <button
           onClick={() => setActiveTab('publicaciones')}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'publicaciones'
@@ -244,6 +290,59 @@ export default function UserPanelPage() {
                 <p className="text-xs text-content-secondary">Crear o ver eventos hip-hop</p>
               </div>
             </Link>
+          </div>
+
+          {/* Referral Link & Props Card */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-acid/10 via-surface to-surface border border-acid/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-acid font-display font-black text-sm uppercase tracking-wide">
+                <Gift className="w-4 h-4" />
+                <span>TU ENLACE DE REFERIDO ÚNICO</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full bg-acid/20 text-acid font-bold text-[10px]">
+                +50 Props por amigo
+              </span>
+            </div>
+            <p className="text-xs text-content-secondary leading-relaxed">
+              Comparte tu link personal. Cada persona que ingrese y se registre con tu enlace sumará props a tu cuenta y se integrará a tu red comunitaria.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={referralLink}
+                className="flex-1 px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border font-mono text-xs text-content-primary focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(referralLink);
+                  setCopiedReferral(true);
+                  setTimeout(() => setCopiedReferral(false), 2000);
+                }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-all ${
+                  copiedReferral
+                    ? 'bg-acid text-background shadow-acid-glow'
+                    : 'bg-surface hover:bg-surface-elevated text-content-primary border border-surface-border hover:border-acid'
+                }`}
+              >
+                {copiedReferral ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>¡Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-acid" />
+                    <span>Copiar</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-surface-border/40 text-[11px] text-content-secondary">
+              <span>Referidos activos: <strong className="text-content-primary">{currentUser.referrals_count || referredUsers.length}</strong></span>
+              <span>Props obtenidos: <strong className="text-acid">+{currentUser.referral_props_earned || (referredUsers.length * 50)}</strong></span>
+            </div>
           </div>
 
           {/* Bio Preview */}
@@ -529,6 +628,94 @@ export default function UserPanelPage() {
         </div>
       )}
 
+      {/* Tab: Sistema de Referidos */}
+      {activeTab === 'referidos' && (
+        <div className="space-y-5">
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-acid/15 via-surface to-surface border border-acid/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-black text-base text-acid tracking-wide flex items-center gap-2">
+                <Gift className="w-5 h-5" />
+                SISTEMA DE REFERIDOS Y CRECIMIENTO COMUNITARIO
+              </h3>
+              <span className="px-2.5 py-1 rounded-full bg-acid/20 text-acid font-bold text-xs border border-acid/30">
+                +50 Props por Amigo
+              </span>
+            </div>
+            <p className="text-xs text-content-secondary leading-relaxed">
+              Expande la cultura hip-hop subterránea. Cada vez que alguien entra con tu enlace y se registra en Larvaz, se suma automáticamente a tu red de comunidad y ambos reciben recompensas de reputación.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+              <input
+                type="text"
+                readOnly
+                value={referralLink}
+                className="flex-1 px-3 py-2.5 rounded-xl bg-surface-elevated border border-surface-border font-mono text-xs text-content-primary focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(referralLink);
+                  setCopiedReferral(true);
+                  setTimeout(() => setCopiedReferral(false), 2000);
+                }}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-acid hover:bg-acid-hover text-background shadow-acid-glow transition-all"
+              >
+                {copiedReferral ? (
+                  <>
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>¡Enlace Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copiar Enlace</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Referred Members List */}
+          <div className="p-4 rounded-2xl bg-surface border border-surface-border space-y-3">
+            <h4 className="font-display font-black text-sm text-content-primary uppercase tracking-wider flex items-center gap-2">
+              <User className="w-4 h-4 text-cyan" />
+              <span>Miembros Registrados con tu Enlace ({referredUsers.length})</span>
+            </h4>
+
+            {referredUsers.length === 0 ? (
+              <div className="py-8 text-center text-xs text-content-secondary space-y-2">
+                <p>Aún no tienes miembros vinculados con tu código de referido.</p>
+                <p className="text-[11px] text-content-muted">
+                  ¡Copia tu enlace arriba y compártelo con tus amigos, crew o en tus redes sociales para sumar props!
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-surface-border">
+                {referredUsers.map((u) => (
+                  <div key={u.id} className="py-2.5 flex items-center justify-between">
+                    <Link href={`/artista/${u.username}`} className="flex items-center gap-2.5 group">
+                      <img
+                        src={u.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                        alt={u.username}
+                        className="w-8 h-8 rounded-full object-cover border border-surface-elevated group-hover:border-acid"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-content-primary group-hover:text-acid truncate">{u.full_name}</p>
+                        <p className="text-[10px] text-content-secondary truncate">@{u.username}</p>
+                      </div>
+                    </Link>
+                    <span className="text-[10px] px-2.5 py-1 rounded-full bg-acid/10 text-acid font-bold border border-acid/30">
+                      +50 Props Comunitarios
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 6. Tab: Mis Publicaciones */}
       {activeTab === 'publicaciones' && (
         <div className="space-y-4">
@@ -596,6 +783,15 @@ export default function UserPanelPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Avatar Picker Modal */}
+      {showAvatarPicker && (
+        <AvatarPicker
+          currentAvatar={currentUser.avatar_url}
+          onSelect={(url) => handleAvatarSelect(url)}
+          onClose={() => setShowAvatarPicker(false)}
+        />
       )}
     </div>
   );
