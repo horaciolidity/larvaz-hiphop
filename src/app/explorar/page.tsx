@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { PostCard } from '@/components/feed/PostCard';
+import { UserAvatar } from '@/components/common/UserAvatar';
 import {
   Search,
   Users,
@@ -197,10 +198,11 @@ function ExplorarContent() {
                     href={`/artista/${artist.username}`}
                     className="flex items-center gap-3 min-w-0 group"
                   >
-                    <img
-                      src={artist.avatar_url}
-                      alt={artist.full_name}
-                      className="w-11 h-11 rounded-full object-cover border border-surface-elevated group-hover:border-acid transition-colors flex-shrink-0"
+                    <UserAvatar
+                      avatarUrl={artist.avatar_url}
+                      name={artist.full_name}
+                      size="md"
+                      className="group-hover:border-acid transition-colors"
                     />
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-content-primary group-hover:text-acid transition-colors truncate">

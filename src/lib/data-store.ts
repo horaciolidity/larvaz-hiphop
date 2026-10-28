@@ -730,14 +730,6 @@ class LarvazDataStore {
       this.profiles.push(this.currentUser);
     }
 
-    // Trigger state update notification for the user
-    this.addNotification({
-      userId: this.currentUser.id,
-      type: 'mention',
-      actor: this.currentUser,
-      read: false,
-    });
-
     this.saveToStorage();
     return this.currentUser;
   }
@@ -771,11 +763,15 @@ class LarvazDataStore {
       const target = this.profiles.find((p) => p.id === profileId);
       if (target) target.followers_count = (target.followers_count || 0) + 1;
 
-      // Send follow notification
-      this.addNotification({
-        userId: profileId,
+      // Send follow notification (push directly)
+      this.notifications.unshift({
+        id: 'notif-follow-' + Date.now(),
+        user_id: profileId,
+        actor_id: this.currentUser.id,
         type: 'follow',
         actor: this.currentUser,
+        read: false,
+        created_at: new Date().toISOString(),
       });
 
       this.saveToStorage();
@@ -901,11 +897,14 @@ class LarvazDataStore {
       referrer.referral_props_earned = (referrer.referral_props_earned || 0) + 50;
       newProfile.referred_by = referrer.username;
 
-      this.addNotification({
-        userId: referrer.id,
+      this.notifications.unshift({
+        id: 'notif-referral-' + Date.now(),
+        user_id: referrer.id,
+        actor_id: newProfile.id,
         type: 'mention',
         actor: newProfile,
         read: false,
+        created_at: new Date().toISOString(),
       });
 
       this.saveToStorage();
@@ -1005,11 +1004,15 @@ class LarvazDataStore {
       this.likedPosts.add(postId);
       post.likes_count++;
       if (post.user_id !== this.currentUser.id) {
-        this.addNotification({
-          userId: post.user_id,
+        this.notifications.unshift({
+          id: 'notif-like-' + Date.now(),
+          user_id: post.user_id,
+          actor_id: this.currentUser.id,
           type: 'like',
           actor: this.currentUser,
-          postId: post.id,
+          post_id: post.id,
+          read: false,
+          created_at: new Date().toISOString(),
         });
       }
     }

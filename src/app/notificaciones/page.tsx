@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { Bell, Heart, MessageCircle, UserPlus, CheckCheck } from 'lucide-react';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 export default function NotificacionesPage() {
   const { notifications, markNotificationsAsRead } = useApp();
@@ -82,10 +83,10 @@ export default function NotificacionesPage() {
                   href={`/artista/${notif.actor?.username}`}
                   className="flex items-center gap-2.5 min-w-0 group"
                 >
-                  <img
-                    src={notif.actor?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                    alt={notif.actor?.full_name}
-                    className="w-9 h-9 rounded-full object-cover border border-surface-elevated flex-shrink-0"
+                  <UserAvatar
+                    avatarUrl={notif.actor?.avatar_url}
+                    name={notif.actor?.full_name}
+                    size="sm"
                   />
                   <div className="min-w-0">
                     <p className="text-xs text-content-primary group-hover:text-acid transition-colors">

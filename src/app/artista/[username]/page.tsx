@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { dataStore } from '@/lib/data-store';
 import { PostCard } from '@/components/feed/PostCard';
+import { UserAvatar } from '@/components/common/UserAvatar';
 import {
   MapPin,
   Globe,
@@ -80,10 +81,11 @@ export default function ArtistProfilePage() {
       <div className="px-4 sm:px-6 relative">
         <div className="flex justify-between items-end -mt-14 sm:-mt-16 mb-4">
           <div className="relative">
-            <img
-              src={profile.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
-              alt={profile.full_name}
-              className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-4 border-background bg-surface shadow-2xl"
+            <UserAvatar
+              avatarUrl={profile.avatar_url}
+              name={profile.full_name}
+              size="2xl"
+              className="border-4 border-background shadow-2xl"
             />
             {profile.role === 'admin' && (
               <span className="absolute bottom-1 right-1 px-2 py-0.5 rounded-full bg-magenta text-content-primary text-[9px] font-black tracking-widest uppercase border border-background shadow-sm">

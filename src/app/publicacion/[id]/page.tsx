@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { MediaEmbed } from '@/components/feed/MediaEmbed';
 import { ReportModal } from '@/components/common/ReportModal';
+import { UserAvatar } from '@/components/common/UserAvatar';
 import {
   ArrowLeft,
   Heart,
@@ -103,10 +104,11 @@ export default function PostDetailPage() {
           href={`/artista/${post.author.username}`}
           className="flex items-center gap-3 group"
         >
-          <img
-            src={post.author.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-            alt={post.author.full_name}
-            className="w-12 h-12 rounded-full object-cover border border-surface-elevated group-hover:border-acid transition-colors"
+          <UserAvatar
+            avatarUrl={post.author.avatar_url}
+            name={post.author.full_name}
+            size="lg"
+            className="group-hover:border-acid transition-colors"
           />
           <div>
             <h1 className="font-bold text-base text-content-primary group-hover:text-acid transition-colors">

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
 import { Bell, Search, Radio, UserCheck } from 'lucide-react';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 export const Navbar: React.FC = () => {
   const { unreadNotifsCount, currentUser, isRadioPlaying } = useApp();
@@ -65,10 +66,10 @@ export const Navbar: React.FC = () => {
             className="ml-0.5 p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
             aria-label="Mi Panel"
           >
-            <img
-              src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-              alt={currentUser.username}
-              className="w-7 h-7 rounded-lg object-cover"
+            <UserAvatar
+              avatarUrl={currentUser.avatar_url}
+              name={currentUser.username}
+              size="sm"
             />
           </Link>
         )}

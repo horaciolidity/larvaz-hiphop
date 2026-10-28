@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import { ContentType } from '@/types';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 export const InlineFeedComposer: React.FC = () => {
   const { currentUser, createPost } = useApp();
@@ -76,10 +77,11 @@ export const InlineFeedComposer: React.FC = () => {
     <div className="p-3.5 rounded-2xl bg-surface border border-surface-border hover:border-surface-hover transition-all space-y-3">
       {/* Top: User Avatar + Input */}
       <div className="flex items-start gap-3">
-        <img
-          src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-          alt={currentUser.full_name}
-          className="w-10 h-10 rounded-full object-cover border border-surface-border flex-shrink-0 mt-0.5"
+        <UserAvatar
+          avatarUrl={currentUser.avatar_url}
+          name={currentUser.full_name}
+          size="md"
+          className="mt-0.5"
         />
 
         <div className="flex-1 min-w-0">

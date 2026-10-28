@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle } from 'lucide-react';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 export const SidebarRight: React.FC = () => {
   const {
@@ -106,10 +107,11 @@ export const SidebarRight: React.FC = () => {
                   href={`/artista/${artist.username}`}
                   className="flex items-center gap-2.5 min-w-0 group"
                 >
-                  <img
-                    src={artist.avatar_url}
-                    alt={artist.full_name}
-                    className="w-9 h-9 rounded-full object-cover border border-surface-elevated group-hover:border-acid transition-colors flex-shrink-0"
+                  <UserAvatar
+                    avatarUrl={artist.avatar_url}
+                    name={artist.full_name}
+                    size="sm"
+                    className="group-hover:border-acid transition-colors"
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-content-primary truncate group-hover:text-acid transition-colors">

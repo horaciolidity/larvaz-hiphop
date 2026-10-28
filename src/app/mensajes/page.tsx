@@ -16,6 +16,7 @@ import {
   Phone,
   Circle,
 } from 'lucide-react';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 interface DirectMessage {
   id: string;
@@ -331,7 +332,11 @@ function MensajesContent() {
                     onClick={() => startNewConversation(p)}
                     className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-surface-hover transition-colors text-left"
                   >
-                    <img src={p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'} alt={p.username} className="w-7 h-7 rounded-full object-cover" />
+                    <UserAvatar
+                      avatarUrl={p.avatar_url}
+                      name={p.username}
+                      size="sm"
+                    />
                     <div>
                       <p className="text-xs font-bold text-content-primary">{p.full_name}</p>
                       <p className="text-[10px] text-content-muted">@{p.username}</p>
@@ -358,10 +363,10 @@ function MensajesContent() {
                 }`}
               >
                 <div className="relative flex-shrink-0">
-                  <img
-                    src={conv.participant_avatar}
-                    alt={conv.participant_name}
-                    className="w-10 h-10 rounded-full object-cover border border-surface-border"
+                  <UserAvatar
+                    avatarUrl={conv.participant_avatar}
+                    name={conv.participant_name}
+                    size="md"
                   />
                   {conv.is_online && (
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-acid border-2 border-surface" />
@@ -399,10 +404,10 @@ function MensajesContent() {
               <ArrowLeft className="w-4 h-4 text-content-secondary" />
             </button>
             <div className="relative">
-              <img
-                src={activeConv.participant_avatar}
-                alt={activeConv.participant_name}
-                className="w-9 h-9 rounded-full object-cover"
+              <UserAvatar
+                avatarUrl={activeConv.participant_avatar}
+                name={activeConv.participant_name}
+                size="sm"
               />
               {activeConv.is_online && (
                 <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-acid border-2 border-surface" />
@@ -438,10 +443,11 @@ function MensajesContent() {
                 return (
                   <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                     {!isMine && (
-                      <img
-                        src={activeConv.participant_avatar}
-                        alt=""
-                        className="w-6 h-6 rounded-full object-cover mr-2 flex-shrink-0 self-end"
+                      <UserAvatar
+                        avatarUrl={activeConv.participant_avatar}
+                        name=""
+                        size="xs"
+                        className="mr-2 self-end"
                       />
                     )}
                     <div className={`max-w-[70%] space-y-0.5`}>

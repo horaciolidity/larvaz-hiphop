@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { dataStore } from '@/lib/data-store';
 import { UserRole } from '@/types';
+import { UserAvatar } from '@/components/common/UserAvatar';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -212,10 +213,10 @@ export default function SuperAdminPage() {
                 className="p-3.5 rounded-2xl bg-surface border border-surface-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
               >
                 <div className="flex items-center gap-3">
-                  <img
-                    src={p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
-                    alt={p.username}
-                    className="w-10 h-10 rounded-full object-cover border border-surface-border"
+                  <UserAvatar
+                    avatarUrl={p.avatar_url}
+                    name={p.username}
+                    size="md"
                   />
                   <div>
                     <div className="flex items-center gap-1.5">

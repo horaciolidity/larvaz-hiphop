@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { MediaEmbed } from './MediaEmbed';
 import { ReportModal } from '@/components/common/ReportModal';
 import { CryptoTipModal } from './CryptoTipModal';
+import { UserAvatar } from '@/components/common/UserAvatar';
 import {
   Heart,
   MessageCircle,
@@ -115,10 +116,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
           href={`/artista/${post.author.username}`}
           className="flex items-center gap-3 group min-w-0"
         >
-          <img
-            src={post.author.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-            alt={post.author.full_name}
-            className="w-10 h-10 rounded-full object-cover border border-surface-elevated group-hover:border-acid transition-colors flex-shrink-0"
+          <UserAvatar
+            avatarUrl={post.author.avatar_url}
+            name={post.author.full_name}
+            size="md"
+            className="group-hover:border-acid transition-colors"
           />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">

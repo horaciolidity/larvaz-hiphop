@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2 } from 'lucide-react';
+import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2, Smile } from 'lucide-react';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import AvatarPicker from '@/components/profile/AvatarPicker';
 
 export default function ConfiguracionPage() {
   const { currentUser, updateProfile } = useApp();
@@ -15,6 +17,7 @@ export default function ConfiguracionPage() {
   const [artisticDisciplines, setArtisticDisciplines] = useState(currentUser.artistic_disciplines || '');
   const [avatarUrl, setAvatarUrl] = useState(currentUser.avatar_url || '');
   const [bannerUrl, setBannerUrl] = useState(currentUser.banner_url || '');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -61,12 +64,30 @@ export default function ConfiguracionPage() {
           {bannerUrl && (
             <img src={bannerUrl} alt="Portada" className="w-full h-full object-cover opacity-70" />
           )}
-          <div className="absolute left-4 bottom-0 translate-y-1/2">
-            <img
-              src={avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
-              alt="Avatar"
-              className="w-16 h-16 rounded-xl object-cover border-4 border-background shadow-lg"
-            />
+          <div className="absolute left-4 bottom-0 translate-y-1/2 flex items-center gap-3">
+            <div
+              onClick={() => setShowAvatarPicker(true)}
+              className="cursor-pointer group relative"
+              title="Cambiar avatar"
+            >
+              <UserAvatar
+                avatarUrl={avatarUrl}
+                name={fullName}
+                size="xl"
+                className="border-4 border-background shadow-lg group-hover:border-acid transition-colors"
+              />
+              <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Camera className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAvatarPicker(true)}
+              className="mt-6 px-3 py-1.5 rounded-xl bg-surface-elevated border border-acid/40 text-acid font-bold text-xs hover:bg-acid hover:text-background flex items-center gap-1.5 transition-all shadow-acid-sm"
+            >
+              <Smile className="w-4 h-4" />
+              <span>Elegir Avatar Divertido / Sticker</span>
+            </button>
           </div>
         </div>
 
@@ -222,6 +243,18 @@ export default function ConfiguracionPage() {
           )}
         </button>
       </form>
+
+      {/* Avatar Picker Modal */}
+      {showAvatarPicker && (
+        <AvatarPicker
+          currentAvatar={avatarUrl}
+          onSelect={(url) => {
+            setAvatarUrl(url);
+            setShowAvatarPicker(false);
+          }}
+          onClose={() => setShowAvatarPicker(false)}
+        />
+      )}
     </div>
   );
 }

@@ -29,6 +29,7 @@ import {
   Sparkles,
   Share2,
 } from 'lucide-react';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 export const SidebarLeft: React.FC = () => {
   const pathname = usePathname();
@@ -166,10 +167,10 @@ export const SidebarLeft: React.FC = () => {
               className="w-full flex items-center justify-between p-2 rounded-xl bg-surface border border-surface-border hover:border-acid transition-colors text-left"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <img
-                  src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                  alt={currentUser.full_name}
-                  className="w-10 h-10 rounded-full object-cover border border-surface-elevated flex-shrink-0"
+                <UserAvatar
+                  avatarUrl={currentUser.avatar_url}
+                  name={currentUser.full_name}
+                  size="md"
                 />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-content-primary truncate">
