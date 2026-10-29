@@ -69,7 +69,18 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     );
   }
 
-  // 2. Real Image URL (fallback if broken)
+  // 2. Custom Hip-Hop Sticker Avatar (/avatars/...)
+  if (avatarUrl?.startsWith('/avatars/')) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className={`rounded-full object-cover border border-acid/50 shadow-sm flex-shrink-0 bg-surface-elevated ${sizeConfig.img} ${className}`}
+      />
+    );
+  }
+
+  // 3. Real Image URL (fallback if broken)
   const effectiveUrl = !imgError && avatarUrl && avatarUrl.trim() !== ''
     ? avatarUrl
     : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100';

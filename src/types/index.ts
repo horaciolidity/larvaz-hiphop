@@ -99,6 +99,7 @@ export interface Post {
   user_has_bookmarked?: boolean;
   crypto_tips_total?: number;
   crypto_tips_count?: number;
+  views_count?: number;
 }
 
 export interface Comment {

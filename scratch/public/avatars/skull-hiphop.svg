@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-sk" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#2b2d38"/>
+          <stop offset="100%" stop-color="#0a0a10"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-sk)" stroke="#C6FF00" stroke-width="3"/>
+      <!-- Bandana -->
+      <path d="M30 42 Q60 30 90 42 L94 56 Q60 46 26 56 Z" fill="#FF0055"/>
+      <circle cx="42" cy="48" r="1.5" fill="#fff"/>
+      <circle cx="60" cy="44" r="1.5" fill="#fff"/>
+      <circle cx="78" cy="48" r="1.5" fill="#fff"/>
+      <!-- Skull Cranium -->
+      <path d="M34 54 C34 40 86 40 86 54 C86 68 82 74 74 76 L74 88 L46 88 L46 76 C38 74 34 68 34 54 Z" fill="#E8ECEF" stroke="#111" stroke-width="2"/>
+      <!-- Eye Sockets with glowing pupils -->
+      <ellipse cx="48" cy="62" rx="7" ry="8" fill="#111"/>
+      <circle cx="48" cy="62" r="3" fill="#C6FF00"/>
+      <ellipse cx="72" cy="62" rx="7" ry="8" fill="#111"/>
+      <circle cx="72" cy="62" r="3" fill="#C6FF00"/>
+      <!-- Nose Cavity -->
+      <polygon points="57,72 63,72 60,77" fill="#111"/>
+      <!-- Teeth -->
+      <rect x="50" y="80" width="4" height="6" rx="1" fill="#fff" stroke="#111"/>
+      <rect x="55" y="80" width="4" height="6" rx="1" fill="#FFE600" stroke="#111"/>
+      <rect x="61" y="80" width="4" height="6" rx="1" fill="#fff" stroke="#111"/>
+      <rect x="66" y="80" width="4" height="6" rx="1" fill="#fff" stroke="#111"/>
+      <!-- Crossbones hint behind -->
+      <circle cx="60" cy="102" r="6" fill="#C6FF00"/>
+    </svg>

@@ -17,6 +17,7 @@ import {
   Trash2,
   Flag,
   Check,
+  Eye,
 } from 'lucide-react';
 import { dataStore } from '@/lib/data-store';
 
@@ -174,6 +175,15 @@ export default function PostDetailPage() {
         <div className="flex items-center gap-2 text-content-secondary">
           <MessageCircle className="w-5 h-5 text-cyan" />
           <span>{comments.length} Comentarios</span>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-content-muted">
+          <Eye className="w-4 h-4" />
+          <span className="font-mono text-xs">
+            {post.views_count && post.views_count >= 1000
+              ? `${(post.views_count / 1000).toFixed(1)}k`
+              : (post.views_count || 1)} vistas
+          </span>
         </div>
 
         <button

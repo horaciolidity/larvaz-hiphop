@@ -209,6 +209,7 @@ export const INITIAL_POSTS: Post[] = [
     },
     user_has_liked: false,
     user_has_bookmarked: false,
+    views_count: 340,
   },
   {
     id: 'post-2',
@@ -233,6 +234,7 @@ export const INITIAL_POSTS: Post[] = [
     },
     user_has_liked: true,
     user_has_bookmarked: true,
+    views_count: 620,
   },
   {
     id: 'post-3',
@@ -257,6 +259,7 @@ export const INITIAL_POSTS: Post[] = [
     },
     user_has_liked: false,
     user_has_bookmarked: false,
+    views_count: 1180,
   },
   {
     id: 'post-4',
@@ -281,6 +284,7 @@ export const INITIAL_POSTS: Post[] = [
     },
     user_has_liked: false,
     user_has_bookmarked: false,
+    views_count: 850,
   },
 ];
 
@@ -444,116 +448,100 @@ export const INITIAL_COMMUNITY_TRACKS: RadioTrack[] = [
 
 export const INITIAL_RADIO_STATIONS: RadioStation[] = [
   {
-    id: 'station-comunidad-larvaz',
-    name: 'RADIO AUTOMÁTICA COMUNITARIA 99.9 FM',
-    dial: '99.9 FM',
+    id: 'station-songs-larvaz',
+    name: 'SONGS LARVAZ',
+    dial: 'CANAL OFICIAL',
     region: 'Comunidad Larvaz (Global)',
-    tagline: 'Temas, enlaces y beats subidos en directo por artistas de la comunidad',
+    tagline: 'Canal oficial de la comunidad: canciones, audios y enlaces subidos por artistas de Larvaz',
     stream_url: 'https://listen.181fm.com/181-beat_128k.mp3',
-    genre: 'Subidas por Usuarios / Rap & Trap',
+    genre: 'Canciones de la Comunidad / Rap & Trap',
     current_track: {
       title: 'Raw Tape Session #4 (Vinyl Digging & Boom-Bap)',
       artist: 'DJ Frecuencia Raw',
       album_art: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop',
     },
-    listeners_count: 640,
+    listeners_count: 820,
     is_live: true,
     tracks: INITIAL_COMMUNITY_TRACKS,
   },
   {
-    id: 'station-los-santos',
-    name: 'RADIO LOS SANTOS 106.1 FM',
-    dial: '106.1 FM',
-    region: 'Costa Oeste (GTA Style)',
-    tagline: 'Sonido puro West Coast, G-Funk, Trap y leyendas de la Costa Oeste',
-    stream_url: 'https://listen.181fm.com/181-beat_128k.mp3',
-    genre: 'West Coast / Trap / Hip-Hop Actual',
-    current_track: {
-      title: 'West Coast & Trap Live 24/7',
-      artist: 'The Beat 106.1 FM',
-      album_art: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop',
-    },
-    listeners_count: 512,
-    is_live: true,
-  },
-  {
-    id: 'station-boombap-nyc',
-    name: 'THE BEAT NYC 94.5 FM',
-    dial: '94.5 FM',
-    region: 'Nueva York (East Coast)',
-    tagline: 'Boom-Bap crudo desde Queensbridge, Bronx y Brooklyn (90s Golden Era)',
+    id: 'station-ra',
+    name: 'RADIO UNDERGROUND RA',
+    dial: '98.5 FM',
+    region: 'Argentina & Cono Sur',
+    tagline: 'La señal del rap underground, cyphers y boom-bap de Argentina y Latinoamérica',
     stream_url: 'https://listen.181fm.com/181-oldschool_128k.mp3',
-    genre: 'Boom-Bap / 90s Underground Golden Era',
+    genre: 'Rap Underground / Boom-Bap',
     current_track: {
-      title: 'NYC Underground Golden Era Classics',
-      artist: 'Boom-Bap 94.5 FM',
-      album_art: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop',
-    },
-    listeners_count: 480,
-    is_live: true,
-  },
-  {
-    id: 'station-cono-sur',
-    name: 'CONO SUR URBANO 89.9 FM',
-    dial: '89.9 FM',
-    region: 'Cono Sur (ARG / CHI / URY)',
-    tagline: 'Grooves urbanos, hip hop latinoamericano y rimas independientes',
-    stream_url: 'https://listen.181fm.com/181-jammin_128k.mp3',
-    genre: 'Urban Beats & Rioplatense',
-    current_track: {
-      title: 'Jammin Frecuencia Cono Sur Live',
-      artist: 'Frecuencia 89.9 FM',
-      album_art: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop',
-    },
-    listeners_count: 345,
-    is_live: true,
-  },
-  {
-    id: 'station-mexico-azteca',
-    name: 'AZTECA CALLEJERO 98.3 FM',
-    dial: '98.3 FM',
-    region: 'México & Chicano',
-    tagline: 'Rimas pesadas, street soul, R&B y cultura urbana de barrio',
-    stream_url: 'https://listen.181fm.com/181-rnb_128k.mp3',
-    genre: 'Street Soul & Urban R&B',
-    current_track: {
-      title: 'Street Soul & R&B Callejero',
-      artist: 'Azteca Rap Radio',
-      album_art: 'https://images.unsplash.com/photo-1526478806334-5fd488fcaabc?w=300&h=300&fit=crop',
-    },
-    listeners_count: 310,
-    is_live: true,
-  },
-  {
-    id: 'station-breaking-bboys',
-    name: 'B-BOY & B-GIRL ARENA 101.5 FM',
-    dial: '101.5 FM',
-    region: 'Mundial B-Boy / Cyphers',
-    tagline: 'El sonido del linóleo: breakbeats, funk y 4x4 para cyphers y batallas',
-    stream_url: 'https://listen.181fm.com/181-party_128k.mp3',
-    genre: 'Breakdance / Funk / Cypher Breaks',
-    current_track: {
-      title: 'B-Boy Anthems & Block Party Beats',
-      artist: 'Breakbeat Science 101.5 FM',
+      title: 'Underground Sudamericano Live',
+      artist: 'Radio Underground RA',
       album_art: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=300&h=300&fit=crop',
     },
-    listeners_count: 290,
+    listeners_count: 610,
     is_live: true,
   },
   {
-    id: 'station-turntablism',
-    name: 'TURNTABLISM & BEATS 92.1 FM',
-    dial: '92.1 FM',
-    region: 'DJs & Vinilo',
-    tagline: 'Agujas, vinilo, malabares de beat, lo-fi y sesiones instrumentales',
-    stream_url: 'https://listen.181fm.com/181-chilled_128k.mp3',
-    genre: 'Lo-Fi Beats / Turntablism / Cypher Lounges',
+    id: 'station-ilove-hiphop',
+    name: 'I LOVE HIP HOP',
+    dial: '105.7 FM',
+    region: 'Internacional',
+    tagline: 'Éxitos mundiales de Rap, Hip-Hop clásico y Trap las 24 horas',
+    stream_url: 'https://streams.ilovemusic.de/iloveradio13.mp3',
+    genre: 'Hip-Hop Internacional / Trap',
     current_track: {
-      title: 'Lo-Fi Cypher & Scratch Sessions',
-      artist: 'Turntable Chill 92.1 FM',
+      title: 'Worldwide Rap & Trap Hits 24/7',
+      artist: 'I Love Hip Hop Live',
+      album_art: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop',
+    },
+    listeners_count: 540,
+    is_live: true,
+  },
+  {
+    id: 'station-hot-108',
+    name: 'HOT 108 JAMZ NY',
+    dial: '108.0 FM',
+    region: 'Nueva York (East Coast)',
+    tagline: 'El auténtico sonido neoyorquino, Golden Era 90s y leyendas de la costa este',
+    stream_url: 'https://listen.181fm.com/181-beat_128k.mp3',
+    genre: 'East Coast / Golden Era',
+    current_track: {
+      title: 'NYC Golden Era Classics & East Coast Heat',
+      artist: 'Hot 108 Jamz NY',
+      album_art: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop',
+    },
+    listeners_count: 490,
+    is_live: true,
+  },
+  {
+    id: 'station-def-jay',
+    name: 'DEF JAY RAP RADIO',
+    dial: '92.4 FM',
+    region: 'Costa Oeste & Mundial',
+    tagline: 'West Coast clásico, G-Funk, beatmaking y cyphers sin interrupciones',
+    stream_url: 'https://listen.181fm.com/181-jammin_128k.mp3',
+    genre: 'West Coast / G-Funk & R&B',
+    current_track: {
+      title: 'West Coast Anthems & Cypher Grooves',
+      artist: 'Def Jay Radio',
+      album_art: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop',
+    },
+    listeners_count: 380,
+    is_live: true,
+  },
+  {
+    id: 'station-laut-cypher',
+    name: 'LAUT CYPHER & BREAKS',
+    dial: '103.2 FM',
+    region: 'Europa / Underground',
+    tagline: 'Breakbeats para b-boys, scratch de tornamesas y freestyle callejero',
+    stream_url: 'https://listen.181fm.com/181-party_128k.mp3',
+    genre: 'Breakdance / Turntablism / Cyphers',
+    current_track: {
+      title: 'Breakbeat Science & Scratch Masters',
+      artist: 'Laut Cypher Radio',
       album_art: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop',
     },
-    listeners_count: 220,
+    listeners_count: 310,
     is_live: true,
   },
 ];
@@ -618,7 +606,7 @@ class LarvazDataStore {
   private withdrawals: WithdrawalRequest[] = [];
   private radioStations: RadioStation[] = [...INITIAL_RADIO_STATIONS];
   private communityTracks: RadioTrack[] = [...INITIAL_COMMUNITY_TRACKS];
-  private activeStationId: string = 'station-comunidad-larvaz';
+  private activeStationId: string = 'station-songs-larvaz';
   private currentUser: Profile = GUEST_USER; // Default to guest until session is established
   private followingMap: Set<string> = new Set(['user-graffiti-krew', 'user-dj-raw']);
   private bookmarkedPosts: Set<string> = new Set(['post-2']);
@@ -644,7 +632,7 @@ class LarvazDataStore {
       if (storedTracks) {
         this.communityTracks = JSON.parse(storedTracks);
       }
-      const commStation = this.radioStations.find(s => s.id === 'station-comunidad-larvaz');
+      const commStation = this.radioStations.find(s => s.id === 'station-songs-larvaz' || s.id === 'station-comunidad-larvaz');
       if (commStation) {
         commStation.tracks = this.communityTracks;
         if (this.communityTracks.length > 0) {
@@ -729,6 +717,71 @@ class LarvazDataStore {
     } else {
       this.profiles.push(this.currentUser);
     }
+
+    // Propagate new avatar, name, and bio to all user's existing posts
+    this.posts = this.posts.map((post) => {
+      if (post.user_id === this.currentUser.id) {
+        return {
+          ...post,
+          author: {
+            ...post.author,
+            avatar_url: this.currentUser.avatar_url,
+            full_name: this.currentUser.full_name,
+            username: this.currentUser.username,
+            bio: this.currentUser.bio,
+            banner_url: this.currentUser.banner_url,
+          },
+        };
+      }
+      return post;
+    });
+
+    // Propagate new avatar to all user's comments
+    this.comments = this.comments.map((comment) => {
+      if (comment.user_id === this.currentUser.id) {
+        return {
+          ...comment,
+          author: {
+            ...comment.author,
+            avatar_url: this.currentUser.avatar_url,
+            full_name: this.currentUser.full_name,
+            username: this.currentUser.username,
+          },
+        };
+      }
+      return comment;
+    });
+
+    // Propagate to all user's notifications where they are the actor
+    this.notifications = this.notifications.map((notif) => {
+      if (notif.actor_id === this.currentUser.id || notif.actor?.id === this.currentUser.id) {
+        return {
+          ...notif,
+          actor: {
+            ...notif.actor,
+            avatar_url: this.currentUser.avatar_url,
+            full_name: this.currentUser.full_name,
+            username: this.currentUser.username,
+          },
+        };
+      }
+      return notif;
+    });
+
+    // Propagate to organized events
+    this.events = this.events.map((event) => {
+      if (event.organizer_id === this.currentUser.id) {
+        return {
+          ...event,
+          organizer: {
+            ...event.organizer,
+            avatar_url: this.currentUser.avatar_url,
+            full_name: this.currentUser.full_name,
+          },
+        };
+      }
+      return event;
+    });
 
     this.saveToStorage();
     return this.currentUser;
@@ -829,8 +882,13 @@ class LarvazDataStore {
     if (options?.filter === 'popular') {
       result.sort((a, b) => (b.likes_count + b.comments_count) - (a.likes_count + a.comments_count));
     } else if (options?.filter === 'para_ti') {
-      // Prioritize followed artists & interactive posts
+      // Prioritize followed artists & interactive posts, but ALWAYS ensure current user's recently published posts stay on top!
       result.sort((a, b) => {
+        const now = Date.now();
+        const aIsMineRecent = a.user_id === this.currentUser.id && (now - new Date(a.created_at).getTime() < 1000 * 60 * 60 * 6) ? 10000 : 0;
+        const bIsMineRecent = b.user_id === this.currentUser.id && (now - new Date(b.created_at).getTime() < 1000 * 60 * 60 * 6) ? 10000 : 0;
+        if (aIsMineRecent !== bIsMineRecent) return bIsMineRecent - aIsMineRecent;
+
         const aFollowed = this.followingMap.has(a.user_id) ? 100 : 0;
         const bFollowed = this.followingMap.has(b.user_id) ? 100 : 0;
         return (bFollowed + b.likes_count) - (aFollowed + a.likes_count);
@@ -841,6 +899,14 @@ class LarvazDataStore {
     }
 
     return result;
+  }
+
+  incrementViews(postId: string): number {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post) return 0;
+    post.views_count = (post.views_count || 0) + 1;
+    this.saveToStorage();
+    return post.views_count;
   }
 
   getPostById(id: string): Post | undefined {
@@ -860,7 +926,7 @@ class LarvazDataStore {
   addTrackToCommunityRadio(track: RadioTrack) {
     // Add to beginning of playlist
     this.communityTracks.unshift(track);
-    const commStation = this.radioStations.find((s) => s.id === 'station-comunidad-larvaz');
+    const commStation = this.radioStations.find((s) => s.id === 'station-songs-larvaz' || s.id === 'station-comunidad-larvaz');
     if (commStation) {
       commStation.tracks = this.communityTracks;
       commStation.current_track = {
@@ -950,6 +1016,7 @@ class LarvazDataStore {
       metadata: data.metadata,
       user_has_liked: false,
       user_has_bookmarked: false,
+      views_count: 1,
     };
 
     this.posts.unshift(newPost);

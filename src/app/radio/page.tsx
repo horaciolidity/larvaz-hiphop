@@ -87,12 +87,11 @@ export default function RadioPage() {
   const regions = [
     'Todas',
     'Comunidad Larvaz (Global)',
-    'Costa Oeste (GTA Style)',
+    'Argentina & Cono Sur',
+    'Internacional',
     'Nueva York (East Coast)',
-    'Cono Sur (ARG / CHI / URY)',
-    'México & Chicano',
-    'Mundial B-Boy / Cyphers',
-    'DJs & Vinilo',
+    'Costa Oeste & Mundial',
+    'Europa / Underground',
   ];
 
   const filteredStations = selectedRegion === 'Todas'

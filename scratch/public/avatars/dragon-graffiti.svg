@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-dr" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#1a3b2b"/>
+          <stop offset="100%" stop-color="#041209"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-dr)" stroke="#00FF88" stroke-width="3"/>
+      <!-- Horns -->
+      <path d="M38 36 C34 20 20 18 18 20 C22 28 32 36 38 42 Z" fill="#FFE600" stroke="#111" stroke-width="1.5"/>
+      <path d="M82 36 C86 20 100 18 102 20 C98 28 88 36 82 42 Z" fill="#FFE600" stroke="#111" stroke-width="1.5"/>
+      <!-- Head shape -->
+      <polygon points="34,44 86,44 78,82 60,96 42,82" fill="#00B368" stroke="#111" stroke-width="2"/>
+      <polygon points="46,54 74,54 68,90 60,94 52,90" fill="#00FF88"/>
+      <!-- Angry Red Eyes -->
+      <polygon points="42,54 54,58 44,64" fill="#FF0055"/>
+      <polygon points="78,54 66,58 76,64" fill="#FF0055"/>
+      <circle cx="48" cy="58" r="2" fill="#fff"/>
+      <circle cx="72" cy="58" r="2" fill="#fff"/>
+      <!-- Smoke from nostrils -->
+      <circle cx="54" cy="80" r="2" fill="#111"/>
+      <circle cx="66" cy="80" r="2" fill="#111"/>
+      <path d="M50 82 Q38 88 34 82" stroke="#00FF88" stroke-width="2" fill="none" opacity="0.8"/>
+      <path d="M70 82 Q82 88 86 82" stroke="#00FF88" stroke-width="2" fill="none" opacity="0.8"/>
+    </svg>

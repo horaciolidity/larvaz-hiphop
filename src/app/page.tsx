@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { ConnectedUsersBar } from '@/components/layout/ConnectedUsersBar';
 import { FeedFilters } from '@/components/feed/FeedFilters';
 import { PostCard } from '@/components/feed/PostCard';
 import { InlineFeedComposer } from '@/components/feed/InlineFeedComposer';
@@ -13,6 +14,9 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-full">
+      {/* Top Connected Users Space */}
+      <ConnectedUsersBar />
+
       {/* Feed Filters Header (Sticky) */}
       <FeedFilters />
 

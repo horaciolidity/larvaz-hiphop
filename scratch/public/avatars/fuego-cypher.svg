@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-fg" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#401810"/>
+          <stop offset="100%" stop-color="#140603"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-fg)" stroke="#FF3300" stroke-width="3"/>
+      <!-- Main Flame -->
+      <path d="M60 16 C60 16 75 32 75 48 C75 52 82 46 84 42 C88 56 86 72 78 82 C84 80 88 74 88 68 C92 84 78 100 60 100 C42 100 28 84 32 68 C32 74 36 80 42 82 C34 72 32 56 36 42 C38 46 45 52 45 48 C45 32 60 16 60 16 Z" fill="#FF4400" stroke="#FFE600" stroke-width="2"/>
+      <!-- Inner core yellow flame -->
+      <path d="M60 44 C60 44 70 56 70 68 C70 76 65 84 60 88 C55 84 50 76 50 68 C50 56 60 44 60 44 Z" fill="#FFE600"/>
+      <!-- Sunglasses on flame -->
+      <rect x="42" y="58" width="16" height="10" rx="3" fill="#111" stroke="#fff" stroke-width="1.5"/>
+      <rect x="62" y="58" width="16" height="10" rx="3" fill="#111" stroke="#fff" stroke-width="1.5"/>
+      <line x1="58" y1="62" x2="62" y2="62" stroke="#fff" stroke-width="1.5"/>
+      <path d="M52 76 Q60 82 68 76" stroke="#111" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    </svg>

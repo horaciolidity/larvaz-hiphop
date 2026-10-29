@@ -1,31 +1,50 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
-import { X, Check, Shuffle } from 'lucide-react';
+import { X, Check, Shuffle, Sparkles, Image as ImageIcon } from 'lucide-react';
 
-interface AvatarOption {
+export interface AvatarOption {
   id: string;
-  emoji: string;
+  url?: string;
+  emoji?: string;
   label: string;
 }
 
-const AVATAR_CATEGORIES = [
+export const AVATAR_CATEGORIES = [
+  {
+    id: 'stickers',
+    label: '🔥 Stickers Urbanos',
+    avatars: [
+      { id: 'stk-1',  url: '/avatars/mc-snapback.svg', label: 'MC Snapback' },
+      { id: 'stk-2',  url: '/avatars/dj-scratch.svg', label: 'DJ Scratch' },
+      { id: 'stk-3',  url: '/avatars/graffiti-respirator.svg', label: 'Graffiti Writer' },
+      { id: 'stk-4',  url: '/avatars/street-doberman.svg', label: 'Doberman Street' },
+      { id: 'stk-5',  url: '/avatars/street-cat.svg', label: 'Gato Callejero' },
+      { id: 'stk-6',  url: '/avatars/boombox-classic.svg', label: 'Boombox 80s' },
+      { id: 'stk-7',  url: '/avatars/spray-can.svg', label: 'Lata de Spray' },
+      { id: 'stk-8',  url: '/avatars/skull-hiphop.svg', label: 'Calavera Cypher' },
+      { id: 'stk-9',  url: '/avatars/lion-flow.svg', label: 'León Urbano' },
+      { id: 'stk-10', url: '/avatars/tiger-stripes.svg', label: 'Tigre Neón' },
+      { id: 'stk-11', url: '/avatars/wolf-moon.svg', label: 'Lobo Solitario' },
+      { id: 'stk-12', url: '/avatars/cassette-mixtape.svg', label: 'Mixtape 90s' },
+      { id: 'stk-13', url: '/avatars/fuego-cypher.svg', label: 'Fuego Bars' },
+      { id: 'stk-14', url: '/avatars/bboy-cap.svg', label: 'B-Boy Vortex' },
+      { id: 'stk-15', url: '/avatars/dragon-graffiti.svg', label: 'Dragón Street' },
+      { id: 'stk-16', url: '/avatars/vinilo-oro.svg', label: 'Disco de Platino' },
+    ] as AvatarOption[],
+  },
   {
     id: 'hiphop',
-    label: '🎤 Hip-Hop',
+    label: '🎤 Hip-Hop Clásico',
     avatars: [
       { id: 'hh-1',  emoji: '🎤', label: 'Micrófono' },
-      { id: 'hh-2',  emoji: '🎧', label: 'DJ' },
-      { id: 'hh-3',  emoji: '🎵', label: 'Nota Musical' },
-      { id: 'hh-4',  emoji: '🥁', label: 'Batería' },
-      { id: 'hh-5',  emoji: '💿', label: 'Vinilo' },
-      { id: 'hh-6',  emoji: '📻', label: 'Radio' },
+      { id: 'hh-2',  emoji: '🎧', label: 'DJ Decks' },
+      { id: 'hh-3',  emoji: '💿', label: 'Vinilo' },
+      { id: 'hh-4',  emoji: '📻', label: 'Boombox' },
+      { id: 'hh-5',  emoji: '🧢', label: 'Snapback' },
+      { id: 'hh-6',  emoji: '🕶️', label: 'Lentes Cool' },
       { id: 'hh-7',  emoji: '🔊', label: 'Speaker' },
       { id: 'hh-8',  emoji: '🎙️', label: 'Studio Mic' },
-      { id: 'hh-9',  emoji: '🕶️', label: 'Lentes Cool' },
-      { id: 'hh-10', emoji: '🧢', label: 'Snapback' },
-      { id: 'hh-11', emoji: '🎸', label: 'Guitarra' },
-      { id: 'hh-12', emoji: '🎹', label: 'Teclado' },
     ] as AvatarOption[],
   },
   {
@@ -38,17 +57,13 @@ const AVATAR_CATEGORIES = [
       { id: 'gr-4',  emoji: '⚡', label: 'Rayo' },
       { id: 'gr-5',  emoji: '💥', label: 'Explosión' },
       { id: 'gr-6',  emoji: '🌟', label: 'Estrella' },
-      { id: 'gr-7',  emoji: '💫', label: 'Destello' },
-      { id: 'gr-8',  emoji: '🌈', label: 'Arcoíris' },
-      { id: 'gr-9',  emoji: '🏙️', label: 'Ciudad' },
-      { id: 'gr-10', emoji: '🌆', label: 'Atardecer' },
-      { id: 'gr-11', emoji: '✏️', label: 'Lápiz' },
-      { id: 'gr-12', emoji: '🖊️', label: 'Marcador' },
+      { id: 'gr-7',  emoji: '🏙️', label: 'Ciudad' },
+      { id: 'gr-8',  emoji: '✏️', label: 'Marcador' },
     ] as AvatarOption[],
   },
   {
     id: 'animals',
-    label: '🦁 Animales',
+    label: '🦁 Bestias',
     avatars: [
       { id: 'an-1',  emoji: '🦁', label: 'León' },
       { id: 'an-2',  emoji: '🐯', label: 'Tigre' },
@@ -56,66 +71,22 @@ const AVATAR_CATEGORIES = [
       { id: 'an-4',  emoji: '🐺', label: 'Lobo' },
       { id: 'an-5',  emoji: '🦅', label: 'Águila' },
       { id: 'an-6',  emoji: '🐉', label: 'Dragón' },
-      { id: 'an-7',  emoji: '🦋', label: 'Mariposa' },
-      { id: 'an-8',  emoji: '🦈', label: 'Tiburón' },
-      { id: 'an-9',  emoji: '🦝', label: 'Mapache' },
-      { id: 'an-10', emoji: '🐻', label: 'Oso' },
-      { id: 'an-11', emoji: '🦉', label: 'Búho' },
-      { id: 'an-12', emoji: '🐍', label: 'Serpiente' },
+      { id: 'an-7',  emoji: '🦈', label: 'Tiburón' },
+      { id: 'an-8',  emoji: '🐻', label: 'Oso' },
     ] as AvatarOption[],
   },
   {
     id: 'moods',
-    label: '😤 Emociones',
+    label: '😤 Flow & Furia',
     avatars: [
       { id: 'mo-1',  emoji: '😤', label: 'Intenso' },
       { id: 'mo-2',  emoji: '🤩', label: 'Alucinado' },
-      { id: 'mo-3',  emoji: '😎', label: 'Cool' },
+      { id: 'mo-3',  emoji: '😎', label: 'Underground' },
       { id: 'mo-4',  emoji: '🥶', label: 'Frío' },
       { id: 'mo-5',  emoji: '🤯', label: 'Mind Blown' },
-      { id: 'mo-6',  emoji: '😈', label: 'Diabólico' },
-      { id: 'mo-7',  emoji: '👹', label: 'Oni' },
-      { id: 'mo-8',  emoji: '🤖', label: 'Robot' },
-      { id: 'mo-9',  emoji: '👾', label: 'Alien Gamer' },
-      { id: 'mo-10', emoji: '💀', label: 'Calavera' },
-      { id: 'mo-11', emoji: '🥷', label: 'Ninja' },
-      { id: 'mo-12', emoji: '🤠', label: 'Cowboy' },
-    ] as AvatarOption[],
-  },
-  {
-    id: 'street',
-    label: '🌃 Calle',
-    avatars: [
-      { id: 'st-1',  emoji: '🛹', label: 'Skate' },
-      { id: 'st-2',  emoji: '✊', label: 'Puño' },
-      { id: 'st-3',  emoji: '🤙', label: 'Shaka' },
-      { id: 'st-4',  emoji: '🤟', label: 'Love Hip-Hop' },
-      { id: 'st-5',  emoji: '👊', label: 'Knock' },
-      { id: 'st-6',  emoji: '🚀', label: 'Cohete' },
-      { id: 'st-7',  emoji: '🌃', label: 'Noche Urbana' },
-      { id: 'st-8',  emoji: '🚇', label: 'Metro' },
-      { id: 'st-9',  emoji: '🚴', label: 'BMX' },
-      { id: 'st-10', emoji: '⭐', label: 'Estrella' },
-      { id: 'st-11', emoji: '🫀', label: 'Corazón' },
-      { id: 'st-12', emoji: '🌉', label: 'Puente' },
-    ] as AvatarOption[],
-  },
-  {
-    id: 'cosmos',
-    label: '🌙 Cosmos',
-    avatars: [
-      { id: 'co-1',  emoji: '🌙', label: 'Luna' },
-      { id: 'co-2',  emoji: '☀️', label: 'Sol' },
-      { id: 'co-3',  emoji: '🌊', label: 'Ola' },
-      { id: 'co-4',  emoji: '🌋', label: 'Volcán' },
-      { id: 'co-5',  emoji: '❄️', label: 'Hielo' },
-      { id: 'co-6',  emoji: '🌀', label: 'Ciclón' },
-      { id: 'co-7',  emoji: '🔮', label: 'Cristal' },
-      { id: 'co-8',  emoji: '💎', label: 'Diamante' },
-      { id: 'co-9',  emoji: '🌌', label: 'Galaxia' },
-      { id: 'co-10', emoji: '☄️', label: 'Cometa' },
-      { id: 'co-11', emoji: '🏔️', label: 'Montaña' },
-      { id: 'co-12', emoji: '⚡', label: 'Tormenta' },
+      { id: 'mo-6',  emoji: '😈', label: 'Diablo' },
+      { id: 'mo-7',  emoji: '💀', label: 'Calavera' },
+      { id: 'mo-8',  emoji: '🥷', label: 'Ninja' },
     ] as AvatarOption[],
   },
 ];
@@ -124,11 +95,11 @@ const ALL_AVATARS = AVATAR_CATEGORIES.flatMap((c) => c.avatars);
 
 interface AvatarPickerProps {
   currentAvatar?: string;
-  onSelect: (emoji: string, label: string) => void;
+  onSelect: (avatarUrl: string, label?: string) => void;
   onClose: () => void;
 }
 
-export function isEmojiAvatar(url?: string): boolean {
+export function isEmojiAvatar(url?: string | null): boolean {
   if (!url) return false;
   return url.startsWith('emoji:');
 }
@@ -187,7 +158,7 @@ function UrlAvatarInput({ onSelect, onClose }: { onSelect: (url: string, label: 
       />
       <button
         onClick={() => { if (url.trim()) { onSelect(url.trim(), 'Foto personalizada'); onClose(); } }}
-        className="px-3 py-2 rounded-xl bg-surface-elevated border border-acid/40 text-acid font-black text-xs hover:bg-acid hover:text-background transition-colors"
+        className="px-3.5 py-2 rounded-xl bg-surface-elevated border border-acid/40 text-acid font-black text-xs hover:bg-acid hover:text-background transition-colors flex-shrink-0"
       >
         Usar
       </button>
@@ -202,34 +173,47 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }: Avata
 
   const handleRandom = () => {
     const r = ALL_AVATARS[Math.floor(Math.random() * ALL_AVATARS.length)];
-    onSelect('emoji:' + r.emoji, r.label);
+    const chosen = r.url ? r.url : ('emoji:' + r.emoji);
+    onSelect(chosen, r.label);
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm bg-surface rounded-3xl border border-acid/30 shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border bg-surface-elevated/60">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fade-in">
+      <div className="w-full max-w-md bg-surface rounded-3xl border border-acid/40 shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border bg-surface-elevated/70">
           <div>
-            <h2 className="font-display font-black text-base text-content-primary tracking-wide">Elige tu Avatar</h2>
-            <p className="text-[11px] text-content-muted mt-0.5">Animales, emojis, personajes y más 🎮</p>
+            <h2 className="font-display font-black text-base text-content-primary tracking-wide flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-acid" />
+              <span>Elige tu Avatar o Sticker</span>
+            </h2>
+            <p className="text-[11px] text-content-muted mt-0.5">Stickers ilustrados de hip-hop, personajes y arte urbano</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleRandom} className="p-2 rounded-xl bg-acid/10 border border-acid/30 text-acid hover:bg-acid hover:text-background transition-all" title="Avatar aleatorio">
+            <button
+              onClick={handleRandom}
+              className="p-2 rounded-xl bg-acid/10 border border-acid/40 text-acid hover:bg-acid hover:text-background transition-all"
+              title="Avatar aleatorio"
+            >
               <Shuffle className="w-4 h-4" />
             </button>
-            <button onClick={onClose} className="p-2 rounded-xl bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary transition-colors">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-content-primary transition-colors"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
+        {/* Categories Bar */}
         <div className="flex items-center gap-1.5 px-4 py-3 overflow-x-auto border-b border-surface-border/50 bg-surface-elevated/30">
           {AVATAR_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
               className={[
-                'px-3 py-1.5 rounded-xl font-black text-[11px] whitespace-nowrap transition-all border',
+                'px-3.5 py-1.5 rounded-xl font-black text-xs whitespace-nowrap transition-all border',
                 activeCategory === cat.id
                   ? 'bg-acid text-background border-acid shadow-acid-glow'
                   : 'bg-surface text-content-secondary border-surface-border hover:border-acid/40 hover:text-content-primary',
@@ -240,35 +224,48 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }: Avata
           ))}
         </div>
 
+        {/* Avatars Grid */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-4 gap-3">
             {currentCat.avatars.map((av) => {
-              const emojiUrl = 'emoji:' + av.emoji;
-              const isSelected = currentAvatar === emojiUrl;
+              const valueToSave = av.url ? av.url : ('emoji:' + av.emoji);
+              const isSelected = currentAvatar === valueToSave;
               const isHov = hovered === av.id;
+
               return (
                 <button
                   key={av.id}
-                  onClick={() => onSelect(emojiUrl, av.label)}
+                  onClick={() => onSelect(valueToSave, av.label)}
                   onMouseEnter={() => setHovered(av.id)}
                   onMouseLeave={() => setHovered(null)}
                   className={[
-                    'relative flex flex-col items-center gap-1.5 p-2 rounded-2xl border transition-all',
+                    'relative flex flex-col items-center justify-center gap-1.5 p-2 rounded-2xl border transition-all duration-200 group',
                     isSelected
-                      ? 'bg-acid/20 border-acid shadow-acid-glow ring-1 ring-acid/60'
-                      : 'bg-surface-elevated/50 border-surface-border hover:border-acid/50 hover:bg-acid/10',
+                      ? 'bg-acid/20 border-acid shadow-acid-glow ring-2 ring-acid/60'
+                      : 'bg-surface-elevated/60 border-surface-border hover:border-acid/60 hover:bg-surface-elevated',
                   ].join(' ')}
                   title={av.label}
                 >
-                  <span
-                    className="text-4xl leading-none transition-transform duration-200"
-                    style={{ transform: isHov || isSelected ? 'scale(1.3)' : 'scale(1)' }}
-                    role="img"
-                    aria-label={av.label}
-                  >
-                    {av.emoji}
+                  {av.url ? (
+                    <img
+                      src={av.url}
+                      alt={av.label}
+                      className="w-14 h-14 object-contain rounded-full transition-transform duration-200 drop-shadow-md"
+                      style={{ transform: isHov || isSelected ? 'scale(1.12)' : 'scale(1)' }}
+                    />
+                  ) : (
+                    <span
+                      className="text-4xl leading-none transition-transform duration-200"
+                      style={{ transform: isHov || isSelected ? 'scale(1.2)' : 'scale(1)' }}
+                      role="img"
+                      aria-label={av.label}
+                    >
+                      {av.emoji}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-content-secondary group-hover:text-acid font-bold text-center leading-tight truncate w-full">
+                    {av.label}
                   </span>
-                  <span className="text-[9px] text-content-muted text-center leading-tight truncate w-full">{av.label}</span>
                   {isSelected && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-acid rounded-full flex items-center justify-center shadow-lg">
                       <Check className="w-3 h-3 text-background" strokeWidth={3} />
@@ -280,8 +277,12 @@ export default function AvatarPicker({ currentAvatar, onSelect, onClose }: Avata
           </div>
         </div>
 
-        <div className="px-5 py-4 border-t border-surface-border bg-surface-elevated/30 space-y-2">
-          <p className="text-[10px] text-content-muted text-center">O usa una foto con URL directa</p>
+        {/* Custom URL Input */}
+        <div className="px-5 py-4 border-t border-surface-border bg-surface-elevated/40 space-y-2">
+          <p className="text-[11px] text-content-secondary text-center flex items-center justify-center gap-1.5">
+            <ImageIcon className="w-3.5 h-3.5 text-acid" />
+            <span>O usa una foto o enlace web propio</span>
+          </p>
           <UrlAvatarInput onSelect={onSelect} onClose={onClose} />
         </div>
       </div>

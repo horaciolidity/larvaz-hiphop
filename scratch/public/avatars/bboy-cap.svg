@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-bb" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#22333b"/>
+          <stop offset="100%" stop-color="#080e12"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-bb)" stroke="#00E5FF" stroke-width="3"/>
+      <!-- Sideways Snapback Cap -->
+      <path d="M34 46 C34 26 86 26 86 46 Z" fill="#00E5FF"/>
+      <path d="M30 46 L95 44 L110 38 L95 48 Z" fill="#C6FF00"/>
+      <circle cx="60" cy="26" r="3" fill="#111"/>
+      <!-- Face -->
+      <rect x="38" y="48" width="44" height="42" rx="12" fill="#DDB892"/>
+      <!-- Bandana around neck/chin -->
+      <polygon points="40,76 80,76 60,98" fill="#FF0055" stroke="#111" stroke-width="1.5"/>
+      <circle cx="60" cy="86" r="2" fill="#fff"/>
+      <!-- Sports sunglasses -->
+      <path d="M40 54 H58 V66 H40 Z M62 54 H80 V66 H62 Z" fill="#111" stroke="#C6FF00" stroke-width="2"/>
+      <line x1="58" y1="58" x2="62" y2="58" stroke="#C6FF00" stroke-width="2"/>
+      <path d="M42 56 L52 64" stroke="#00E5FF" stroke-width="1.5"/>
+      <path d="M64 56 L74 64" stroke="#00E5FF" stroke-width="1.5"/>
+    </svg>

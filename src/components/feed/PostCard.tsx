@@ -19,6 +19,7 @@ import {
   Send,
   Check,
   Coins,
+  Eye,
 } from 'lucide-react';
 
 interface PostCardProps {
@@ -304,6 +305,19 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
             }`}
           />
         </button>
+
+        {/* Views Counter */}
+        <div
+          className="flex items-center gap-1.5 py-1 px-2 rounded-lg text-content-muted hover:text-content-secondary transition-colors cursor-default"
+          title={`${post.views_count || 1} visualizaciones`}
+        >
+          <Eye className="w-3.5 h-3.5 text-content-muted" />
+          <span className="font-mono text-xs">
+            {post.views_count && post.views_count >= 1000
+              ? `${(post.views_count / 1000).toFixed(1)}k`
+              : (post.views_count || 1)}
+          </span>
+        </div>
 
         {/* Share Button with Toast indication */}
         <button

@@ -59,34 +59,69 @@ export default function ConfiguracionPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Avatar & Banner Preview */}
-        <div className="relative h-32 rounded-2xl overflow-hidden border border-surface-border bg-surface-elevated">
-          {bannerUrl && (
-            <img src={bannerUrl} alt="Portada" className="w-full h-full object-cover opacity-70" />
-          )}
-          <div className="absolute left-4 bottom-0 translate-y-1/2 flex items-center gap-3">
-            <div
-              onClick={() => setShowAvatarPicker(true)}
-              className="cursor-pointer group relative"
-              title="Cambiar avatar"
-            >
-              <UserAvatar
-                avatarUrl={avatarUrl}
-                name={fullName}
-                size="xl"
-                className="border-4 border-background shadow-lg group-hover:border-acid transition-colors"
-              />
-              <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                <Camera className="w-5 h-5 text-white" />
+        {/* Vista Previa del Perfil Cultural */}
+        <div className="rounded-2xl border border-surface-border bg-surface overflow-hidden shadow-2xl">
+          {/* Banner */}
+          <div className="relative h-32 w-full bg-gradient-to-r from-surface-elevated via-surface to-background overflow-hidden border-b border-surface-border">
+            {bannerUrl ? (
+              <img src={bannerUrl} alt="Portada" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center opacity-30 text-content-secondary font-display font-black tracking-widest text-xs">
+                PORTADA DE PERFIL (OPCIONAL)
+              </div>
+            )}
+            <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[10px] text-content-secondary font-mono">
+              Vista previa
+            </span>
+          </div>
+
+          {/* Profile Details & Avatar Bar */}
+          <div className="p-4 sm:p-5 relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div
+                onClick={() => setShowAvatarPicker(true)}
+                className="cursor-pointer group relative flex-shrink-0"
+                title="Cambiar avatar o sticker"
+              >
+                <UserAvatar
+                  avatarUrl={avatarUrl}
+                  name={fullName}
+                  size="xl"
+                  className="border-4 border-surface shadow-2xl group-hover:border-acid transition-all duration-300 transform group-hover:scale-105"
+                />
+                <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-white text-[9px] font-bold">
+                  <Camera className="w-4 h-4 mb-0.5" />
+                  <span>CAMBIAR</span>
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display font-black text-lg text-content-primary truncate">
+                    {fullName || 'Tu Nombre'}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-acid/20 text-acid text-[10px] font-black uppercase tracking-wider border border-acid/30">
+                    {currentUser.role}
+                  </span>
+                </div>
+                <p className="text-xs text-content-secondary font-mono mt-0.5">
+                  @{currentUser.username}
+                </p>
+                {artisticDisciplines && (
+                  <p className="text-[11px] text-content-muted truncate mt-0.5">
+                    🎤 {artisticDisciplines}
+                  </p>
+                )}
               </div>
             </div>
+
             <button
               type="button"
               onClick={() => setShowAvatarPicker(true)}
-              className="mt-6 px-3 py-1.5 rounded-xl bg-surface-elevated border border-acid/40 text-acid font-bold text-xs hover:bg-acid hover:text-background flex items-center gap-1.5 transition-all shadow-acid-sm"
+              className="px-4 py-2.5 rounded-xl bg-surface-elevated border border-acid/50 text-acid font-black text-xs hover:bg-acid hover:text-background flex items-center justify-center gap-2 transition-all shadow-acid-sm flex-shrink-0"
             >
               <Smile className="w-4 h-4" />
-              <span>Elegir Avatar Divertido / Sticker</span>
+              <span>Elegir Sticker o Avatar</span>
             </button>
           </div>
         </div>
