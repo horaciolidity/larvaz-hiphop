@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-cas" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#302636"/>
+          <stop offset="100%" stop-color="#0e0a12"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-cas)" stroke="#FF0055" stroke-width="3"/>
+      <!-- Cassette Body -->
+      <rect x="22" y="36" width="76" height="48" rx="6" fill="#181920" stroke="#C6FF00" stroke-width="2"/>
+      <!-- Label sticker -->
+      <rect x="28" y="42" width="64" height="28" rx="3" fill="#FFE600"/>
+      <text x="60" y="52" font-family="sans-serif" font-weight="900" font-size="7" text-anchor="middle" fill="#111">LARVAZ VOL. 1</text>
+      <!-- Center Spools window -->
+      <rect x="36" y="56" width="48" height="16" rx="3" fill="#111"/>
+      <circle cx="46" cy="64" r="6" fill="#fff"/>
+      <circle cx="46" cy="64" r="3" fill="#111"/>
+      <circle cx="74" cy="64" r="6" fill="#fff"/>
+      <circle cx="74" cy="64" r="3" fill="#111"/>
+      <!-- Tape loop -->
+      <line x1="52" y1="64" x2="68" y2="64" stroke="#4A3B32" stroke-width="3"/>
+      <!-- Screws -->
+      <circle cx="26" cy="40" r="1.5" fill="#666"/>
+      <circle cx="94" cy="40" r="1.5" fill="#666"/>
+      <circle cx="26" cy="80" r="1.5" fill="#666"/>
+      <circle cx="94" cy="80" r="1.5" fill="#666"/>
+    </svg>

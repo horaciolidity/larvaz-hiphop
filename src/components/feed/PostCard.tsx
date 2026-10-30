@@ -36,6 +36,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
     deleteComment,
     isAdmin,
     deletePost,
+    incrementViews,
   } = useApp();
 
   const [showComments, setShowComments] = useState(showCommentsDefault);
@@ -47,19 +48,38 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
   const [localComments, setLocalComments] = useState<any[]>([]);
   const [hasLoadedComments, setHasLoadedComments] = useState(false);
 
-  // Time formatting (e.g. "hace 45m" or "hace 2h")
+  // Auto-record post view once per browser session
+  React.useEffect(() => {
+    if (post?.id && typeof window !== 'undefined') {
+      const viewKey = `larvaz_viewed_${post.id}`;
+      if (!sessionStorage.getItem(viewKey)) {
+        sessionStorage.setItem(viewKey, '1');
+        incrementViews(post.id);
+      }
+    }
+  }, [post.id]);
+
+  // Precise time ago formatting (e.g. "hace un momento", "hace 5m", "hace 2h")
   const formatTimeAgo = (dateStr: string) => {
     try {
-      const diffMs = Date.now() - new Date(dateStr).getTime();
-      const minutes = Math.floor(diffMs / (1000 * 60));
-      if (minutes < 1) return 'ahora';
+      const now = Date.now();
+      const past = new Date(dateStr).getTime();
+      if (isNaN(past)) return 'reciente';
+      const diffMs = now - past;
+      if (diffMs <= 0) return 'ahora';
+      const seconds = Math.floor(diffMs / 1000);
+      if (seconds < 60) return 'hace un momento';
+      const minutes = Math.floor(seconds / 60);
       if (minutes < 60) return `hace ${minutes}m`;
       const hours = Math.floor(minutes / 60);
       if (hours < 24) return `hace ${hours}h`;
       const days = Math.floor(hours / 24);
-      return `hace ${days}d`;
+      if (days === 1) return 'ayer';
+      if (days < 30) return `hace ${days}d`;
+      const months = Math.floor(days / 30);
+      return `hace ${months}m`;
     } catch {
-      return '';
+      return 'ahora';
     }
   };
 

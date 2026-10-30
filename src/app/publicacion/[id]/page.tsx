@@ -25,13 +25,42 @@ export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
   const postId = params.id as string;
-  const { currentUser, toggleLike, toggleBookmark, addComment, deleteComment } = useApp();
+  const { currentUser, toggleLike, toggleBookmark, addComment, deleteComment, incrementViews } = useApp();
 
   const post = dataStore.getPostById(postId);
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState(dataStore.getComments(postId));
   const [isCopied, setIsCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+
+  // Auto-increment and record post view
+  React.useEffect(() => {
+    if (postId) {
+      incrementViews(postId);
+    }
+  }, [postId]);
+
+  const formatTimeAgo = (dateStr: string) => {
+    try {
+      const now = Date.now();
+      const past = new Date(dateStr).getTime();
+      if (isNaN(past)) return 'reciente';
+      const diffMs = now - past;
+      if (diffMs <= 0) return 'ahora';
+      const seconds = Math.floor(diffMs / 1000);
+      if (seconds < 60) return 'hace un momento';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `hace ${minutes}m`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `hace ${hours}h`;
+      const days = Math.floor(hours / 24);
+      if (days === 1) return 'ayer';
+      if (days < 30) return `hace ${days}d`;
+      return `hace ${Math.floor(days / 30)}m`;
+    } catch {
+      return 'ahora';
+    }
+  };
 
   if (!post) {
     return (
@@ -115,9 +144,15 @@ export default function PostDetailPage() {
             <h1 className="font-bold text-base text-content-primary group-hover:text-acid transition-colors">
               {post.author.full_name}
             </h1>
-            <p className="text-xs text-content-secondary">
-              @{post.author.username}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-content-secondary">
+                @{post.author.username}
+              </span>
+              <span className="text-xs text-content-muted">·</span>
+              <span className="text-xs text-acid font-semibold">
+                {formatTimeAgo(post.created_at)}
+              </span>
+            </div>
           </div>
         </Link>
 

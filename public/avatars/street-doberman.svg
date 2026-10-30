@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-dob" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#30281e"/>
+          <stop offset="100%" stop-color="#0f0c08"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-dob)" stroke="#FFB300" stroke-width="3"/>
+      <!-- Ears pointed -->
+      <polygon points="34,18 48,46 26,48" fill="#1C1814" stroke="#FFB300" stroke-width="1.5"/>
+      <polygon points="86,18 72,46 94,48" fill="#1C1814" stroke="#FFB300" stroke-width="1.5"/>
+      <polygon points="36,24 45,44 30,45" fill="#99582A"/>
+      <polygon points="84,24 75,44 90,45" fill="#99582A"/>
+      <!-- Head -->
+      <path d="M38 42 L82 42 L76 88 L60 98 L44 88 Z" fill="#1C1814"/>
+      <!-- Tan muzzle -->
+      <path d="M48 68 L72 68 L68 94 L60 98 L52 94 Z" fill="#99582A"/>
+      <!-- Nose -->
+      <polygon points="54,82 66,82 60,89" fill="#0A0806"/>
+      <!-- Gold Aviator Shades -->
+      <path d="M40 50 H58 V64 H40 Z M62 50 H80 V64 H62 Z" fill="#0A0806" stroke="#FFE600" stroke-width="2"/>
+      <line x1="58" y1="54" x2="62" y2="54" stroke="#FFE600" stroke-width="2"/>
+      <line x1="43" y1="52" x2="52" y2="62" stroke="#FFE600" stroke-width="1.5" opacity="0.6"/>
+      <line x1="65" y1="52" x2="74" y2="62" stroke="#FFE600" stroke-width="1.5" opacity="0.6"/>
+      <!-- Spiked Collar -->
+      <path d="M36 94 Q60 106 84 94 L86 102 Q60 114 34 102 Z" fill="#C6FF00"/>
+      <polygon points="46,98 48,93 50,98" fill="#fff"/>
+      <polygon points="58,102 60,97 62,102" fill="#fff"/>
+      <polygon points="70,98 72,93 74,98" fill="#fff"/>
+    </svg>

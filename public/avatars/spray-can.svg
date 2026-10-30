@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-sp" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#36222b"/>
+          <stop offset="100%" stop-color="#12060b"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-sp)" stroke="#FF0055" stroke-width="3"/>
+      <!-- Spray mist effect -->
+      <path d="M72 26 L106 14 L98 38 Z" fill="#C6FF00" opacity="0.8"/>
+      <!-- Cap / Nozzle Fat Cap -->
+      <rect x="52" y="24" width="16" height="12" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
+      <rect x="62" y="27" width="5" height="4" fill="#111"/>
+      <!-- Dome top -->
+      <path d="M40 42 C40 34 80 34 80 42 Z" fill="#C6FF00" stroke="#111" stroke-width="2"/>
+      <!-- Can Body -->
+      <rect x="40" y="42" width="40" height="62" rx="6" fill="#FF0055" stroke="#111" stroke-width="2"/>
+      <!-- Drips -->
+      <path d="M40 54 Q46 64 50 54 Q56 68 62 54 Q68 62 74 54 L80 54 L80 42 L40 42 Z" fill="#C6FF00"/>
+      <!-- Crown on Can -->
+      <polygon points="50,78 54,70 60,75 66,70 70,78" fill="#FFE600" stroke="#111" stroke-width="1.5"/>
+      <rect x="50" y="78" width="20" height="3" fill="#FFE600" stroke="#111" stroke-width="1"/>
+      <circle cx="50" cy="88" r="2" fill="#fff"/>
+      <circle cx="70" cy="88" r="2" fill="#fff"/>
+    </svg>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <defs>
+        <radialGradient id="bg-mc" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#2a2e39"/>
+          <stop offset="100%" stop-color="#0e1014"/>
+        </radialGradient>
+        <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#FFE600"/>
+          <stop offset="100%" stop-color="#FF9900"/>
+        </linearGradient>
+        <linearGradient id="acid" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#D4FF00"/>
+          <stop offset="100%" stop-color="#99CC00"/>
+        </linearGradient>
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="url(#bg-mc)" stroke="#C6FF00" stroke-width="3"/>
+      <!-- Cap Backwards -->
+      <path d="M30 45 C30 25 90 25 90 45 Z" fill="#FF0055"/>
+      <rect x="25" y="42" width="70" height="8" rx="3" fill="#C6FF00"/>
+      <path d="M85 45 L108 52 L95 56 Z" fill="#CC0044"/>
+      <!-- Face -->
+      <rect x="36" y="48" width="48" height="42" rx="14" fill="#E0A97B"/>
+      <!-- Shades -->
+      <path d="M38 56 H58 V68 H38 Z M62 56 H82 V68 H62 Z" fill="#111" stroke="#FF0055" stroke-width="2"/>
+      <path d="M42 58 L54 66" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+      <path d="M66 58 L78 66" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+      <rect x="56" y="60" width="8" height="3" fill="#111"/>
+      <!-- Beard & Mouth -->
+      <path d="M52 78 Q60 84 68 78" stroke="#111" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <path d="M46 76 C46 88 74 88 74 76" fill="#2B1D15"/>
+      <!-- Gold Chain -->
+      <path d="M40 92 Q60 112 80 92" stroke="url(#gold)" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <circle cx="60" cy="103" r="6" fill="url(#gold)" stroke="#fff" stroke-width="1"/>
+      <!-- Mic -->
+      <rect x="76" y="70" width="8" height="18" rx="3" fill="#555" transform="rotate(-25 76 70)"/>
+      <circle cx="86" cy="68" r="7" fill="url(#acid)" stroke="#111" stroke-width="1.5"/>
+    </svg>

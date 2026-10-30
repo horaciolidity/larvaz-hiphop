@@ -105,6 +105,7 @@ interface AppContextType {
   createReport: (data: any) => Report;
   markNotificationsAsRead: () => void;
   updateProfile: (data: Partial<Profile>) => void;
+  incrementViews: (postId: string) => number;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -498,10 +499,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return res;
   };
 
-  const updateProfile = (data: Partial<Profile>) => {
+  const updateProfile = async (data: Partial<Profile>) => {
     const updated = dataStore.updateProfile(data);
-    setCurrentUserState(updated);
+    setCurrentUserState({ ...updated });
     refreshPosts();
+
+    // Sincronizar en base de datos Supabase si la sesión está activa
+    if (isSupabaseConnected && supabase && updated && !updated.is_guest) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: updated.id,
+          username: updated.username,
+          full_name: updated.full_name,
+          bio: updated.bio,
+          avatar_url: updated.avatar_url,
+          banner_url: updated.banner_url,
+          location: updated.location,
+          website: updated.website,
+          portfolio_url: updated.portfolio_url,
+          artistic_disciplines: updated.artistic_disciplines,
+          role: updated.role,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Error al sincronizar perfil con Supabase:', err);
+      }
+    }
+  };
+
+  const incrementViews = (postId: string): number => {
+    const views = dataStore.incrementViews(postId);
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, views_count: views } : p))
+    );
+    return views;
   };
 
   const toggleLike = (postId: string) => {
@@ -552,6 +583,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshPosts();
     setRadioStations([...dataStore.getRadioStations()]);
     setCommunityTracks([...dataStore.getCommunityTracks()]);
+
+    // Sincronizar publicación en Supabase si está disponible
+    if (isSupabaseConnected && supabase && currentUser && !currentUser.is_guest) {
+      (async () => {
+        try {
+          await supabase.from('posts').insert({
+            user_id: currentUser.id,
+            external_url: newPost.external_url || '',
+            normalized_url: newPost.normalized_url,
+            provider: newPost.provider,
+            content_type: newPost.content_type,
+            description: newPost.description,
+            tags: newPost.tags,
+            created_at: newPost.created_at,
+          });
+        } catch (err) {
+          console.warn('Error al guardar post en Supabase:', err);
+        }
+      })();
+    }
+
     return newPost;
   };
 
@@ -667,6 +719,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         createReport,
         markNotificationsAsRead,
         updateProfile,
+        incrementViews,
       }}
     >
       {children}

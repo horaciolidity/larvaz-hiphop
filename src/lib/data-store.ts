@@ -679,7 +679,8 @@ class LarvazDataStore {
       localStorage.setItem('larvaz_events', JSON.stringify(this.events));
       localStorage.setItem('larvaz_withdrawals', JSON.stringify(this.withdrawals));
       localStorage.setItem('larvaz_community_tracks', JSON.stringify(this.communityTracks));
-      if (!this.currentUser.is_guest) {
+      // Always persist active session user if customized or not a blank guest
+      if (this.currentUser && (!this.currentUser.is_guest || this.currentUser.avatar_url || this.currentUser.full_name !== 'Visitante Larvaz')) {
         localStorage.setItem('larvaz_session_user', JSON.stringify(this.currentUser));
       } else {
         localStorage.removeItem('larvaz_session_user');
@@ -702,7 +703,7 @@ class LarvazDataStore {
   setCurrentUser(user: Profile) {
     this.currentUser = user;
     if (typeof window !== 'undefined') {
-      if (user.is_guest) {
+      if (user.is_guest && !user.avatar_url) {
         localStorage.removeItem('larvaz_session_user');
       } else {
         localStorage.setItem('larvaz_session_user', JSON.stringify(user));
@@ -721,22 +722,47 @@ class LarvazDataStore {
       resolvedData.banner_url = resolveIpfsUrl(resolvedData.banner_url) || resolvedData.banner_url;
     }
 
-    this.currentUser = { ...this.currentUser, ...resolvedData };
-    const index = this.profiles.findIndex((p) => p.id === this.currentUser.id);
+    // If updating a guest user, turn into a permanent persistent local user
+    const wasGuest = this.currentUser.is_guest || this.currentUser.id === 'user-guest';
+    const permanentId = wasGuest
+      ? (typeof window !== 'undefined' && localStorage.getItem('larvaz_permanent_uid')
+          ? localStorage.getItem('larvaz_permanent_uid')!
+          : `user-${Date.now()}`)
+      : this.currentUser.id;
+
+    if (wasGuest && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('larvaz_permanent_uid', permanentId);
+      } catch {}
+    }
+
+    const previousId = this.currentUser.id;
+
+    this.currentUser = {
+      ...this.currentUser,
+      ...resolvedData,
+      id: permanentId,
+      is_guest: false,
+    };
+
+    // Save in profiles list
+    const index = this.profiles.findIndex((p) => p.id === permanentId || p.id === previousId);
     if (index !== -1) {
       this.profiles[index] = this.currentUser;
     } else {
-      this.profiles.push(this.currentUser);
+      this.profiles.unshift(this.currentUser);
     }
 
 
     // Propagate new avatar, name, and bio to all user's existing posts
     this.posts = this.posts.map((post) => {
-      if (post.user_id === this.currentUser.id) {
+      if (post.user_id === this.currentUser.id || post.user_id === previousId) {
         return {
           ...post,
+          user_id: this.currentUser.id,
           author: {
             ...post.author,
+            id: this.currentUser.id,
             avatar_url: this.currentUser.avatar_url,
             full_name: this.currentUser.full_name,
             username: this.currentUser.username,
@@ -750,11 +776,13 @@ class LarvazDataStore {
 
     // Propagate new avatar to all user's comments
     this.comments = this.comments.map((comment) => {
-      if (comment.user_id === this.currentUser.id) {
+      if (comment.user_id === this.currentUser.id || comment.user_id === previousId) {
         return {
           ...comment,
+          user_id: this.currentUser.id,
           author: {
             ...comment.author,
+            id: this.currentUser.id,
             avatar_url: this.currentUser.avatar_url,
             full_name: this.currentUser.full_name,
             username: this.currentUser.username,
@@ -897,21 +925,42 @@ class LarvazDataStore {
 
     // Sorting according to selected filter
     if (options?.filter === 'popular') {
-      result.sort((a, b) => (b.likes_count + b.comments_count) - (a.likes_count + a.comments_count));
+      result.sort((a, b) => (b.likes_count * 2 + b.comments_count) - (a.likes_count * 2 + a.comments_count));
     } else if (options?.filter === 'para_ti') {
-      // Prioritize followed artists & interactive posts, but ALWAYS ensure current user's recently published posts stay on top!
       result.sort((a, b) => {
+        const timeA = new Date(a.created_at).getTime();
+        const timeB = new Date(b.created_at).getTime();
         const now = Date.now();
-        const aIsMineRecent = a.user_id === this.currentUser.id && (now - new Date(a.created_at).getTime() < 1000 * 60 * 60 * 6) ? 10000 : 0;
-        const bIsMineRecent = b.user_id === this.currentUser.id && (now - new Date(b.created_at).getTime() < 1000 * 60 * 60 * 6) ? 10000 : 0;
+        const ageHoursA = Math.max(0, (now - timeA) / (1000 * 60 * 60));
+        const ageHoursB = Math.max(0, (now - timeB) / (1000 * 60 * 60));
+
+        // Prioridad absoluta a posts creados en las últimas 6 horas por el usuario actual
+        const aIsMineRecent = (a.user_id === this.currentUser.id || a.author?.id === this.currentUser.id) && ageHoursA < 12 ? 10000 : 0;
+        const bIsMineRecent = (b.user_id === this.currentUser.id || b.author?.id === this.currentUser.id) && ageHoursB < 12 ? 10000 : 0;
         if (aIsMineRecent !== bIsMineRecent) return bIsMineRecent - aIsMineRecent;
 
-        const aFollowed = this.followingMap.has(a.user_id) ? 100 : 0;
-        const bFollowed = this.followingMap.has(b.user_id) ? 100 : 0;
-        return (bFollowed + b.likes_count) - (aFollowed + a.likes_count);
+        // Publicaciones de menos de 1 hora siempre van arriba ordenadas cronológicamente
+        if (ageHoursA < 1 && ageHoursB < 1) {
+          return timeB - timeA;
+        }
+
+        // Bonificación por frescura temporal (los posts de hoy tienen ventaja sobre los de hace días)
+        const freshnessScoreA = Math.max(0, 500 - ageHoursA * 10);
+        const freshnessScoreB = Math.max(0, 500 - ageHoursB * 10);
+
+        const aFollowed = this.followingMap.has(a.user_id) ? 30 : 0;
+        const bFollowed = this.followingMap.has(b.user_id) ? 30 : 0;
+
+        const totalA = freshnessScoreA + aFollowed + (a.likes_count * 1.5) + a.comments_count;
+        const totalB = freshnessScoreB + bFollowed + (b.likes_count * 1.5) + b.comments_count;
+
+        if (Math.abs(totalB - totalA) > 15) {
+          return totalB - totalA;
+        }
+        return timeB - timeA;
       });
     } else {
-      // 'reciente' default: chronologically descending
+      // 'reciente' default: chronologically descending (newest on top)
       result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
