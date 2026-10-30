@@ -23,7 +23,7 @@ import {
 export default function ArtistProfilePage() {
   const params = useParams();
   const username = params.username as string;
-  const { currentUser, isFollowing, toggleFollow } = useApp();
+  const { currentUser, isFollowing, toggleFollow, isAdmin } = useApp();
 
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'events'>('posts');
 
@@ -87,7 +87,7 @@ export default function ArtistProfilePage() {
               size="2xl"
               className="border-4 border-background shadow-2xl"
             />
-            {profile.role === 'admin' && (
+            {isAdmin && (profile.role === 'admin' || profile.role === 'super_admin') && (
               <span className="absolute bottom-1 right-1 px-2 py-0.5 rounded-full bg-magenta text-content-primary text-[9px] font-black tracking-widest uppercase border border-background shadow-sm">
                 ADMIN
               </span>

@@ -12,13 +12,17 @@ import {
   Disc,
   Send,
   MessageSquare,
-  Sparkles,
   Flame,
   CheckCircle,
   Music,
   ExternalLink,
   Headphones,
+  UploadCloud,
+  Loader2,
+  Link as LinkIcon,
 } from 'lucide-react';
+import { detectMediaInfo } from '@/lib/media-utils';
+import { dataStore } from '@/lib/data-store';
 
 interface Shoutout {
   id: string;
@@ -51,6 +55,212 @@ const INITIAL_SHOUTOUTS: Shoutout[] = [
     time: 'hace 35m',
   },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload To Radio Form — pegar enlace para la rotación comunitaria
+// ─────────────────────────────────────────────────────────────────────────────
+function UploadToRadioForm() {
+  const { currentUser } = useApp();
+  const [link, setLink] = useState('');
+  const [title, setTitle] = useState('');
+  const [artist, setArtist] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (currentUser.is_guest) {
+    return (
+      <div className="p-3 rounded-2xl bg-surface-elevated/70 border border-surface-border/60 text-xs text-content-secondary flex items-start gap-2.5">
+        <Music className="w-4 h-4 text-acid flex-shrink-0 mt-0.5" />
+        <p className="leading-relaxed">
+          <span className="text-content-primary font-bold">¿Querés poner tu música en la radio?</span>{' '}
+          <Link href="/login" className="text-acid underline hover:no-underline">Inicia sesión</Link> y pega tu enlace de YouTube, SoundCloud, Spotify o archivo de audio.
+        </p>
+      </div>
+    );
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!link.trim()) return;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const mediaInfo = detectMediaInfo(link.trim());
+      if (!mediaInfo || mediaInfo.type === 'web') {
+        // Try to fetch metadata from API
+        let fetchedTitle = title.trim();
+        let fetchedArtist = artist.trim() || currentUser.full_name;
+        let thumbnail: string | undefined = currentUser.avatar_url;
+        let embedUrl: string | undefined;
+
+        try {
+          const res = await fetch('/api/metadata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: link.trim() }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (!fetchedTitle) fetchedTitle = data.metadata?.title || new URL(link.trim()).hostname;
+            if (!fetchedArtist || fetchedArtist === currentUser.full_name) {
+              fetchedArtist = data.metadata?.author_name || fetchedArtist;
+            }
+            thumbnail = data.metadata?.thumbnail_url || thumbnail;
+            embedUrl = data.metadata?.embed_url;
+          }
+        } catch {
+          // ignore
+        }
+
+        if (!fetchedTitle) {
+          setError('No se pudo detectar el tipo de contenido. Pega un enlace de YouTube, SoundCloud, Spotify o un archivo .mp3/.wav directo.');
+          setIsLoading(false);
+          return;
+        }
+
+        dataStore.addTrackToCommunityRadio({
+          id: 'track-upload-' + Date.now(),
+          title: fetchedTitle,
+          artist: fetchedArtist,
+          url: link.trim(),
+          audio_url: link.trim(),
+          album_art: thumbnail,
+          user_id: currentUser.id,
+          username: currentUser.username,
+          submitted_by: currentUser.username,
+          created_at: new Date().toISOString(),
+        });
+      } else {
+        // Good media detected
+        let fetchedTitle = title.trim();
+        let fetchedArtist = artist.trim() || currentUser.full_name;
+        let thumbnail: string | undefined = mediaInfo.thumbnailUrl || currentUser.avatar_url;
+        let audioUrl = link.trim();
+
+        // Try to get better metadata
+        try {
+          const res = await fetch('/api/metadata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: link.trim() }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (!fetchedTitle) fetchedTitle = data.metadata?.title || '';
+            if (!fetchedArtist || fetchedArtist === currentUser.full_name) {
+              fetchedArtist = data.metadata?.author_name || fetchedArtist;
+            }
+            thumbnail = data.metadata?.thumbnail_url || thumbnail;
+          }
+        } catch {
+          // ignore
+        }
+
+        if (!fetchedTitle) {
+          fetchedTitle = mediaInfo.type === 'youtube' ? 'Video de YouTube'
+            : mediaInfo.type === 'soundcloud' ? 'Track de SoundCloud'
+            : mediaInfo.type === 'spotify' ? 'Pista de Spotify'
+            : 'Track comunitario';
+        }
+
+        dataStore.addTrackToCommunityRadio({
+          id: 'track-upload-' + Date.now(),
+          title: fetchedTitle,
+          artist: fetchedArtist,
+          url: audioUrl,
+          audio_url: audioUrl,
+          album_art: thumbnail,
+          user_id: currentUser.id,
+          username: currentUser.username,
+          submitted_by: currentUser.username,
+          genre: mediaInfo.type === 'youtube' ? 'Video' : mediaInfo.type === 'soundcloud' ? 'SoundCloud' : 'Música',
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      setSuccess(true);
+      setLink('');
+      setTitle('');
+      setArtist('');
+      setTimeout(() => setSuccess(false), 3500);
+    } catch (err: any) {
+      setError('Error al agregar la pista. Verifica el enlace e intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="p-4 rounded-2xl bg-surface-elevated/60 border border-acid/20 space-y-3">
+      <div className="flex items-center gap-2">
+        <UploadCloud className="w-4 h-4 text-acid flex-shrink-0" />
+        <p className="text-xs font-black text-content-primary uppercase tracking-wide">
+          Subir mi música a la radio
+        </p>
+        <span className="text-[10px] text-content-muted font-mono">
+          YouTube · SoundCloud · Spotify · .mp3
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 p-2 rounded-xl bg-surface border border-surface-border focus-within:border-acid transition-colors">
+        <LinkIcon className="w-4 h-4 text-acid flex-shrink-0 ml-1" />
+        <input
+          type="url"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="Pega tu enlace: https://youtube.com/watch?v=..., soundcloud.com/..., archivo.mp3"
+          className="flex-1 bg-transparent text-xs text-content-primary placeholder:text-content-muted focus:outline-none"
+          required
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Título del tema (opcional, se detecta automáticamente)"
+          className="flex-1 px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
+        />
+        <input
+          type="text"
+          value={artist}
+          onChange={(e) => setArtist(e.target.value)}
+          placeholder="Artista (opcional)"
+          className="w-36 px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
+        />
+      </div>
+
+      {error && (
+        <p className="text-xs text-magenta bg-magenta/10 border border-magenta/30 px-3 py-2 rounded-xl">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p className="text-xs text-acid bg-acid/10 border border-acid/30 px-3 py-2 rounded-xl flex items-center gap-2">
+          <CheckCircle className="w-4 h-4" />
+          ¡Pista agregada a la rotación comunitaria! 🎵
+        </p>
+      )}
+
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-content-muted leading-relaxed">
+          También puedes publicar un post con tu enlace y se agrega automáticamente.
+        </p>
+        <button
+          type="submit"
+          disabled={isLoading || !link.trim()}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-acid text-background font-black text-xs shadow-acid-sm hover:bg-acid-hover active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+        >
+          {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+          <span>Agregar a la Radio</span>
+        </button>
+      </div>
+    </form>
+  );
+}
 
 export default function RadioPage() {
   const {
@@ -316,13 +526,9 @@ export default function RadioPage() {
           </button>
         </div>
 
-        {/* Info Banner */}
-        <div className="p-3 rounded-2xl bg-surface-elevated/70 border border-surface-border/60 text-xs text-content-secondary flex items-start gap-2.5">
-          <Sparkles className="w-4 h-4 text-acid flex-shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            <span className="text-content-primary font-bold">Rotación Automática:</span> Al publicar un post con enlace de música (YouTube, SoundCloud, Spotify, Audio) o etiquetas musicales, tu tema se incorpora automáticamente al reproductor comunitario.
-          </p>
-        </div>
+        {/* Music Upload Form — pegar enlace de audio/video */}
+        <UploadToRadioForm />
+
 
         {/* Tracks List */}
         <div className="space-y-2">

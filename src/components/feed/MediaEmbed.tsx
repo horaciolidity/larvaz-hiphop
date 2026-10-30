@@ -2,13 +2,36 @@
 
 import React, { useState } from 'react';
 import { PostMetadata, ContentProvider } from '@/types';
-import { ExternalLink, Play, Disc3, Radio } from 'lucide-react';
+import { detectMediaInfo } from '@/lib/media-utils';
+import { ExternalLink, Play, Disc3, Volume2, Music, Globe } from 'lucide-react';
 
 interface MediaEmbedProps {
   metadata?: PostMetadata;
   provider: ContentProvider;
   externalUrl?: string;
 }
+
+const PROVIDER_NAMES: Record<ContentProvider, string> = {
+  youtube: 'YouTube',
+  spotify: 'Spotify',
+  soundcloud: 'SoundCloud',
+  vimeo: 'Vimeo',
+  instagram: 'Instagram',
+  tiktok: 'TikTok',
+  bandcamp: 'Bandcamp',
+  generic: 'Enlace Web',
+};
+
+const PROVIDER_COLORS: Record<ContentProvider, string> = {
+  youtube: '#FF0000',
+  spotify: '#1DB954',
+  soundcloud: '#FF5500',
+  vimeo: '#1AB7EA',
+  instagram: '#E1306C',
+  tiktok: '#00F2FE',
+  bandcamp: '#629AA9',
+  generic: '#d4ff00',
+};
 
 export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, externalUrl }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -17,35 +40,60 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
     return null;
   }
 
-  const title = metadata?.title || 'Contenido externo compartido';
-  const author = metadata?.author_name || 'Autor';
-  const thumbnail = metadata?.thumbnail_url;
-  const embedUrl = metadata?.embed_url;
+  // Use media detection for richer embed support
+  const mediaInfo = detectMediaInfo(externalUrl);
 
-  const providerNames: Record<ContentProvider, string> = {
-    youtube: 'YouTube',
-    spotify: 'Spotify',
-    soundcloud: 'SoundCloud',
-    vimeo: 'Vimeo',
-    instagram: 'Instagram',
-    tiktok: 'TikTok',
-    bandcamp: 'Bandcamp',
-    generic: 'Enlace Web',
-  };
+  const title = metadata?.title || 'Contenido compartido';
+  const author = metadata?.author_name || '';
+  const description = metadata?.description || '';
+  // Prefer metadata thumbnail, fall back to media detection
+  const thumbnail = metadata?.thumbnail_url || mediaInfo?.thumbnailUrl;
+  // Prefer metadata embed URL, fall back to media detection
+  const embedUrl = metadata?.embed_url || mediaInfo?.embedUrl;
+  const detectedType = mediaInfo?.type;
+  const cleanUrl = mediaInfo?.cleanUrl || externalUrl;
 
-  const providerColors: Record<ContentProvider, string> = {
-    youtube: 'text-[#FF0000]',
-    spotify: 'text-[#1DB954]',
-    soundcloud: 'text-[#FF5500]',
-    vimeo: 'text-[#1AB7EA]',
-    instagram: 'text-[#E1306C]',
-    tiktok: 'text-[#00F2FE]',
-    bandcamp: 'text-[#629AA9]',
-    generic: 'text-acid',
-  };
+  const providerColor = PROVIDER_COLORS[provider] || '#d4ff00';
 
-  // If user activated embed player and an official embedUrl is available
+  // ─────────────────────────────────────────────
+  // ACTIVE PLAYBACK MODES
+  // ─────────────────────────────────────────────
+
   if (isPlaying && embedUrl) {
+    // YouTube / Vimeo: aspect-ratio video iframe
+    if (detectedType === 'youtube' || provider === 'youtube' || provider === 'vimeo') {
+      return (
+        <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-black aspect-video relative shadow-lg">
+          <iframe
+            src={embedUrl.includes('autoplay') ? embedUrl : `${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+            title={title}
+            className="w-full h-full"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      );
+    }
+
+    // SoundCloud: visual widget
+    if (detectedType === 'soundcloud' || provider === 'soundcloud') {
+      return (
+        <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-black shadow-lg">
+          <iframe
+            width="100%"
+            height="166"
+            scrolling="no"
+            frameBorder="no"
+            allow="autoplay"
+            src={embedUrl}
+            className="w-full"
+          />
+        </div>
+      );
+    }
+
+    // Spotify
     if (provider === 'spotify') {
       return (
         <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-black shadow-lg">
@@ -62,39 +110,89 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
       );
     }
 
-    if (provider === 'soundcloud') {
+    // Direct Audio
+    if (detectedType === 'audio') {
       return (
-        <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-black shadow-lg">
-          <iframe
-            width="100%"
-            height="166"
-            scrolling="no"
-            frameBorder="no"
-            allow="autoplay"
+        <div className="mt-3 rounded-xl border border-surface-border bg-surface-elevated p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-acid/20 flex items-center justify-center flex-shrink-0">
+              <Music className="w-5 h-5 text-acid" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-content-primary truncate">{title}</p>
+              {author && <p className="text-xs text-content-secondary truncate">{author}</p>}
+            </div>
+          </div>
+          <audio
             src={embedUrl}
-            className="w-full"
+            controls
+            autoPlay
+            className="w-full h-10 accent-acid"
           />
         </div>
       );
     }
 
-    if (provider === 'youtube' || provider === 'vimeo') {
+    // Direct Video
+    if (detectedType === 'video') {
       return (
-        <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-black aspect-video relative shadow-lg">
-          <iframe
-            src={embedUrl + '?autoplay=1'}
-            title={title}
+        <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-black aspect-video shadow-lg">
+          <video
+            src={embedUrl}
+            controls
+            autoPlay
             className="w-full h-full"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
           />
         </div>
       );
     }
   }
 
-  // Audio / Video / Visual Rich Street Cassette Card
+  // ─────────────────────────────────────────────
+  // PREVIEW CARD (before play)
+  // ─────────────────────────────────────────────
+
+  // Image-only post (IPFS image, direct .jpg, etc.)
+  if (detectedType === 'image' && thumbnail) {
+    return (
+      <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-surface shadow-sm">
+        <img
+          src={thumbnail}
+          alt={title || 'Imagen compartida'}
+          className="w-full max-h-[480px] object-contain bg-black"
+        />
+        {(title || author) && (
+          <div className="p-3 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              {title && <p className="text-xs font-bold text-content-primary truncate">{title}</p>}
+              {author && <p className="text-[11px] text-content-secondary truncate">{author}</p>}
+            </div>
+            <a
+              href={cleanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-shrink-0 p-2 rounded-lg bg-surface-elevated border border-surface-border hover:border-acid text-content-secondary hover:text-acid transition-colors"
+              title="Abrir enlace original"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const isEmbeddable = Boolean(embedUrl) && (
+    detectedType === 'youtube' ||
+    detectedType === 'soundcloud' ||
+    detectedType === 'audio' ||
+    detectedType === 'video' ||
+    provider === 'youtube' ||
+    provider === 'spotify' ||
+    provider === 'soundcloud' ||
+    provider === 'vimeo'
+  );
+
   return (
     <div className="mt-3 rounded-xl bg-surface border border-surface-border hover:border-surface-hover overflow-hidden transition-all group shadow-sm">
       <div className="flex flex-col sm:flex-row">
@@ -108,78 +206,95 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-surface to-surface-elevated text-content-secondary p-4">
-              <Disc3 className="w-12 h-12 text-acid animate-spin-slow opacity-80" />
+              {detectedType === 'audio' ? (
+                <Volume2 className="w-12 h-12 text-acid animate-pulse opacity-80" />
+              ) : detectedType === 'soundcloud' || provider === 'soundcloud' ? (
+                <Volume2 className="w-12 h-12 text-[#FF5500] opacity-80" />
+              ) : (
+                <Disc3 className="w-12 h-12 text-acid animate-spin-slow opacity-80" />
+              )}
               <span className="text-[10px] uppercase font-bold tracking-widest mt-2">
-                {providerNames[provider]}
+                {PROVIDER_NAMES[provider]}
               </span>
             </div>
           )}
 
           {/* Embedded Play Button Overlay if embeddable */}
-          {embedUrl && (
+          {isEmbeddable && (
             <button
               onClick={() => setIsPlaying(true)}
               className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors"
               aria-label="Reproducir contenido"
             >
-              <div className="w-12 h-12 rounded-full bg-acid text-background flex items-center justify-center shadow-acid-glow group-hover:scale-110 active:scale-95 transition-transform">
-                <Play className="w-6 h-6 fill-current ml-0.5" />
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 active:scale-95 transition-transform"
+                style={{ backgroundColor: providerColor }}
+              >
+                <Play className="w-6 h-6 fill-current text-white ml-0.5" />
               </div>
             </button>
           )}
 
           {/* Platform Badge */}
-          <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 backdrop-blur-sm border border-white/10 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${providerColors[provider]} bg-current`} />
-            <span className="text-content-primary">{providerNames[provider]}</span>
+          <div
+            className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 backdrop-blur-sm border border-white/10 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: providerColor }}
+            />
+            <span className="text-content-primary">{PROVIDER_NAMES[provider]}</span>
           </div>
         </div>
 
         {/* Content Info & External Link Button */}
         <div className="p-4 flex-1 flex flex-col justify-between min-w-0">
           <div>
-            <h3 className="font-bold text-sm text-content-primary line-clamp-2 group-hover:text-acid transition-colors">
-              {title}
-            </h3>
-            <p className="text-xs text-content-secondary mt-1 line-clamp-1">
-              {author}
+            <p
+              className="text-[10px] font-bold uppercase tracking-widest mb-1"
+              style={{ color: providerColor }}
+            >
+              {PROVIDER_NAMES[provider]}
             </p>
-
-            {/* Decorative Vinyl Soundwave Equalizer (Simulated aesthetic) */}
-            <div className="flex items-center gap-1 my-3 py-1 px-2 rounded-lg bg-surface-elevated/70 border border-surface-border w-fit">
-              <Radio className="w-3.5 h-3.5 text-acid" />
-              <div className="flex items-end gap-0.5 h-3 px-1">
-                <span className="w-0.5 h-2 bg-acid rounded-full animate-pulse" />
-                <span className="w-0.5 h-3 bg-acid rounded-full animate-pulse delay-75" />
-                <span className="w-0.5 h-1.5 bg-acid rounded-full animate-pulse delay-150" />
-                <span className="w-0.5 h-2.5 bg-acid rounded-full animate-pulse delay-100" />
-                <span className="w-0.5 h-2 bg-acid rounded-full animate-pulse" />
-              </div>
-              <span className="text-[10px] font-mono text-content-secondary uppercase">
-                Underground Audio
-              </span>
-            </div>
+            <h4 className="font-bold text-sm text-content-primary leading-snug line-clamp-2 mb-1">
+              {title}
+            </h4>
+            {author && (
+              <p className="text-xs text-content-secondary truncate">
+                {author}
+              </p>
+            )}
+            {description && !author && (
+              <p className="text-xs text-content-muted line-clamp-2 mt-1">
+                {description}
+              </p>
+            )}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-surface-border/60 mt-1">
-            <span className="text-[10px] text-content-secondary font-mono truncate max-w-[150px]">
-              {(() => {
-                try {
-                  return new URL(externalUrl).hostname;
-                } catch {
-                  return externalUrl;
-                }
-              })()}
-            </span>
-
+          <div className="flex items-center gap-2 mt-3">
+            {isEmbeddable && (
+              <button
+                onClick={() => setIsPlaying(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-white transition-all hover:opacity-90 active:scale-95 shadow-sm"
+                style={{ backgroundColor: providerColor }}
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Reproducir</span>
+              </button>
+            )}
             <a
-              href={externalUrl}
+              href={cleanUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated hover:bg-surface-hover hover:text-acid text-content-primary text-xs font-bold border border-surface-border transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-surface-elevated border border-surface-border hover:border-acid text-content-secondary hover:text-acid transition-all"
+              title="Abrir en nueva pestaña"
             >
-              <span>Abrir en {providerNames[provider]}</span>
-              <ExternalLink className="w-3 h-3 text-content-secondary" />
+              {detectedType === 'web' ? (
+                <Globe className="w-3.5 h-3.5" />
+              ) : (
+                <ExternalLink className="w-3.5 h-3.5" />
+              )}
+              <span className="hidden sm:inline">Abrir original</span>
             </a>
           </div>
         </div>

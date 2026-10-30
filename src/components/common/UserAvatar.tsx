@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { resolveIpfsUrl, getIpfsFallbackUrl } from '@/lib/media-utils';
 
 interface UserAvatarProps {
   avatarUrl?: string | null;
@@ -51,6 +52,13 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = '',
 }) => {
   const [imgError, setImgError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  React.useEffect(() => {
+    setImgError(false);
+    setRetryCount(0);
+  }, [avatarUrl]);
+
   const sizeConfig = SIZE_MAP[size] || SIZE_MAP.md;
 
   // 1. Emoji / Sticker Avatar
@@ -80,16 +88,29 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     );
   }
 
-  // 3. Real Image URL (fallback if broken)
-  const effectiveUrl = !imgError && avatarUrl && avatarUrl.trim() !== ''
-    ? avatarUrl
-    : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100';
+  // 3. Resolve IPFS or real image URL
+  const resolvedUrl = avatarUrl ? resolveIpfsUrl(avatarUrl) : '';
+
+  const handleError = () => {
+    if (retryCount < 2 && resolvedUrl) {
+      // Try an alternate IPFS gateway
+      setRetryCount((c) => c + 1);
+    } else {
+      setImgError(true);
+    }
+  };
+
+  const effectiveUrl = imgError || !resolvedUrl
+    ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'
+    : retryCount > 0
+    ? getIpfsFallbackUrl(resolvedUrl, retryCount)
+    : resolvedUrl;
 
   return (
     <img
       src={effectiveUrl}
       alt={name}
-      onError={() => setImgError(true)}
+      onError={handleError}
       className={`rounded-full object-cover border border-surface-elevated flex-shrink-0 ${sizeConfig.img} ${className}`}
     />
   );

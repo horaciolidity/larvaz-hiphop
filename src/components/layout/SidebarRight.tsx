@@ -16,9 +16,17 @@ export const SidebarRight: React.FC = () => {
     isRadioPlaying,
     toggleRadio,
     currentStation,
+    isAdmin,
   } = useApp();
 
-  const suggestedArtists = availableProfiles.filter((p) => p.id !== currentUser.id).slice(0, 3);
+  const suggestedArtists = availableProfiles
+    .filter((p) => {
+      if (p.id === currentUser.id) return false;
+      // Hide admin profiles unless viewer is admin
+      if (!isAdmin && (p.role === 'admin' || p.role === 'super_admin')) return false;
+      return true;
+    })
+    .slice(0, 3);
   const upcomingEvents = events.slice(0, 2);
 
   return (

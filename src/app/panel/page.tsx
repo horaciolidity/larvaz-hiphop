@@ -6,6 +6,8 @@ import { useApp } from '@/context/AppContext';
 import { dataStore } from '@/lib/data-store';
 import { PostCard } from '@/components/feed/PostCard';
 import AvatarPicker, { EmojiAvatarDisplay, isEmojiAvatar } from '@/components/profile/AvatarPicker';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { resolveIpfsUrl } from '@/lib/media-utils';
 import {
   User,
   Coins,
@@ -117,23 +119,18 @@ export default function UserPanelPage() {
           <div className="flex items-center gap-4">
             <div className="relative group">
               {/* Avatar display */}
-              {isEmojiAvatar(currentUser.avatar_url) ? (
-                <div
-                  className="w-16 h-16 rounded-2xl bg-surface-elevated border-2 border-acid/50 shadow-lg flex items-center justify-center text-5xl cursor-pointer hover:border-acid transition-colors"
-                  onClick={() => setShowAvatarPicker(true)}
-                  title="Cambiar avatar"
-                >
-                  <EmojiAvatarDisplay url={currentUser.avatar_url} size="lg" className="!border-0 !rounded-2xl" />
-                </div>
-              ) : (
-                <img
-                  src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
-                  alt={currentUser.username}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-acid/50 shadow-lg cursor-pointer hover:border-acid transition-colors"
-                  onClick={() => setShowAvatarPicker(true)}
-                  title="Cambiar avatar"
+              <div
+                className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-acid/50 shadow-lg cursor-pointer hover:border-acid transition-colors flex items-center justify-center bg-surface-elevated"
+                onClick={() => setShowAvatarPicker(true)}
+                title="Cambiar avatar"
+              >
+                <UserAvatar
+                  avatarUrl={currentUser.avatar_url}
+                  name={currentUser.full_name}
+                  size="xl"
+                  className="!rounded-2xl"
                 />
-              )}
+              </div>
               {/* Camera overlay on hover */}
               <button
                 onClick={() => setShowAvatarPicker(true)}

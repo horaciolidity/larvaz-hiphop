@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Check, Shuffle, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { resolveIpfsUrl } from '@/lib/media-utils';
 
 export interface AvatarOption {
   id: string;
@@ -136,9 +137,11 @@ export function EmojiAvatarDisplay({
     );
   }
 
+  const resolved = url ? resolveIpfsUrl(url) : '';
+
   return (
     <img
-      src={url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+      src={resolved || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
       alt="Avatar"
       className={[sizeMap[size], 'rounded-full object-cover border-2 border-acid/40 flex-shrink-0', className].join(' ')}
     />
@@ -150,14 +153,20 @@ function UrlAvatarInput({ onSelect, onClose }: { onSelect: (url: string, label: 
   return (
     <div className="flex gap-2">
       <input
-        type="url"
+        type="text"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        placeholder="https://mi-foto.com/avatar.jpg"
+        placeholder="https://... · ipfs://Qm... · CID"
         className="flex-1 px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
       />
       <button
-        onClick={() => { if (url.trim()) { onSelect(url.trim(), 'Foto personalizada'); onClose(); } }}
+        onClick={() => {
+          if (url.trim()) {
+            const finalUrl = resolveIpfsUrl(url.trim()) || url.trim();
+            onSelect(finalUrl, 'Foto IPFS / Web');
+            onClose();
+          }
+        }}
         className="px-3.5 py-2 rounded-xl bg-surface-elevated border border-acid/40 text-acid font-black text-xs hover:bg-acid hover:text-background transition-colors flex-shrink-0"
       >
         Usar

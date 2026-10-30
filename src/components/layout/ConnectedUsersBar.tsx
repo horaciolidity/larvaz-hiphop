@@ -21,10 +21,15 @@ const ACTIVITIES: Record<string, { activity: string; tag: string }> = {
 };
 
 export const ConnectedUsersBar: React.FC = () => {
-  const { availableProfiles, currentUser } = useApp();
+  const { availableProfiles, currentUser, isAdmin } = useApp();
 
-  // Combine currentUser (first) with other active profiles
-  const otherProfiles = availableProfiles.filter((p) => p.id !== currentUser.id);
+  // Exclude current user and admin profiles (unless logged user is admin)
+  const otherProfiles = availableProfiles.filter((p) => {
+    if (p.id === currentUser.id) return false;
+    // Hide admin/super_admin profiles from regular users
+    if (!isAdmin && (p.role === 'admin' || p.role === 'super_admin')) return false;
+    return true;
+  });
   const onlineCount = otherProfiles.length + (currentUser.is_guest ? 0 : 1);
 
   return (

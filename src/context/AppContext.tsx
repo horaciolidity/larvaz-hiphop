@@ -118,6 +118,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const isSupabaseConnected = isSupabaseConfigured();
 
+
   // Geographic Location state (default Mendoza, Argentina)
   const [userLocation, setUserLocationState] = useState<string>(() => {
     if (typeof window !== 'undefined') {

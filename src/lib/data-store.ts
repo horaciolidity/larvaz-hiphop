@@ -13,6 +13,8 @@ import {
   UserRole,
   WithdrawalRequest,
 } from '@/types';
+import { resolveIpfsUrl } from './media-utils';
+
 
 
 // ==============================================================================
@@ -710,13 +712,23 @@ class LarvazDataStore {
   }
 
   updateProfile(data: Partial<Profile>): Profile {
-    this.currentUser = { ...this.currentUser, ...data };
+    // Resolve IPFS/special URLs for avatar and banner before saving
+    const resolvedData = { ...data };
+    if (resolvedData.avatar_url) {
+      resolvedData.avatar_url = resolveIpfsUrl(resolvedData.avatar_url) || resolvedData.avatar_url;
+    }
+    if (resolvedData.banner_url) {
+      resolvedData.banner_url = resolveIpfsUrl(resolvedData.banner_url) || resolvedData.banner_url;
+    }
+
+    this.currentUser = { ...this.currentUser, ...resolvedData };
     const index = this.profiles.findIndex((p) => p.id === this.currentUser.id);
     if (index !== -1) {
       this.profiles[index] = this.currentUser;
     } else {
       this.profiles.push(this.currentUser);
     }
+
 
     // Propagate new avatar, name, and bio to all user's existing posts
     this.posts = this.posts.map((post) => {
@@ -769,14 +781,19 @@ class LarvazDataStore {
     });
 
     // Propagate to organized events
-    this.events = this.events.map((event) => {
-      if (event.organizer_id === this.currentUser.id) {
+    this.events = this.events.map((event): HipHopEvent => {
+      if (event.organizer_id === this.currentUser.id && event.organizer) {
         return {
           ...event,
           organizer: {
             ...event.organizer,
+            id: event.organizer.id ?? this.currentUser.id,
             avatar_url: this.currentUser.avatar_url,
             full_name: this.currentUser.full_name,
+            username: event.organizer.username ?? this.currentUser.username,
+            role: event.organizer.role ?? this.currentUser.role,
+            is_banned: event.organizer.is_banned ?? false,
+            created_at: event.organizer.created_at ?? this.currentUser.created_at,
           },
         };
       }
@@ -919,28 +936,6 @@ class LarvazDataStore {
     };
   }
 
-  getCommunityTracks(): RadioTrack[] {
-    return this.communityTracks;
-  }
-
-  addTrackToCommunityRadio(track: RadioTrack) {
-    // Add to beginning of playlist
-    this.communityTracks.unshift(track);
-    const commStation = this.radioStations.find((s) => s.id === 'station-songs-larvaz' || s.id === 'station-comunidad-larvaz');
-    if (commStation) {
-      commStation.tracks = this.communityTracks;
-      commStation.current_track = {
-        title: track.title,
-        artist: track.artist,
-        album_art: track.album_art,
-      };
-    }
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('larvaz_community_tracks', JSON.stringify(this.communityTracks));
-      } catch {}
-    }
-  }
 
   getReferredUsers(usernameOrId: string): Profile[] {
     const clean = usernameOrId.toLowerCase();
@@ -1438,6 +1433,35 @@ class LarvazDataStore {
   setActiveRadioStation(stationId: string): RadioStation {
     this.activeStationId = stationId;
     return this.getActiveRadioStation();
+  }
+
+  getCommunityTracks(): RadioTrack[] {
+    return this.communityTracks;
+  }
+
+  addTrackToCommunityRadio(track: RadioTrack): void {
+    // Avoid duplicates by post_id or url
+    const exists = this.communityTracks.some(
+      (t) => t.post_id === track.post_id || (t.url && t.url === track.url)
+    );
+    if (!exists) {
+      this.communityTracks.unshift(track);
+    }
+
+    // Keep community station's tracks in sync
+    const commStation = this.radioStations.find(
+      (s) => s.id === 'station-songs-larvaz' || s.id === 'station-comunidad-larvaz'
+    );
+    if (commStation) {
+      commStation.tracks = this.communityTracks;
+      commStation.current_track = {
+        title: this.communityTracks[0].title,
+        artist: this.communityTracks[0].artist,
+        album_art: this.communityTracks[0].album_art,
+      };
+    }
+
+    this.saveToStorage();
   }
 
   // --- Global Stats for Super Admin ---

@@ -5,6 +5,8 @@ import { useApp } from '@/context/AppContext';
 import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2, Smile } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import AvatarPicker from '@/components/profile/AvatarPicker';
+import { resolveIpfsUrl } from '@/lib/media-utils';
+
 
 export default function ConfiguracionPage() {
   const { currentUser, updateProfile } = useApp();
@@ -22,9 +24,18 @@ export default function ConfiguracionPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  React.useEffect(() => {
+    if (currentUser.avatar_url && currentUser.avatar_url !== avatarUrl) {
+      setAvatarUrl(currentUser.avatar_url);
+    }
+  }, [currentUser.avatar_url]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+
+    const finalAvatar = avatarUrl ? (resolveIpfsUrl(avatarUrl) || avatarUrl) : avatarUrl;
+    const finalBanner = bannerUrl ? (resolveIpfsUrl(bannerUrl) || bannerUrl) : bannerUrl;
 
     setTimeout(() => {
       updateProfile({
@@ -34,13 +45,13 @@ export default function ConfiguracionPage() {
         website,
         portfolio_url: portfolioUrl,
         artistic_disciplines: artisticDisciplines,
-        avatar_url: avatarUrl,
-        banner_url: bannerUrl,
+        avatar_url: finalAvatar,
+        banner_url: finalBanner,
       });
       setIsSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    }, 500);
+    }, 300);
   };
 
   return (
@@ -64,7 +75,7 @@ export default function ConfiguracionPage() {
           {/* Banner */}
           <div className="relative h-32 w-full bg-gradient-to-r from-surface-elevated via-surface to-background overflow-hidden border-b border-surface-border">
             {bannerUrl ? (
-              <img src={bannerUrl} alt="Portada" className="w-full h-full object-cover" />
+              <img src={resolveIpfsUrl(bannerUrl) || bannerUrl} alt="Portada" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center opacity-30 text-content-secondary font-display font-black tracking-widest text-xs">
                 PORTADA DE PERFIL (OPCIONAL)
@@ -134,12 +145,20 @@ export default function ConfiguracionPage() {
               URL de Avatar (imagen de perfil)
             </label>
             <input
-              type="url"
+              type="text"
               value={avatarUrl}
               onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
+              onBlur={() => {
+                if (avatarUrl.trim()) {
+                  const resolved = resolveIpfsUrl(avatarUrl.trim()) || avatarUrl.trim();
+                  setAvatarUrl(resolved);
+                  updateProfile({ avatar_url: resolved });
+                }
+              }}
+              placeholder="https://... · ipfs://Qm... · CID de IPFS"
               className="w-full px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary focus:border-acid focus:outline-none"
             />
+            <p className="text-[10px] text-content-muted mt-1">Acepta URLs normales (https://), enlaces IPFS (ipfs://...) o CIDs directos.</p>
           </div>
 
           {/* Banner URL */}
@@ -149,14 +168,14 @@ export default function ConfiguracionPage() {
               URL de Portada (banner del perfil)
             </label>
             <input
-              type="url"
+              type="text"
               value={bannerUrl}
               onChange={(e) => setBannerUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
+              placeholder="https://... · ipfs://Qm... · CID de IPFS"
               className="w-full px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary focus:border-acid focus:outline-none"
             />
             <p className="text-[11px] text-content-muted mt-1">
-              Cuando Supabase Storage esté configurado, podrás subir tus propias imágenes directamente.
+              Acepta URLs normales (https://), enlaces IPFS (ipfs://...) o CIDs. Los cambios se guardan inmediatamente al presionar Guardar.
             </p>
           </div>
 
@@ -284,7 +303,9 @@ export default function ConfiguracionPage() {
         <AvatarPicker
           currentAvatar={avatarUrl}
           onSelect={(url) => {
-            setAvatarUrl(url);
+            const resolved = resolveIpfsUrl(url) || url;
+            setAvatarUrl(resolved);
+            updateProfile({ avatar_url: resolved });
             setShowAvatarPicker(false);
           }}
           onClose={() => setShowAvatarPicker(false)}
