@@ -12,9 +12,12 @@ import {
 import { ContentType, PostMetadata } from '@/types';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { detectMediaInfo } from '@/lib/media-utils';
+import { getLocationFlag } from '@/lib/country-utils';
 
 export const InlineFeedComposer: React.FC = () => {
-  const { currentUser, createPost } = useApp();
+  const { currentUser, createPost, userLocation } = useApp();
+  const flag = getLocationFlag(userLocation || currentUser.location);
+  const locationName = userLocation || currentUser.location || 'Mendoza, Argentina';
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -140,14 +143,39 @@ export const InlineFeedComposer: React.FC = () => {
     <div className="p-3.5 rounded-2xl bg-surface border border-surface-border hover:border-surface-hover transition-all space-y-3">
       {/* Top: User Avatar + Input */}
       <div className="flex items-start gap-3">
-        <UserAvatar
-          avatarUrl={currentUser.avatar_url}
-          name={currentUser.full_name}
-          size="md"
-          className="mt-0.5"
-        />
+        <div className="relative flex-shrink-0">
+          <UserAvatar
+            avatarUrl={currentUser.avatar_url}
+            name={currentUser.full_name}
+            size="md"
+            className="mt-0.5"
+          />
+          {flag && (
+            <span
+              className="absolute -bottom-1 -right-1 text-[11px] leading-none bg-surface border border-surface-border rounded-full w-4 h-4 flex items-center justify-center shadow-sm pointer-events-none"
+              title={`Publicando desde: ${locationName}`}
+              aria-hidden="true"
+            >
+              {flag}
+            </span>
+          )}
+        </div>
 
         <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-bold text-content-primary truncate flex items-center gap-1">
+              <span>{currentUser.full_name}</span>
+              {flag && <span className="text-xs">{flag}</span>}
+            </span>
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-mono text-content-secondary bg-surface-elevated px-2 py-0.5 rounded-full border border-surface-border"
+              title="País y ciudad de origen de esta publicación"
+            >
+              <span className="text-xs">{flag || '🌐'}</span>
+              <span className="truncate max-w-[130px] font-bold text-content-primary">{locationName}</span>
+            </span>
+          </div>
+
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}

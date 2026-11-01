@@ -149,13 +149,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
               <span className="font-bold text-sm text-content-primary group-hover:text-acid transition-colors truncate">
                 {post.author.full_name}
               </span>
-              {getLocationFlag(post.author.location) && (
+              {getLocationFlag(post.author.location || (post.metadata as any)?.location) && (
                 <span
                   className="text-sm leading-none flex-shrink-0"
-                  title={post.author.location || ''}
+                  title={post.author.location || (post.metadata as any)?.location || ''}
                   aria-hidden="true"
                 >
-                  {getLocationFlag(post.author.location)}
+                  {getLocationFlag(post.author.location || (post.metadata as any)?.location)}
                 </span>
               )}
               <span className="text-xs text-content-secondary truncate">

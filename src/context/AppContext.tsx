@@ -273,27 +273,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle();
 
       if (profile) {
+        dataStore.mergeProfiles([profile]);
+        setTotalMembersCount(dataStore.getAllProfiles().length);
         setCurrentUser(profile);
       } else {
+        const username =
+          authUser.user_metadata?.username ||
+          authUser.email?.split('@')[0] ||
+          'artista_' + authUser.id.substring(0, 5);
+
         const newProf: Profile = {
           id: authUser.id,
-          username:
-            authUser.user_metadata?.username ||
-            authUser.email?.split('@')[0] ||
-            'artista_' + authUser.id.substring(0, 5),
+          username,
           full_name: authUser.user_metadata?.full_name || 'Artista Larvaz',
           bio: 'Creador en la comunidad Larvaz Hip-Hop.',
           avatar_url:
             authUser.user_metadata?.avatar_url ||
             'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+          location: authUser.user_metadata?.location || userLocation || 'Mendoza, Argentina',
           role: 'user',
           is_banned: false,
           created_at: new Date().toISOString(),
         };
-        await supabase.from('profiles').insert(newProf);
+
+        const { error: upsertErr } = await supabase.from('profiles').upsert(newProf);
+        if (upsertErr) {
+          console.warn('Error upserting profile in Supabase:', upsertErr);
+        }
+        dataStore.mergeProfiles([newProf]);
+        setTotalMembersCount(dataStore.getAllProfiles().length);
         setCurrentUser(newProf);
       }
     } catch (err) {
@@ -579,13 +590,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const cleanUsername = data.username.toLowerCase().replace(/[^a-z0-9_]/g, '');
 
     if (isSupabaseConnected && supabase && data.password) {
+      const redirectOrigin =
+        typeof window !== 'undefined' && window.location.origin.includes('vercel.app')
+          ? 'https://larvaz-hiphop.vercel.app'
+          : (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://larvaz-hiphop.vercel.app'));
+      const emailRedirectTo = `${redirectOrigin.replace(/\/+$/, '')}/auth/callback`;
+      const userLoc = userLocation || dataStore.getCurrentUser().location || 'Mendoza, Argentina';
+
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
+          emailRedirectTo,
           data: {
             username: cleanUsername,
             full_name: data.fullName,
+            location: userLoc,
             referral_code: 'larvaz-' + cleanUsername,
             referred_by: data.referralCode,
           },
@@ -602,7 +622,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           success: true,
           message: authData.session
             ? '¡Bienvenido! Sesión iniciada con éxito.'
-            : '¡Cuenta creada! Revisa tu correo si requiere confirmación de cuenta.',
+            : '¡Cuenta creada! Revisa tu correo y haz clic en validar para acceder a la comunidad.',
         };
       }
     }
@@ -762,20 +782,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Sincronizar publicación en Supabase si está disponible
-    if (isSupabaseConnected && supabase && currentUser && !currentUser.is_guest) {
+    if (isSupabaseConnected && supabase) {
       (async () => {
         try {
-          await supabase.from('posts').insert({
-            id: newPost.id,
-            user_id: currentUser.id,
-            external_url: newPost.external_url || '',
-            normalized_url: newPost.normalized_url,
-            provider: newPost.provider,
-            content_type: newPost.content_type,
-            description: newPost.description,
-            tags: newPost.tags,
-            created_at: newPost.created_at,
-          });
+          const { data: sessionData } = await supabase.auth.getSession();
+          const authUser = sessionData?.session?.user;
+          const targetUserId =
+            authUser?.id ||
+            (currentUser.id && currentUser.id.length === 36 && currentUser.id.includes('-')
+              ? currentUser.id
+              : null);
+
+          if (targetUserId) {
+            const { data: inserted, error } = await supabase
+              .from('posts')
+              .insert({
+                user_id: targetUserId,
+                external_url: newPost.external_url || 'https://larvaz-hiphop.vercel.app',
+                normalized_url: newPost.normalized_url || null,
+                provider: newPost.provider || 'generic',
+                content_type: newPost.content_type || 'text',
+                description: newPost.description || '',
+                tags: newPost.tags || [],
+                created_at: newPost.created_at,
+              })
+              .select('id')
+              .single();
+
+            if (error) {
+              console.warn('Error al guardar post en Supabase:', error);
+            } else if (inserted?.id) {
+              newPost.id = inserted.id;
+              dataStore.saveToStorage();
+              refreshPosts();
+            }
+          }
         } catch (err) {
           console.warn('Error al guardar post en Supabase:', err);
         }

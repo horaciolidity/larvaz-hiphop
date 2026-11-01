@@ -1162,8 +1162,23 @@ class LarvazDataStore {
           )
         ));
 
+    const userLocation =
+      this.currentUser.location ||
+      (typeof window !== 'undefined' ? localStorage.getItem('larvaz_user_location') : null) ||
+      'Mendoza, Argentina';
+
+    const authorWithLocation: Profile = {
+      ...this.currentUser,
+      location: userLocation,
+    };
+
+    const newPostId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'post-' + Date.now();
+
     const newPost: Post = {
-      id: 'post-' + Date.now(),
+      id: newPostId,
       user_id: this.currentUser.id,
       external_url: hasUrl ? data.externalUrl!.trim() : undefined,
       normalized_url: hasUrl ? data.externalUrl!.trim() : undefined,
@@ -1175,8 +1190,11 @@ class LarvazDataStore {
       comments_count: 0,
       is_hidden: false,
       created_at: new Date().toISOString(),
-      author: this.currentUser,
-      metadata: data.metadata,
+      author: authorWithLocation,
+      metadata: {
+        ...data.metadata,
+        location: userLocation,
+      },
       user_has_liked: false,
       user_has_bookmarked: false,
       views_count: 1,

@@ -15,10 +15,13 @@ import {
   Check,
 } from 'lucide-react';
 import { ContentType, PostMetadata } from '@/types';
+import { getLocationFlag } from '@/lib/country-utils';
 
 export default function CrearPublicacionPage() {
   const router = useRouter();
-  const { createPost, currentUser } = useApp();
+  const { createPost, currentUser, userLocation } = useApp();
+  const flag = getLocationFlag(userLocation || currentUser.location);
+  const locationName = userLocation || currentUser.location || 'Mendoza, Argentina';
 
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -138,6 +141,12 @@ export default function CrearPublicacionPage() {
         <p className="text-xs text-content-secondary mt-1">
           Comparte tus barras, reflexiones, freestyle, música, batallas, graffiti o novedades en el muro comunitario.
         </p>
+        <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-elevated border border-surface-border text-xs">
+          <span>{flag || '🌐'}</span>
+          <span className="text-content-secondary font-mono text-[11px]">
+            Publicando desde: <strong className="text-content-primary">{locationName}</strong>
+          </span>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
