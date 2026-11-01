@@ -23,6 +23,7 @@ interface AppContextType {
   currentUser: Profile;
   setCurrentUser: (user: Profile) => void;
   availableProfiles: Profile[];
+  totalMembersCount: number;
   posts: Post[];
   events: HipHopEvent[];
   notifications: Notification[];
@@ -117,6 +118,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<HipHopEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [totalMembersCount, setTotalMembersCount] = useState<number>(() => dataStore.getAllProfiles().length);
   const isSupabaseConnected = isSupabaseConfigured();
 
 
@@ -321,6 +323,172 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       subscription?.unsubscribe();
     };
   }, []);
+
+  // Cross-tab real-time sync via BroadcastChannel & LocalStorage events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('larvaz_community_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'NEW_POST' && event.data.post) {
+          dataStore.addExternalPost(event.data.post);
+          refreshPosts();
+        } else if (event.data?.type === 'SYNC_FEED') {
+          dataStore.reloadPosts();
+          refreshPosts();
+        }
+      };
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'larvaz_posts') {
+        dataStore.reloadPosts();
+        refreshPosts();
+      }
+      if (e.key === 'larvaz_profiles') {
+        setTotalMembersCount(dataStore.getAllProfiles().length);
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  // Supabase Real-Time synchronization for posts & community profiles
+  useEffect(() => {
+    if (!supabase || !isSupabaseConnected) return;
+
+    const fetchSupabasePosts = async () => {
+      try {
+        const { data: dbPosts, error } = await supabase
+          .from('posts')
+          .select('*, profiles(*)')
+          .order('created_at', { ascending: false })
+          .limit(50); // Límite económico para cuidar la cuota gratuita
+
+        if (!error && dbPosts && dbPosts.length > 0) {
+          const mappedPosts: Post[] = dbPosts.map((p: any) => {
+            const author = p.profiles || {
+              id: p.user_id,
+              username: 'artista_' + (p.user_id ? String(p.user_id).substring(0, 5) : 'comunitario'),
+              full_name: 'Artista Comunitario',
+              avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+              role: 'user',
+              is_banned: false,
+              created_at: p.created_at,
+            };
+
+            return {
+              id: p.id ? String(p.id) : 'post-' + p.created_at,
+              user_id: p.user_id,
+              external_url: p.external_url || undefined,
+              normalized_url: p.normalized_url || undefined,
+              provider: p.provider || (p.external_url ? 'generic' : 'generic'),
+              content_type: p.content_type || 'text',
+              description: p.description || '',
+              tags: Array.isArray(p.tags) ? p.tags : [],
+              likes_count: p.likes_count || 0,
+              comments_count: p.comments_count || 0,
+              is_hidden: p.is_hidden || false,
+              created_at: p.created_at,
+              author,
+              metadata: p.metadata,
+              user_has_liked: false,
+              user_has_bookmarked: false,
+              views_count: p.views_count || 1,
+            };
+          });
+
+          dataStore.mergePosts(mappedPosts);
+          refreshPosts();
+        }
+      } catch (err) {
+        console.warn('Error fetching Supabase posts:', err);
+      }
+    };
+
+    const fetchSupabaseProfiles = async () => {
+      try {
+        const { data: dbProfiles, error } = await supabase.from('profiles').select('*').limit(100);
+        if (!error && dbProfiles && dbProfiles.length > 0) {
+          dataStore.mergeProfiles(dbProfiles);
+          setTotalMembersCount(dataStore.getAllProfiles().length);
+        }
+      } catch (err) {
+        console.warn('Error fetching Supabase profiles:', err);
+      }
+    };
+
+    fetchSupabasePosts();
+    fetchSupabaseProfiles();
+
+    // Suscripción Realtime ultra-liviana (usa payload directo, costo 0 queries extra)
+    const syncChannel = supabase
+      .channel('public:posts_live_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'posts' },
+        (payload: any) => {
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const p = payload.new;
+            const newPost: Post = {
+              id: p.id ? String(p.id) : 'post-' + Date.now(),
+              user_id: p.user_id,
+              external_url: p.external_url || undefined,
+              normalized_url: p.normalized_url || undefined,
+              provider: p.provider || (p.external_url ? 'generic' : 'generic'),
+              content_type: p.content_type || 'text',
+              description: p.description || '',
+              tags: Array.isArray(p.tags) ? p.tags : [],
+              likes_count: p.likes_count || 0,
+              comments_count: p.comments_count || 0,
+              is_hidden: p.is_hidden || false,
+              created_at: p.created_at || new Date().toISOString(),
+              author: dataStore.getProfileById(p.user_id) || {
+                id: p.user_id,
+                username: 'artista_' + String(p.user_id).substring(0, 5),
+                full_name: 'Artista Comunitario',
+                avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+                role: 'user',
+                is_banned: false,
+                created_at: p.created_at || new Date().toISOString(),
+              },
+              metadata: p.metadata,
+              user_has_liked: false,
+              user_has_bookmarked: false,
+              views_count: 1,
+            };
+            dataStore.addExternalPost(newPost);
+            refreshPosts();
+          } else {
+            fetchSupabasePosts();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        (payload: any) => {
+          if (payload.eventType === 'INSERT' && payload.new) {
+            dataStore.mergeProfiles([payload.new]);
+            setTotalMembersCount((prev) => prev + 1);
+          } else {
+            fetchSupabaseProfiles();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(syncChannel);
+    };
+  }, [isSupabaseConnected]);
 
   const setCurrentUser = (user: Profile) => {
     dataStore.setCurrentUser(user);
@@ -584,11 +752,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRadioStations([...dataStore.getRadioStations()]);
     setCommunityTracks([...dataStore.getCommunityTracks()]);
 
+    // Broadcast in real-time to other local tabs/windows
+    if (typeof window !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('larvaz_community_sync');
+        ch.postMessage({ type: 'NEW_POST', post: newPost });
+        ch.close();
+      } catch {}
+    }
+
     // Sincronizar publicación en Supabase si está disponible
     if (isSupabaseConnected && supabase && currentUser && !currentUser.is_guest) {
       (async () => {
         try {
           await supabase.from('posts').insert({
+            id: newPost.id,
             user_id: currentUser.id,
             external_url: newPost.external_url || '',
             normalized_url: newPost.normalized_url,
@@ -675,6 +853,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentUser,
         setCurrentUser,
         availableProfiles: dataStore.getAllProfiles(),
+        totalMembersCount,
         posts,
         events,
         notifications,

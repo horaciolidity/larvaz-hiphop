@@ -6,9 +6,11 @@ import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
 import { Bell, Search, Radio, UserCheck } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
+import { getLocationFlag } from '@/lib/country-utils';
 
 export const Navbar: React.FC = () => {
-  const { unreadNotifsCount, currentUser, isRadioPlaying } = useApp();
+  const { unreadNotifsCount, currentUser, isRadioPlaying, userLocation } = useApp();
+  const flag = getLocationFlag(userLocation || currentUser.location);
 
   return (
     <header className="sticky top-0 z-40 w-full bg-background/90 backdrop-blur-md border-b border-surface-border md:hidden px-3 py-2.5 flex items-center justify-between">
@@ -63,7 +65,7 @@ export const Navbar: React.FC = () => {
         ) : (
           <Link
             href="/panel"
-            className="ml-0.5 p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
+            className="ml-0.5 relative p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
             aria-label="Mi Panel"
           >
             <UserAvatar
@@ -71,6 +73,15 @@ export const Navbar: React.FC = () => {
               name={currentUser.username}
               size="sm"
             />
+            {flag && (
+              <span
+                className="absolute -bottom-1 -right-1 text-[11px] leading-none bg-surface border border-surface-border rounded-full w-5 h-5 flex items-center justify-center"
+                title={userLocation || currentUser.location || ''}
+                aria-hidden="true"
+              >
+                {flag}
+              </span>
+            )}
           </Link>
         )}
       </div>

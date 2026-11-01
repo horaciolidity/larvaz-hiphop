@@ -546,6 +546,105 @@ export const INITIAL_RADIO_STATIONS: RadioStation[] = [
     listeners_count: 310,
     is_live: true,
   },
+
+  // ─── RADIOS EN VIVO — ARGENTINA & LATINOAMÉRICA (HIP-HOP, RAP, TRAP, REGGAE) ───
+
+  {
+    id: 'station-rap-underground-ar',
+    name: 'RAP ARGENTO UNDERGROUND',
+    dial: '89.3 FM',
+    region: '🇦🇷 Argentina — Rap & Cyphers',
+    tagline: 'Freestyle de plaza, rap consciente argento, boom-bap y rimas de asfalto 24/7 sin filtros comerciales',
+    stream_url: 'https://streams.ilovemusic.de/iloveradio16.mp3',
+    genre: 'Hip-Hop / Rap Underground / Boom-Bap ARG',
+    current_track: {
+      title: 'Barras & Boom-Bap Argento',
+      artist: 'Cypher Nacional 89.3 FM',
+      album_art: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=300&h=300&fit=crop',
+    },
+    listeners_count: 1240,
+    is_live: true,
+  },
+  {
+    id: 'station-trap-argento',
+    name: 'TRAP ARGENTO & BARRAS',
+    dial: '93.7 FM',
+    region: '🇦🇷 Argentina — Trap & Drill',
+    tagline: 'Trap argento crudo, 808s pesados, drill porteño y barras independientes del Río de la Plata',
+    stream_url: 'https://streams.ilovemusic.de/iloveradio13.mp3',
+    genre: 'Trap Argentino / Drill / Barras ARG',
+    current_track: {
+      title: 'Trap Argentino Non-Stop',
+      artist: 'Movida Urbana ARG 93.7 FM',
+      album_art: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&h=300&fit=crop',
+    },
+    listeners_count: 980,
+    is_live: true,
+  },
+  {
+    id: 'station-reggae-roots-ar',
+    name: 'REGGAE ROOTS & DUB ARGENTINA',
+    dial: '101.5 FM',
+    region: '🇦🇷 Argentina — Cultura Reggae',
+    tagline: 'Reggae roots nacional, dub pesado, sound system criollo y vibras conscientes',
+    stream_url: 'https://lagrosseradio.ice.infomaniak.ch/lagrosseradio-reggae-192.mp3',
+    genre: 'Reggae Roots / Dub / Sound System ARG',
+    current_track: {
+      title: 'Roots & Dub Sound System',
+      artist: 'Reggae Nacional ARG 101.5 FM',
+      album_art: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop',
+    },
+    listeners_count: 870,
+    is_live: true,
+  },
+  {
+    id: 'station-reggae-dancehall-latam',
+    name: 'REGGAE & DANCEHALL LATINO',
+    dial: '97.7 FM',
+    region: '🌎 Latinoamérica & Caribe',
+    tagline: 'Dancehall en español, reggae latinoamericano, cultura soundsystem caribeña y vibra rasta',
+    stream_url: 'http://hd.lagrosseradio.info/lagrosseradio-reggae-192.mp3',
+    genre: 'Reggae Latino / Dancehall / Roots LATAM',
+    current_track: {
+      title: 'Caribbean & Latin Roots',
+      artist: 'Reggae & Dancehall Latino',
+      album_art: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
+    },
+    listeners_count: 760,
+    is_live: true,
+  },
+  {
+    id: 'station-rap-consciente-latam',
+    name: 'RAP CONSCIENTE & FREESTYLE LATAM',
+    dial: '105.1 FM',
+    region: '🌎 Latinoamérica Underground',
+    tagline: 'Rap contestatario, mensaje social, lírica de peso y freestyle de toda América Latina',
+    stream_url: 'https://listen.181fm.com/181-oldschool_128k.mp3',
+    genre: 'Rap Consciente / Freestyle / Boom-Bap LATAM',
+    current_track: {
+      title: 'Lírica & Mensaje Latino',
+      artist: 'Rap Underground LATAM',
+      album_art: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop',
+    },
+    listeners_count: 1100,
+    is_live: true,
+  },
+  {
+    id: 'station-trap-under-latam',
+    name: 'TRAP & HIP-HOP LATINO UNDERGROUND',
+    dial: '99.9 FM',
+    region: '🌎 Latinoamérica Urbana',
+    tagline: 'Beats oscuros, trap latino underground, ritmos callejeros y barras sin concesiones',
+    stream_url: 'https://icecast.powerhitz.com/1power',
+    genre: 'Trap Underground / Hip-Hop Latino',
+    current_track: {
+      title: 'Trap Latino Underground 24/7',
+      artist: 'Urban Underground LATAM',
+      album_art: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&h=300&fit=crop',
+    },
+    listeners_count: 690,
+    is_live: true,
+  },
 ];
 
 export const INITIAL_CRYPTO_TIPS: CryptoTip[] = [
@@ -622,7 +721,17 @@ class LarvazDataStore {
     if (typeof window === 'undefined') return;
     try {
       const storedPosts = localStorage.getItem('larvaz_posts');
-      if (storedPosts) this.posts = JSON.parse(storedPosts);
+      if (storedPosts) {
+        try {
+          const parsed: Post[] = JSON.parse(storedPosts);
+          const map = new Map<string, Post>();
+          for (const p of INITIAL_POSTS) map.set(p.id, p);
+          for (const p of parsed) map.set(p.id, p);
+          this.posts = Array.from(map.values());
+        } catch {
+          this.posts = [...INITIAL_POSTS];
+        }
+      }
 
       const storedEvents = localStorage.getItem('larvaz_events');
       if (storedEvents) this.events = JSON.parse(storedEvents);
@@ -654,7 +763,17 @@ class LarvazDataStore {
       }
 
       const storedProfiles = localStorage.getItem('larvaz_profiles');
-      if (storedProfiles) this.profiles = JSON.parse(storedProfiles);
+      if (storedProfiles) {
+        try {
+          const parsedProfiles: Profile[] = JSON.parse(storedProfiles);
+          const profMap = new Map<string, Profile>();
+          for (const p of INITIAL_PROFILES) profMap.set(p.id, p);
+          for (const p of parsedProfiles) profMap.set(p.id, p);
+          this.profiles = Array.from(profMap.values());
+        } catch {
+          this.profiles = [...INITIAL_PROFILES];
+        }
+      }
 
       const storedNotifications = localStorage.getItem('larvaz_notifications');
       if (storedNotifications) this.notifications = JSON.parse(storedNotifications);
@@ -1101,6 +1220,64 @@ class LarvazDataStore {
     this.posts.splice(index, 1);
     this.saveToStorage();
     return true;
+  }
+
+  // Reload posts from localStorage (when updated by other tabs/windows)
+  reloadPosts(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedPosts = localStorage.getItem('larvaz_posts');
+      if (storedPosts) {
+        const parsed: Post[] = JSON.parse(storedPosts);
+        const map = new Map<string, Post>();
+        for (const p of this.posts) map.set(p.id, p);
+        for (const p of parsed) map.set(p.id, p);
+        this.posts = Array.from(map.values());
+      }
+    } catch {}
+  }
+
+  // Add an external post (from real-time broadcast or Supabase)
+  addExternalPost(post: Post): boolean {
+    const exists = this.posts.some((p) => p.id === post.id);
+    if (exists) return false;
+    this.posts.unshift(post);
+    this.saveToStorage();
+    return true;
+  }
+
+  // Merge batch of posts (from Supabase queries)
+  mergePosts(incomingPosts: Post[]): void {
+    const map = new Map<string, Post>();
+    for (const p of this.posts) map.set(p.id, p);
+    let changed = false;
+    for (const p of incomingPosts) {
+      if (!map.has(p.id)) {
+        map.set(p.id, p);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.posts = Array.from(map.values());
+      this.saveToStorage();
+    }
+  }
+
+  // Merge batch of profiles (from Supabase queries)
+  mergeProfiles(incomingProfiles: Profile[]): void {
+    const map = new Map<string, Profile>();
+    for (const p of this.profiles) map.set(p.id, p);
+    let changed = false;
+    for (const p of incomingProfiles) {
+      if (!map.has(p.id)) {
+        map.set(p.id, p);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.profiles = Array.from(map.values());
+      this.saveToStorage();
+    }
   }
 
   // --- Reactions ---

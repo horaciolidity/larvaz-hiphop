@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { MapPin, Radio, Share2, Check, Edit3, X } from 'lucide-react';
+import { getLocationFlag } from '@/lib/country-utils';
+
 
 export const TopLocationBar: React.FC = () => {
   const { userLocation, setUserLocation, currentStation, isRadioPlaying, currentUser } = useApp();
@@ -67,6 +69,11 @@ export const TopLocationBar: React.FC = () => {
               className="flex items-center gap-1 font-bold text-content-primary hover:text-acid transition-colors truncate group"
               title="Haz clic para cambiar tu ubicación geográfica"
             >
+              {getLocationFlag(userLocation) && (
+                <span className="text-sm leading-none flex-shrink-0" aria-hidden="true">
+                  {getLocationFlag(userLocation)}
+                </span>
+              )}
               <span className="truncate">{userLocation}</span>
               <Edit3 className="w-3 h-3 text-content-muted group-hover:text-acid transition-colors flex-shrink-0" />
             </button>

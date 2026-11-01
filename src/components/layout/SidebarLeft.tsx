@@ -30,6 +30,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
+import { getLocationFlag } from '@/lib/country-utils';
 
 export const SidebarLeft: React.FC = () => {
   const pathname = usePathname();
@@ -41,7 +42,9 @@ export const SidebarLeft: React.FC = () => {
     isAdmin,
     isSuperAdmin,
     logout,
+    userLocation,
   } = useApp();
+  const flag = getLocationFlag(userLocation || currentUser.location);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
 
@@ -167,14 +170,26 @@ export const SidebarLeft: React.FC = () => {
               className="w-full flex items-center justify-between p-2 rounded-xl bg-surface border border-surface-border hover:border-acid transition-colors text-left"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <UserAvatar
-                  avatarUrl={currentUser.avatar_url}
-                  name={currentUser.full_name}
-                  size="md"
-                />
+                <div className="relative flex-shrink-0">
+                  <UserAvatar
+                    avatarUrl={currentUser.avatar_url}
+                    name={currentUser.full_name}
+                    size="md"
+                  />
+                  {flag && (
+                    <span
+                      className="absolute -bottom-1 -right-1 text-[11px] leading-none bg-surface border border-surface-border rounded-full w-4 h-4 flex items-center justify-center shadow-sm pointer-events-none"
+                      title={userLocation || currentUser.location || ''}
+                      aria-hidden="true"
+                    >
+                      {flag}
+                    </span>
+                  )}
+                </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-content-primary truncate">
-                    {currentUser.full_name}
+                  <p className="text-xs font-bold text-content-primary truncate flex items-center gap-1">
+                    <span className="truncate">{currentUser.full_name}</span>
+                    {flag && <span className="text-[11px] flex-shrink-0">{flag}</span>}
                   </p>
                   <p className="text-[11px] text-content-secondary truncate">
                     @{currentUser.username}

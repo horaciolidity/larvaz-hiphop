@@ -8,6 +8,7 @@ import { MediaEmbed } from './MediaEmbed';
 import { ReportModal } from '@/components/common/ReportModal';
 import { CryptoTipModal } from './CryptoTipModal';
 import { UserAvatar } from '@/components/common/UserAvatar';
+import { getLocationFlag } from '@/lib/country-utils';
 import {
   Heart,
   MessageCircle,
@@ -148,6 +149,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
               <span className="font-bold text-sm text-content-primary group-hover:text-acid transition-colors truncate">
                 {post.author.full_name}
               </span>
+              {getLocationFlag(post.author.location) && (
+                <span
+                  className="text-sm leading-none flex-shrink-0"
+                  title={post.author.location || ''}
+                  aria-hidden="true"
+                >
+                  {getLocationFlag(post.author.location)}
+                </span>
+              )}
               <span className="text-xs text-content-secondary truncate">
                 @{post.author.username}
               </span>

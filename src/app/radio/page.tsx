@@ -296,17 +296,42 @@ export default function RadioPage() {
 
   const regions = [
     'Todas',
+    '🇦🇷 Argentina (Rap / Trap / Reggae)',
+    '🌎 Latinoamérica',
+    '🇯🇲 Reggae & Dub Roots',
+    '🎤 Rap & Freestyle',
+    '🔥 Trap & Drill',
     'Comunidad Larvaz (Global)',
-    'Argentina & Cono Sur',
-    'Internacional',
     'Nueva York (East Coast)',
-    'Costa Oeste & Mundial',
-    'Europa / Underground',
+    'Costa Oeste & Breaks',
   ];
 
   const filteredStations = selectedRegion === 'Todas'
     ? radioStations
-    : radioStations.filter(s => s.region?.includes(selectedRegion) || s.region === selectedRegion);
+    : radioStations.filter(s => {
+        const r = (s.region || '').toLowerCase();
+        const g = (s.genre || '').toLowerCase();
+        const n = (s.name || '').toLowerCase();
+        const t = (s.tagline || '').toLowerCase();
+        const allText = `${r} ${g} ${n} ${t}`;
+
+        if (selectedRegion.startsWith('🇦🇷 Argentina')) {
+          return allText.includes('argentina') || allText.includes('arg');
+        }
+        if (selectedRegion === '🌎 Latinoamérica') {
+          return allText.includes('latinoamérica') || allText.includes('latam') || allText.includes('latino');
+        }
+        if (selectedRegion === '🇯🇲 Reggae & Dub Roots') {
+          return allText.includes('reggae') || allText.includes('dub') || allText.includes('dancehall') || allText.includes('roots');
+        }
+        if (selectedRegion === '🎤 Rap & Freestyle') {
+          return allText.includes('rap') || allText.includes('hip-hop') || allText.includes('freestyle') || allText.includes('boombap') || allText.includes('barras');
+        }
+        if (selectedRegion === '🔥 Trap & Drill') {
+          return allText.includes('trap') || allText.includes('drill');
+        }
+        return r.includes(selectedRegion.toLowerCase()) || r === selectedRegion;
+      });
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
