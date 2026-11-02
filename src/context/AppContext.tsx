@@ -352,6 +352,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshPostsRef = React.useRef(refreshPosts);
   useEffect(() => { refreshPostsRef.current = refreshPosts; }, [refreshPosts]);
 
+  // syncProfilesState ref — prevents stale closure inside BroadcastChannel handler
+  const syncProfilesStateRef = React.useRef(syncProfilesState);
+  useEffect(() => { syncProfilesStateRef.current = syncProfilesState; }, [syncProfilesState]);
+
   // Cross-tab real-time sync via BroadcastChannel & LocalStorage events
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -368,10 +372,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           refreshPostsRef.current();
         } else if (event.data?.type === 'NEW_PROFILE' && event.data.profile) {
           dataStore.addProfile(event.data.profile);
-          syncProfilesState();
+          syncProfilesStateRef.current();
         } else if (event.data?.type === 'SYNC_PROFILES') {
           dataStore.reloadProfiles();
-          syncProfilesState();
+          syncProfilesStateRef.current();
         }
       };
     } catch { }
@@ -383,7 +387,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       if (e.key === 'larvaz_profiles') {
         dataStore.reloadProfiles();
-        syncProfilesState();
+        syncProfilesStateRef.current();
       }
     };
 
@@ -600,6 +604,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         p.full_name.toLowerCase().includes(cleanSearch)
     );
     if (found) {
+      dataStore.addProfile(found); // ensure is_custom flag & re-save
+      syncProfilesState();
       setCurrentUser(found);
       return { success: true };
     }
@@ -659,7 +665,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Local registration
     const newProfile: Profile = {
-      id: 'user-' + Date.now(),
+      id: 'custom-' + Date.now(),
       username: cleanUsername,
       full_name: data.fullName.trim(),
       bio: 'Nuevo creador y apasionado de la cultura hip-hop en Larvaz.',

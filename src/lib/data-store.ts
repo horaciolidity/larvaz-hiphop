@@ -766,11 +766,15 @@ class LarvazDataStore {
       if (storedProfiles) {
         try {
           const parsedProfiles: Profile[] = JSON.parse(storedProfiles);
+          const initialIds = new Set(INITIAL_PROFILES.map((p) => p.id));
           const profMap = new Map<string, Profile>();
           // Put initial profiles first
           for (const p of INITIAL_PROFILES) profMap.set(p.id, p);
           // Overwrite / add from stored profiles (which includes registered users)
-          for (const p of parsedProfiles) profMap.set(p.id, p);
+          for (const p of parsedProfiles) {
+            const isCustom = !initialIds.has(p.id);
+            profMap.set(p.id, { ...p, is_custom: isCustom ? true : (p.is_custom || false) });
+          }
           this.profiles = Array.from(profMap.values());
         } catch {
           this.profiles = [...INITIAL_PROFILES];
@@ -1268,10 +1272,15 @@ class LarvazDataStore {
       const storedProfiles = localStorage.getItem('larvaz_profiles');
       if (storedProfiles) {
         const parsedProfiles: Profile[] = JSON.parse(storedProfiles);
+        const initialIds = new Set(INITIAL_PROFILES.map((p) => p.id));
         const profMap = new Map<string, Profile>();
         for (const p of INITIAL_PROFILES) profMap.set(p.id, p);
         for (const p of this.profiles) profMap.set(p.id, p);
-        for (const p of parsedProfiles) profMap.set(p.id, p);
+        for (const p of parsedProfiles) {
+          // Mark any profile that is NOT in the original seed as custom/registered
+          const isCustom = !initialIds.has(p.id);
+          profMap.set(p.id, { ...p, is_custom: isCustom ? true : (p.is_custom || false) });
+        }
         this.profiles = Array.from(profMap.values());
       }
     } catch {}

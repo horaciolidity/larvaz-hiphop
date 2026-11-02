@@ -146,6 +146,7 @@ function MensajesContent() {
         if (saved) return JSON.parse(saved);
       } catch {}
     }
+    // Only show demo conversations for mock admin user, guests see empty inbox
     return DEMO_CONVS;
   });
 
@@ -158,12 +159,14 @@ function MensajesContent() {
     }
     return DEMO_MESSAGES;
   });
-
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewChat, setShowNewChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Keep a ref so BroadcastChannel handler always sees the latest activeConv
+  const activeConvRef = useRef<Conversation | null>(null);
+  useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
   // Sync to localStorage
   useEffect(() => {
@@ -209,7 +212,7 @@ function MensajesContent() {
                       ...c,
                       last_message: incoming.content,
                       last_message_at: incoming.created_at,
-                      unread_count: activeConv?.id === convId ? 0 : (c.unread_count || 0) + 1,
+                      unread_count: activeConvRef.current?.id === convId ? 0 : (c.unread_count || 0) + 1,
                     }
                   : c
               );
@@ -252,7 +255,7 @@ function MensajesContent() {
       if (channel) channel.close();
       window.removeEventListener('storage', handleStorage);
     };
-  }, [activeConv]);
+  }, []);
 
   // Handle auto-open by query param ?user=username
   useEffect(() => {

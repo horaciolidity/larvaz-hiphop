@@ -35,8 +35,8 @@ export const ConnectedUsersBar: React.FC = () => {
       return true;
     })
     .sort((a, b) => {
-      const isCustomA = a.is_custom || !a.id.startsWith('user-');
-      const isCustomB = b.is_custom || !b.id.startsWith('user-');
+      const isCustomA = a.is_custom || a.id.startsWith('custom-');
+      const isCustomB = b.is_custom || b.id.startsWith('custom-');
       if (isCustomA !== isCustomB) return isCustomA ? -1 : 1;
       const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -123,7 +123,7 @@ export const ConnectedUsersBar: React.FC = () => {
 
         {/* Other Active Artists */}
         {otherProfiles.map((user) => {
-          const isNewUser = user.is_custom || !user.id.startsWith('user-');
+          const isNewUser = user.is_custom || user.id.startsWith('custom-');
           const statusInfo = ACTIVITIES[user.id] || {
             activity: isNewUser ? 'Recién llegado a la plaza' : 'En el cypher',
             tag: isNewUser ? '✨ Nuevo' : (user.artistic_disciplines || '🎤 Rap'),
