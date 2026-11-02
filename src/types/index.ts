@@ -53,6 +53,7 @@ export interface Profile {
   referrals_count?: number;
   referral_props_earned?: number;
   is_guest?: boolean;
+  is_custom?: boolean;
 }
 
 export type ContentProvider = 

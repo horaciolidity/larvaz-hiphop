@@ -130,6 +130,10 @@ function formatTime(isoStr: string): string {
   return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
 }
 
+function getConvId(userIdA: string, userIdB: string): string {
+  return [userIdA, userIdB].sort().join('_');
+}
+
 function MensajesContent() {
   const { currentUser, availableProfiles } = useApp();
   const searchParams = useSearchParams();
@@ -178,6 +182,78 @@ function MensajesContent() {
     }
   }, [messages]);
 
+  // Cross-tab / cross-window real-time synchronization for messages
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('larvaz_messages_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'NEW_DM' && event.data.message) {
+          const incoming: DirectMessage = event.data.message;
+          const convId = incoming.conversation_id;
+          const senderProfile = event.data.senderProfile;
+
+          setMessages((prev) => ({
+            ...prev,
+            [convId]: [...(prev[convId] || []), incoming],
+          }));
+
+          setConversations((prev) => {
+            const exists = prev.find((c) => c.id === convId);
+            if (exists) {
+              return prev.map((c) =>
+                c.id === convId
+                  ? {
+                      ...c,
+                      last_message: incoming.content,
+                      last_message_at: incoming.created_at,
+                      unread_count: activeConv?.id === convId ? 0 : (c.unread_count || 0) + 1,
+                    }
+                  : c
+              );
+            } else if (senderProfile) {
+              const newC: Conversation = {
+                id: convId,
+                participant_id: senderProfile.id,
+                participant_username: senderProfile.username,
+                participant_name: senderProfile.full_name,
+                participant_avatar: senderProfile.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+                last_message: incoming.content,
+                last_message_at: incoming.created_at,
+                unread_count: 1,
+                is_online: true,
+              };
+              return [newC, ...prev];
+            }
+            return prev;
+          });
+        }
+      };
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'larvaz_direct_messages' && e.newValue) {
+        try {
+          setMessages(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === 'larvaz_conversations' && e.newValue) {
+        try {
+          setConversations(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [activeConv]);
+
   // Handle auto-open by query param ?user=username
   useEffect(() => {
     if (targetUserParam) {
@@ -215,48 +291,70 @@ function MensajesContent() {
       read: false,
     };
 
-    setMessages(prev => ({
+    setMessages((prev) => ({
       ...prev,
       [activeConv.id]: [...(prev[activeConv.id] || []), msg],
     }));
 
-    setConversations(prev =>
-      prev.map(c => c.id === activeConv.id
-        ? { ...c, last_message: msg.content, last_message_at: msg.created_at }
-        : c
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeConv.id
+          ? { ...c, last_message: msg.content, last_message_at: msg.created_at }
+          : c
       )
     );
     setNewMessage('');
 
-    // Simulate auto-reply after 1.5s
-    setTimeout(() => {
-      const replies = [
-        'Dale! 🔥', 'Eso!', 'Perfecto hermano', '¡Avisame cuando estés!',
-        'Confirmado 💯', 'Nos vemos en el cypher', 'Mandame el link',
-        'Ahí nos vemos crack', 'Tremendo 🎤',
-      ];
-      const autoReply: DirectMessage = {
-        id: 'auto-' + Date.now(),
-        conversation_id: activeConv.id,
-        sender_id: activeConv.participant_id,
-        content: replies[Math.floor(Math.random() * replies.length)],
-        created_at: new Date().toISOString(),
-        read: false,
-      };
-      setMessages(prev => ({
-        ...prev,
-        [activeConv.id]: [...(prev[activeConv.id] || []), autoReply],
-      }));
-    }, 1500);
+    // Broadcast message to all other open tabs/windows in real time!
+    if (typeof window !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('larvaz_messages_sync');
+        bc.postMessage({
+          type: 'NEW_DM',
+          message: msg,
+          senderProfile: currentUser,
+        });
+        bc.close();
+      } catch {}
+    }
+
+    // Only simulate auto-reply if chatting with demo bot profiles (not another human/registered user)
+    const isMockArtist = ['user-graffiti-krew', 'user-dj-raw', 'user-mc-asfalto', 'user-bboy-cypher'].includes(activeConv.participant_id);
+    if (isMockArtist) {
+      setTimeout(() => {
+        const replies = [
+          'Dale! 🔥', 'Eso!', 'Perfecto hermano', '¡Avisame cuando estés!',
+          'Confirmado 💯', 'Nos vemos en el cypher', 'Mandame el link',
+          'Ahí nos vemos crack', 'Tremendo 🎤',
+        ];
+        const autoReply: DirectMessage = {
+          id: 'auto-' + Date.now(),
+          conversation_id: activeConv.id,
+          sender_id: activeConv.participant_id,
+          content: replies[Math.floor(Math.random() * replies.length)],
+          created_at: new Date().toISOString(),
+          read: false,
+        };
+        setMessages((prev) => ({
+          ...prev,
+          [activeConv.id]: [...(prev[activeConv.id] || []), autoReply],
+        }));
+      }, 1500);
+    }
   };
 
   const startNewConversation = (profile: any) => {
-    const existing = conversations.find(c => c.participant_id === profile.id);
+    // Deterministic conversation ID between two users
+    const canonicalId = getConvId(currentUser.id, profile.id);
+    const existing = conversations.find(
+      (c) => c.id === canonicalId || c.participant_id === profile.id
+    );
+
     if (existing) {
       setActiveConv(existing);
     } else {
       const newConv: Conversation = {
-        id: 'conv-new-' + profile.id,
+        id: canonicalId,
         participant_id: profile.id,
         participant_username: profile.username,
         participant_name: profile.full_name,
@@ -264,10 +362,10 @@ function MensajesContent() {
         last_message: '',
         last_message_at: new Date().toISOString(),
         unread_count: 0,
-        is_online: Math.random() > 0.5,
+        is_online: true,
       };
-      setConversations(prev => [newConv, ...prev]);
-      setMessages(prev => ({ ...prev, [newConv.id]: [] }));
+      setConversations((prev) => [newConv, ...prev]);
+      setMessages((prev) => ({ ...prev, [newConv.id]: prev[newConv.id] || [] }));
       setActiveConv(newConv);
     }
     setShowNewChat(false);

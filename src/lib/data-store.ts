@@ -767,12 +767,17 @@ class LarvazDataStore {
         try {
           const parsedProfiles: Profile[] = JSON.parse(storedProfiles);
           const profMap = new Map<string, Profile>();
+          // Put initial profiles first
           for (const p of INITIAL_PROFILES) profMap.set(p.id, p);
+          // Overwrite / add from stored profiles (which includes registered users)
           for (const p of parsedProfiles) profMap.set(p.id, p);
           this.profiles = Array.from(profMap.values());
         } catch {
           this.profiles = [...INITIAL_PROFILES];
         }
+      } else {
+        // Save initial profiles so localStorage has them
+        localStorage.setItem('larvaz_profiles', JSON.stringify(INITIAL_PROFILES));
       }
 
       const storedNotifications = localStorage.getItem('larvaz_notifications');
@@ -1248,6 +1253,7 @@ class LarvazDataStore {
       if (storedPosts) {
         const parsed: Post[] = JSON.parse(storedPosts);
         const map = new Map<string, Post>();
+        for (const p of INITIAL_POSTS) map.set(p.id, p);
         for (const p of this.posts) map.set(p.id, p);
         for (const p of parsed) map.set(p.id, p);
         this.posts = Array.from(map.values());
@@ -1298,15 +1304,16 @@ class LarvazDataStore {
   }
 
   addProfile(profile: Profile): boolean {
+    const profileWithFlag = { ...profile, is_custom: true };
     const exists = this.profiles.some((p) => p.id === profile.id || p.username.toLowerCase() === profile.username.toLowerCase());
     if (exists) {
       const idx = this.profiles.findIndex((p) => p.id === profile.id || p.username.toLowerCase() === profile.username.toLowerCase());
       if (idx !== -1) {
-        this.profiles[idx] = { ...this.profiles[idx], ...profile };
+        this.profiles[idx] = { ...this.profiles[idx], ...profileWithFlag };
       }
     } else {
       // Put new profiles right at the front so they immediately appear in the top bar
-      this.profiles.unshift(profile);
+      this.profiles.unshift(profileWithFlag);
     }
     this.saveToStorage();
     return true;
