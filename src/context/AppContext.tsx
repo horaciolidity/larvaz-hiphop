@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Profile,
   Post,
@@ -243,19 +243,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const refreshPosts = () => {
+  // Use refs so realtime callbacks always see latest filter values (avoids stale closure)
+  const feedFilterRef = React.useRef(feedFilter);
+  const contentTypeFilterRef = React.useRef(contentTypeFilter);
+  useEffect(() => { feedFilterRef.current = feedFilter; }, [feedFilter]);
+  useEffect(() => { contentTypeFilterRef.current = contentTypeFilter; }, [contentTypeFilter]);
+
+  const refreshPosts = useCallback(() => {
     const fetched = dataStore.getPosts({
-      filter: feedFilter,
-      contentType: contentTypeFilter === 'all' ? undefined : contentTypeFilter,
+      filter: feedFilterRef.current,
+      contentType: contentTypeFilterRef.current === 'all' ? undefined : contentTypeFilterRef.current,
     });
     setPosts(fetched);
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     refreshPosts();
     setEvents(dataStore.getEvents());
     setNotifications(dataStore.getNotifications());
-  }, [feedFilter, contentTypeFilter, currentUser]);
+  }, [feedFilter, contentTypeFilter, currentUser, refreshPosts]);
 
   const supabase = createClient();
   const [balance, setBalance] = useState<number>(dataStore.getUserBalance(currentUser.id));
@@ -335,6 +341,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // refreshPosts ref so broadcast/realtime callbacks always call the latest version
+  const refreshPostsRef = React.useRef(refreshPosts);
+  useEffect(() => { refreshPostsRef.current = refreshPosts; }, [refreshPosts]);
+
   // Cross-tab real-time sync via BroadcastChannel & LocalStorage events
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -345,10 +355,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       channel.onmessage = (event) => {
         if (event.data?.type === 'NEW_POST' && event.data.post) {
           dataStore.addExternalPost(event.data.post);
-          refreshPosts();
+          refreshPostsRef.current();
         } else if (event.data?.type === 'SYNC_FEED') {
           dataStore.reloadPosts();
-          refreshPosts();
+          refreshPostsRef.current();
         }
       };
     } catch {}
@@ -356,7 +366,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'larvaz_posts') {
         dataStore.reloadPosts();
-        refreshPosts();
+        refreshPostsRef.current();
       }
       if (e.key === 'larvaz_profiles') {
         setTotalMembersCount(dataStore.getAllProfiles().length);
@@ -417,7 +427,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
 
           dataStore.mergePosts(mappedPosts);
-          refreshPosts();
+          refreshPostsRef.current();
         }
       } catch (err) {
         console.warn('Error fetching Supabase posts:', err);
@@ -476,7 +486,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               views_count: 1,
             };
             dataStore.addExternalPost(newPost);
-            refreshPosts();
+            // Broadcast to other local tabs too
+            try {
+              const bc = new BroadcastChannel('larvaz_community_sync');
+              bc.postMessage({ type: 'NEW_POST', post: newPost });
+              bc.close();
+            } catch {}
+            refreshPostsRef.current();
           } else {
             fetchSupabasePosts();
           }
@@ -499,7 +515,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       supabase.removeChannel(syncChannel);
     };
-  }, [isSupabaseConnected]);
+  }, [isSupabaseConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCurrentUser = (user: Profile) => {
     dataStore.setCurrentUser(user);

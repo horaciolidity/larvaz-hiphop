@@ -8,6 +8,7 @@ import { Navbar } from './Navbar';
 import { TopLocationBar } from './TopLocationBar';
 import { BottomNav } from './BottomNav';
 import { RadioMiniPlayer } from '@/components/radio/RadioMiniPlayer';
+import { GuestWall } from '@/components/common/GuestWall';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -41,6 +42,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* 5. Bottom Mobile Navigation Menu */}
       <BottomNav />
+
+      {/* 6. Guest Wall — se muestra a visitantes no registrados tras 60 segundos */}
+      <GuestWall />
     </div>
   );
 };

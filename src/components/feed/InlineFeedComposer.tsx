@@ -180,7 +180,7 @@ export const InlineFeedComposer: React.FC = () => {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            placeholder="¿Qué barras, rimas o pensamiento vas a soltar hoy en el muro?..."
+            placeholder="¿Qué barras, rimas, beats o trazos vas a tirar hoy al muro de la plaza?..."
             rows={isFocused || description.length > 0 ? 3 : 2}
             className="w-full bg-transparent text-xs text-content-primary placeholder:text-content-muted focus:outline-none resize-none leading-relaxed font-mono"
           />
@@ -286,7 +286,7 @@ export const InlineFeedComposer: React.FC = () => {
               ) : (
                 <Send className="w-3.5 h-3.5 stroke-[2.5]" />
               )}
-              <span>Publicar</span>
+              <span>Tirar al Muro</span>
             </button>
           </div>
         </div>

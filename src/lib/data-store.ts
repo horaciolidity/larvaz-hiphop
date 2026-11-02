@@ -791,7 +791,7 @@ class LarvazDataStore {
     }
   }
 
-  private saveToStorage() {
+  public saveToStorage() {
     if (typeof window === 'undefined') return;
     try {
       localStorage.setItem('larvaz_posts', JSON.stringify(this.posts));

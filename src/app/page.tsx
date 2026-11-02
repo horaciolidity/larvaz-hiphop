@@ -33,17 +33,17 @@ export default function HomePage() {
               <Disc3 className="w-7 h-7 animate-spin-slow" />
             </div>
             <h3 className="font-display font-black text-xl text-content-primary tracking-wide">
-              MURO EN SILENCIO
+              LA PLAZA ESTÁ TRANQUI
             </h3>
             <p className="text-xs text-content-secondary max-w-sm mx-auto leading-relaxed">
-              No hay publicaciones con el filtro seleccionado. Prueba cambiando los filtros o publica la primera pieza en el muro.
+              No hay nada tirado con este filtro todavía, compa. Cambiá el filtro o soltá vos la primera rima, beat o trazo en el muro del barrio.
             </p>
             <Link
               href="/crear"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acid text-background font-bold text-xs shadow-acid-glow hover:bg-acid-hover transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acid text-background font-black text-xs shadow-acid-glow hover:bg-acid-hover transition-colors"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Publicar Ahora</span>
+              <span>Tirar al Muro</span>
             </Link>
           </div>
         ) : (

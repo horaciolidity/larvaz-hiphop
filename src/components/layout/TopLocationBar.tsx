@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { MapPin, Radio, Share2, Check, Edit3, X } from 'lucide-react';
+import { MapPin, Radio, Share2, Check, Edit3, X, Users } from 'lucide-react';
 import { getLocationFlag } from '@/lib/country-utils';
 
 
 export const TopLocationBar: React.FC = () => {
-  const { userLocation, setUserLocation, currentStation, isRadioPlaying, currentUser } = useApp();
+  const { userLocation, setUserLocation, currentStation, isRadioPlaying, currentUser, totalMembersCount } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [tempLocation, setTempLocation] = useState(userLocation);
   const [copiedRef, setCopiedRef] = useState(false);
@@ -84,7 +84,19 @@ export const TopLocationBar: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Radio & Referral Quick Bar */}
+      {/* 2. Center — Member count badge */}
+      {totalMembersCount > 0 && (
+        <div
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-acid/10 border border-acid/25 text-[11px] font-mono flex-shrink-0"
+          title="Artistas y comunidad registrada en Larvaz Hip-Hop"
+        >
+          <Users className="w-3 h-3 text-acid" />
+          <span className="font-bold text-acid">{totalMembersCount}</span>
+          <span className="text-content-secondary">en la movida</span>
+        </div>
+      )}
+
+      {/* 3. Radio & Referral Quick Bar */}
       <div className="flex items-center gap-2 flex-shrink-0 text-[11px]">
         {/* Radio Pill */}
         <div className="hidden xs:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface border border-surface-border text-content-secondary">
