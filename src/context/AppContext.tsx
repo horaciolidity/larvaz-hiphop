@@ -118,8 +118,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<HipHopEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<Profile[]>(() => dataStore.getAllProfiles());
   const [totalMembersCount, setTotalMembersCount] = useState<number>(() => dataStore.getAllProfiles().length);
   const isSupabaseConnected = isSupabaseConfigured();
+
+  const syncProfilesState = useCallback(() => {
+    const all = dataStore.getAllProfiles();
+    setAvailableProfiles([...all]);
+    setTotalMembersCount(all.length);
+  }, []);
 
 
   // Geographic Location state (default Mendoza, Argentina)
@@ -136,7 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('larvaz_user_location', loc);
-      } catch {}
+      } catch { }
     }
   };
 
@@ -158,7 +165,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               // remains Mendoza, Argentina
             }
           },
-          () => {},
+          () => { },
           { timeout: 5000 }
         );
       }
@@ -211,7 +218,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (audioRef.current) {
       audioRef.current.src = newStation.stream_url;
       if (isRadioPlaying) {
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch(() => { });
       }
     }
   };
@@ -283,7 +290,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (profile) {
         dataStore.mergeProfiles([profile]);
-        setTotalMembersCount(dataStore.getAllProfiles().length);
+        syncProfilesState();
         setCurrentUser(profile);
       } else {
         const username =
@@ -310,7 +317,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           console.warn('Error upserting profile in Supabase:', upsertErr);
         }
         dataStore.mergeProfiles([newProf]);
-        setTotalMembersCount(dataStore.getAllProfiles().length);
+        syncProfilesState();
         setCurrentUser(newProf);
       }
     } catch (err) {
@@ -359,9 +366,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } else if (event.data?.type === 'SYNC_FEED') {
           dataStore.reloadPosts();
           refreshPostsRef.current();
+        } else if (event.data?.type === 'NEW_PROFILE' && event.data.profile) {
+          dataStore.addProfile(event.data.profile);
+          syncProfilesState();
+        } else if (event.data?.type === 'SYNC_PROFILES') {
+          dataStore.reloadProfiles();
+          syncProfilesState();
         }
       };
-    } catch {}
+    } catch { }
 
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'larvaz_posts') {
@@ -369,7 +382,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshPostsRef.current();
       }
       if (e.key === 'larvaz_profiles') {
-        setTotalMembersCount(dataStore.getAllProfiles().length);
+        dataStore.reloadProfiles();
+        syncProfilesState();
       }
     };
 
@@ -439,7 +453,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const { data: dbProfiles, error } = await supabase.from('profiles').select('*').limit(100);
         if (!error && dbProfiles && dbProfiles.length > 0) {
           dataStore.mergeProfiles(dbProfiles);
-          setTotalMembersCount(dataStore.getAllProfiles().length);
+          syncProfilesState();
         }
       } catch (err) {
         console.warn('Error fetching Supabase profiles:', err);
@@ -491,7 +505,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               const bc = new BroadcastChannel('larvaz_community_sync');
               bc.postMessage({ type: 'NEW_POST', post: newPost });
               bc.close();
-            } catch {}
+            } catch { }
             refreshPostsRef.current();
           } else {
             fetchSupabasePosts();
@@ -503,8 +517,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         { event: '*', schema: 'public', table: 'profiles' },
         (payload: any) => {
           if (payload.eventType === 'INSERT' && payload.new) {
-            dataStore.mergeProfiles([payload.new]);
-            setTotalMembersCount((prev) => prev + 1);
+            dataStore.addProfile(payload.new);
+            syncProfilesState();
           } else {
             fetchSupabaseProfiles();
           }
@@ -667,6 +681,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       dataStore.registerReferral(data.referralCode, newProfile);
     }
 
+    // Save profile into store list and notify other tabs
+    dataStore.addProfile(newProfile);
+    syncProfilesState();
+    if (typeof window !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('larvaz_community_sync');
+        bc.postMessage({ type: 'NEW_PROFILE', profile: newProfile });
+        bc.close();
+      } catch { }
+    }
+
     setCurrentUser(newProfile);
     return { success: true };
   };
@@ -794,7 +819,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const ch = new BroadcastChannel('larvaz_community_sync');
         ch.postMessage({ type: 'NEW_POST', post: newPost });
         ch.close();
-      } catch {}
+      } catch { }
     }
 
     // Sincronizar publicación en Supabase si está disponible
@@ -909,7 +934,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentUser,
         setCurrentUser,
-        availableProfiles: dataStore.getAllProfiles(),
+        availableProfiles,
         totalMembersCount,
         posts,
         events,

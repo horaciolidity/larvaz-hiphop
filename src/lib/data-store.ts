@@ -1255,6 +1255,22 @@ class LarvazDataStore {
     } catch {}
   }
 
+  // Reload profiles from localStorage (when updated by registrations in any tab)
+  reloadProfiles(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedProfiles = localStorage.getItem('larvaz_profiles');
+      if (storedProfiles) {
+        const parsedProfiles: Profile[] = JSON.parse(storedProfiles);
+        const profMap = new Map<string, Profile>();
+        for (const p of INITIAL_PROFILES) profMap.set(p.id, p);
+        for (const p of this.profiles) profMap.set(p.id, p);
+        for (const p of parsedProfiles) profMap.set(p.id, p);
+        this.profiles = Array.from(profMap.values());
+      }
+    } catch {}
+  }
+
   // Add an external post (from real-time broadcast or Supabase)
   addExternalPost(post: Post): boolean {
     const exists = this.posts.some((p) => p.id === post.id);
@@ -1279,6 +1295,21 @@ class LarvazDataStore {
       this.posts = Array.from(map.values());
       this.saveToStorage();
     }
+  }
+
+  addProfile(profile: Profile): boolean {
+    const exists = this.profiles.some((p) => p.id === profile.id || p.username.toLowerCase() === profile.username.toLowerCase());
+    if (exists) {
+      const idx = this.profiles.findIndex((p) => p.id === profile.id || p.username.toLowerCase() === profile.username.toLowerCase());
+      if (idx !== -1) {
+        this.profiles[idx] = { ...this.profiles[idx], ...profile };
+      }
+    } else {
+      // Put new profiles right at the front so they immediately appear in the top bar
+      this.profiles.unshift(profile);
+    }
+    this.saveToStorage();
+    return true;
   }
 
   // Merge batch of profiles (from Supabase queries)

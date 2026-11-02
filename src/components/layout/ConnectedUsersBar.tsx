@@ -26,12 +26,22 @@ export const ConnectedUsersBar: React.FC = () => {
   const currentFlag = getLocationFlag(userLocation || currentUser.location);
 
   // Exclude current user and admin profiles (unless logged user is admin)
-  const otherProfiles = availableProfiles.filter((p) => {
-    if (p.id === currentUser.id) return false;
-    // Hide admin/super_admin profiles from regular users
-    if (!isAdmin && (p.role === 'admin' || p.role === 'super_admin')) return false;
-    return true;
-  });
+  // Put newly registered users first (they have newer timestamps or custom IDs)
+  const otherProfiles = [...availableProfiles]
+    .filter((p) => {
+      if (p.id === currentUser.id) return false;
+      // Hide admin/super_admin profiles from regular users
+      if (!isAdmin && (p.role === 'admin' || p.role === 'super_admin')) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const isCustomA = !a.id.startsWith('user-');
+      const isCustomB = !b.id.startsWith('user-');
+      if (isCustomA !== isCustomB) return isCustomA ? -1 : 1;
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
   const onlineCount = otherProfiles.length + (currentUser.is_guest ? 0 : 1);
   const totalJoinedCount = totalMembersCount || availableProfiles.length;
 
@@ -113,9 +123,10 @@ export const ConnectedUsersBar: React.FC = () => {
 
         {/* Other Active Artists */}
         {otherProfiles.map((user) => {
+          const isNewUser = !user.id.startsWith('user-');
           const statusInfo = ACTIVITIES[user.id] || {
-            activity: 'En el cypher',
-            tag: user.artistic_disciplines || '🎤 Rap',
+            activity: isNewUser ? 'Recién llegado a la plaza' : 'En el cypher',
+            tag: isNewUser ? '✨ Nuevo' : (user.artistic_disciplines || '🎤 Rap'),
           };
           const userFlag = getLocationFlag(user.location);
 
@@ -126,7 +137,10 @@ export const ConnectedUsersBar: React.FC = () => {
             >
               <Link
                 href={`/artista/${user.username}`}
-                className="relative p-0.5 rounded-full bg-surface-elevated group-hover:bg-acid transition-all duration-300"
+                className={`relative p-0.5 rounded-full transition-all duration-300 ${isNewUser
+                    ? 'bg-gradient-to-tr from-cyan via-acid to-magenta p-[2px] shadow-acid-sm'
+                    : 'bg-surface-elevated group-hover:bg-acid'
+                  }`}
                 title={`${user.full_name} (@${user.username}) - ${statusInfo.activity}${user.location ? ` • ${user.location}` : ''}`}
               >
                 <UserAvatar
@@ -136,6 +150,14 @@ export const ConnectedUsersBar: React.FC = () => {
                   className="border-2 border-background"
                 />
                 <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-acid border-2 border-background ring-1 ring-background" />
+                {isNewUser ? (
+                  <span
+                    className="absolute -top-1 -left-1 text-[8px] bg-acid text-background font-black px-1 rounded-full uppercase tracking-tighter"
+                    title="Usuario nuevo registrado"
+                  >
+                    Nuevo
+                  </span>
+                ) : null}
                 {userFlag && (
                   <span
                     className="absolute -top-1 -right-1 text-[11px] leading-none bg-surface border border-surface-border rounded-full w-4 h-4 flex items-center justify-center shadow-sm pointer-events-none"
