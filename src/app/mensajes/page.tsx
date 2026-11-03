@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
   MessageCircle,
   Send,
@@ -17,6 +18,8 @@ import {
   Circle,
 } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
+
+const CHAT_RELAY_POST_ID = '36f632cc-0195-46fb-ae22-ce2dea03376c';
 
 interface DirectMessage {
   id: string;
@@ -257,6 +260,150 @@ function MensajesContent() {
     };
   }, []);
 
+  // Supabase Real-Time messages listener for cross-device DM sync
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    const supabase = createClient();
+    if (!supabase) return;
+
+    // Fetch existing recent messages from the relay post
+    const fetchRecentRelayMessages = async () => {
+      try {
+        const { data: dbComments } = await supabase
+          .from('comments')
+          .select('*')
+          .eq('post_id', CHAT_RELAY_POST_ID)
+          .order('created_at', { ascending: true })
+          .limit(100);
+
+        if (dbComments && dbComments.length > 0) {
+          dbComments.forEach((c: any) => {
+            try {
+              const parsed = JSON.parse(c.content);
+              if (parsed.conv_id && parsed.content) {
+                const incoming: DirectMessage = {
+                  id: parsed.msg_id || c.id,
+                  conversation_id: parsed.conv_id,
+                  sender_id: parsed.sender_id,
+                  content: parsed.content,
+                  created_at: parsed.created_at || c.created_at,
+                  read: true,
+                };
+
+                // Solo agregar si pertenece al usuario actual (como emisor o receptor)
+                if (
+                  parsed.sender_id === currentUser.id ||
+                  parsed.recipient_id === currentUser.id ||
+                  parsed.sender_username === currentUser.username
+                ) {
+                  setMessages((prev) => {
+                    const list = prev[parsed.conv_id] || [];
+                    if (list.some((m) => m.id === incoming.id)) return prev;
+                    return {
+                      ...prev,
+                      [parsed.conv_id]: [...list, incoming],
+                    };
+                  });
+                }
+              }
+            } catch {}
+          });
+        }
+      } catch (err) {
+        console.warn('Error fetching Supabase relay messages:', err);
+      }
+    };
+
+    fetchRecentRelayMessages();
+
+    // Suscripción Realtime a nuevos comentarios en el post relay (chat global)
+    const realtimeChannel = supabase
+      .channel('chat_relay_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `post_id=eq.${CHAT_RELAY_POST_ID}`,
+        },
+        (payload: any) => {
+          try {
+            if (!payload.new?.content) return;
+            const parsed = JSON.parse(payload.new.content);
+            if (!parsed.conv_id || !parsed.content) return;
+
+            // Ignorar mensajes enviados por mí mismo (ya están en mi estado)
+            if (parsed.sender_id === currentUser.id && parsed.sender_id !== '00000000-0000-0000-0000-000000000001') {
+              return;
+            }
+
+            // Verificar si el mensaje es para mí o de mi conversación
+            const isForMe =
+              parsed.recipient_id === currentUser.id ||
+              parsed.sender_id === currentUser.id ||
+              (activeConvRef.current && activeConvRef.current.id === parsed.conv_id);
+
+            if (!isForMe && !currentUser.is_guest) return;
+
+            const incoming: DirectMessage = {
+              id: parsed.msg_id || payload.new.id,
+              conversation_id: parsed.conv_id,
+              sender_id: parsed.sender_id,
+              content: parsed.content,
+              created_at: parsed.created_at || new Date().toISOString(),
+              read: false,
+            };
+
+            setMessages((prev) => {
+              const list = prev[parsed.conv_id] || [];
+              if (list.some((m) => m.id === incoming.id)) return prev;
+              return {
+                ...prev,
+                [parsed.conv_id]: [...list, incoming],
+              };
+            });
+
+            setConversations((prev) => {
+              const exists = prev.find((c) => c.id === parsed.conv_id);
+              if (exists) {
+                return prev.map((c) =>
+                  c.id === parsed.conv_id
+                    ? {
+                        ...c,
+                        last_message: incoming.content,
+                        last_message_at: incoming.created_at,
+                        unread_count: activeConvRef.current?.id === parsed.conv_id ? 0 : (c.unread_count || 0) + 1,
+                      }
+                    : c
+                );
+              } else {
+                const newC: Conversation = {
+                  id: parsed.conv_id,
+                  participant_id: parsed.sender_id,
+                  participant_username: parsed.sender_username || 'artista',
+                  participant_name: parsed.sender_name || 'Compa Larvaz',
+                  participant_avatar: parsed.sender_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+                  last_message: incoming.content,
+                  last_message_at: incoming.created_at,
+                  unread_count: 1,
+                  is_online: true,
+                };
+                return [newC, ...prev];
+              }
+            });
+          } catch (e) {
+            console.warn('Error parsing incoming chat relay comment:', e);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(realtimeChannel);
+    };
+  }, [currentUser]);
+
   // Handle auto-open by query param ?user=username
   useEffect(() => {
     if (targetUserParam) {
@@ -319,6 +466,41 @@ function MensajesContent() {
         });
         bc.close();
       } catch {}
+    }
+
+    // Persist and relay across different devices via Supabase
+    if (isSupabaseConfigured()) {
+      (async () => {
+        try {
+          const supabase = createClient();
+          if (supabase) {
+            // Guardar en la tabla comments vinculada al relay post
+            const payload = JSON.stringify({
+              msg_id: msg.id,
+              conv_id: activeConv.id,
+              sender_id: currentUser.id,
+              sender_username: currentUser.username,
+              sender_name: currentUser.full_name,
+              sender_avatar: currentUser.avatar_url,
+              recipient_id: activeConv.participant_id,
+              content: msg.content,
+              created_at: msg.created_at,
+            });
+
+            // Enviar con user_id del usuario actual (si es UUID) o usuario de sesión
+            const { data: sessionData } = await supabase.auth.getSession();
+            const senderUserId = sessionData?.session?.user?.id || (currentUser.id.includes('-') && currentUser.id.length === 36 ? currentUser.id : '00000000-0000-0000-0000-000000000001');
+
+            await supabase.from('comments').insert({
+              post_id: CHAT_RELAY_POST_ID,
+              user_id: senderUserId,
+              content: payload,
+            });
+          }
+        } catch (err) {
+          console.warn('Error syncing chat to Supabase:', err);
+        }
+      })();
     }
 
     // Only simulate auto-reply if chatting with demo bot profiles (not another human/registered user)

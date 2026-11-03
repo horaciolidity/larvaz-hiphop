@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { UserAvatar } from '@/components/common/UserAvatar';
-import { MessageCircle, Radio, Sparkles, Users } from 'lucide-react';
+import { MessageCircle, Radio, Sparkles, Users, Search, X } from 'lucide-react';
 import { getLocationFlag } from '@/lib/country-utils';
 
 interface ActiveStatus {
@@ -24,6 +24,8 @@ const ACTIVITIES: Record<string, { activity: string; tag: string }> = {
 export const ConnectedUsersBar: React.FC = () => {
   const { availableProfiles, totalMembersCount, currentUser, isAdmin, userLocation } = useApp();
   const currentFlag = getLocationFlag(userLocation || currentUser.location);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Exclude current user and admin profiles (unless logged user is admin)
   // Put newly registered users first (they have newer timestamps or custom IDs)
@@ -32,6 +34,14 @@ export const ConnectedUsersBar: React.FC = () => {
       if (p.id === currentUser.id) return false;
       // Hide admin/super_admin profiles from regular users
       if (!isAdmin && (p.role === 'admin' || p.role === 'super_admin')) return false;
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        return (
+          p.username.toLowerCase().includes(q) ||
+          p.full_name.toLowerCase().includes(q) ||
+          (p.artistic_disciplines && p.artistic_disciplines.toLowerCase().includes(q))
+        );
+      }
       return true;
     })
     .sort((a, b) => {
@@ -79,13 +89,47 @@ export const ConnectedUsersBar: React.FC = () => {
           </span>
         </div>
 
-        <Link
-          href="/mensajes"
-          className="text-[11px] text-content-muted hover:text-acid font-bold transition-colors flex items-center gap-1 ml-auto"
-        >
-          <MessageCircle className="w-3 h-3 text-acid" />
-          <span>Abrir Chat</span>
-        </Link>
+        <div className="flex items-center gap-2 ml-auto">
+          {searchOpen ? (
+            <div className="flex items-center gap-1 bg-surface-elevated px-2 py-0.5 rounded-full border border-acid/50 transition-all">
+              <Search className="w-3 h-3 text-acid flex-shrink-0" />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Buscar compa..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-transparent text-xs text-content-primary focus:outline-none w-28 md:w-36 placeholder:text-content-muted"
+              />
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSearchOpen(false);
+                }}
+                className="text-content-muted hover:text-content-primary"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-1 text-[11px] text-content-muted hover:text-acid font-bold transition-colors p-1 rounded-full hover:bg-surface-elevated"
+              title="Buscar usuario en la movida"
+            >
+              <Search className="w-3.5 h-3.5 text-acid" />
+              <span className="hidden sm:inline">Buscar</span>
+            </button>
+          )}
+
+          <Link
+            href="/mensajes"
+            className="text-[11px] text-content-muted hover:text-acid font-bold transition-colors flex items-center gap-1"
+          >
+            <MessageCircle className="w-3 h-3 text-acid" />
+            <span>Chat</span>
+          </Link>
+        </div>
       </div>
 
       {/* Horizontal Online Users Scroll */}

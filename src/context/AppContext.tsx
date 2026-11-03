@@ -473,9 +473,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'posts' },
-        (payload: any) => {
+        async (payload: any) => {
           if (payload.eventType === 'INSERT' && payload.new) {
             const p = payload.new;
+            let author = dataStore.getProfileById(p.user_id);
+            if (!author) {
+              const { data: dbAuthor } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', p.user_id)
+                .maybeSingle();
+              if (dbAuthor) {
+                dataStore.addProfile(dbAuthor);
+                syncProfilesState();
+                author = dbAuthor;
+              }
+            }
+
             const newPost: Post = {
               id: p.id ? String(p.id) : 'post-' + Date.now(),
               user_id: p.user_id,
@@ -489,7 +503,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               comments_count: p.comments_count || 0,
               is_hidden: p.is_hidden || false,
               created_at: p.created_at || new Date().toISOString(),
-              author: dataStore.getProfileById(p.user_id) || {
+              author: author || {
                 id: p.user_id,
                 username: 'artista_' + String(p.user_id).substring(0, 5),
                 full_name: 'Artista Comunitario',
@@ -504,12 +518,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               views_count: 1,
             };
             dataStore.addExternalPost(newPost);
-            // Broadcast to other local tabs too
-            try {
-              const bc = new BroadcastChannel('larvaz_community_sync');
-              bc.postMessage({ type: 'NEW_POST', post: newPost });
-              bc.close();
-            } catch { }
             refreshPostsRef.current();
           } else {
             fetchSupabasePosts();
