@@ -356,6 +356,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const syncProfilesStateRef = React.useRef(syncProfilesState);
   useEffect(() => { syncProfilesStateRef.current = syncProfilesState; }, [syncProfilesState]);
 
+  // currentUser ref — para evitar stale closures en listeners de DM
+  const currentUserRef2 = React.useRef<Profile>(currentUser);
+  useEffect(() => { currentUserRef2.current = currentUser; }, [currentUser]);
+
   // Cross-tab real-time sync via BroadcastChannel & LocalStorage events
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -403,64 +407,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase || !isSupabaseConnected) return;
 
+    // ── Usa API routes server-side (service_role key) → bypasea RLS totalmente ──
+    const mapPostFromDB = (p: any): Post => {
+      const author = p.profiles || {
+        id: p.user_id,
+        username: 'artista_' + (p.user_id ? String(p.user_id).substring(0, 5) : 'comunitario'),
+        full_name: 'Artista Comunitario',
+        avatar_url: '',
+        role: 'user',
+        is_banned: false,
+        created_at: p.created_at,
+      };
+      return {
+        id: p.id ? String(p.id) : 'post-' + p.created_at,
+        user_id: p.user_id,
+        external_url: p.external_url || undefined,
+        normalized_url: p.normalized_url || undefined,
+        provider: p.provider || 'generic',
+        content_type: p.content_type || 'link',
+        description: p.description || '',
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        likes_count: p.likes_count || 0,
+        comments_count: p.comments_count || 0,
+        is_hidden: p.is_hidden || false,
+        created_at: p.created_at,
+        author,
+        metadata: p.metadata,
+        user_has_liked: false,
+        user_has_bookmarked: false,
+        views_count: p.views_count || 1,
+      };
+    };
+
     const fetchSupabasePosts = async () => {
       try {
-        const { data: dbPosts, error } = await supabase
-          .from('posts')
-          .select('*, profiles(*)')
-          .order('created_at', { ascending: false })
-          .limit(50); // Límite económico para cuidar la cuota gratuita
-
-        if (!error && dbPosts && dbPosts.length > 0) {
-          const mappedPosts: Post[] = dbPosts.map((p: any) => {
-            const author = p.profiles || {
-              id: p.user_id,
-              username: 'artista_' + (p.user_id ? String(p.user_id).substring(0, 5) : 'comunitario'),
-              full_name: 'Artista Comunitario',
-              avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-              role: 'user',
-              is_banned: false,
-              created_at: p.created_at,
-            };
-
-            return {
-              id: p.id ? String(p.id) : 'post-' + p.created_at,
-              user_id: p.user_id,
-              external_url: p.external_url || undefined,
-              normalized_url: p.normalized_url || undefined,
-              provider: p.provider || (p.external_url ? 'generic' : 'generic'),
-              content_type: p.content_type || 'text',
-              description: p.description || '',
-              tags: Array.isArray(p.tags) ? p.tags : [],
-              likes_count: p.likes_count || 0,
-              comments_count: p.comments_count || 0,
-              is_hidden: p.is_hidden || false,
-              created_at: p.created_at,
-              author,
-              metadata: p.metadata,
-              user_has_liked: false,
-              user_has_bookmarked: false,
-              views_count: p.views_count || 1,
-            };
-          });
-
+        const res = await fetch('/api/feed');
+        if (!res.ok) return;
+        const { posts: dbPosts } = await res.json();
+        if (dbPosts && dbPosts.length > 0) {
+          const mappedPosts: Post[] = dbPosts.map(mapPostFromDB);
           dataStore.mergePosts(mappedPosts);
           refreshPostsRef.current();
         }
       } catch (err) {
-        console.warn('Error fetching Supabase posts:', err);
+        console.warn('Error fetching posts via API:', err);
       }
     };
 
     const fetchSupabaseProfiles = async () => {
       try {
-        const { data: dbProfiles, error } = await supabase.from('profiles').select('*').limit(100);
-        if (!error && dbProfiles && dbProfiles.length > 0) {
+        const res = await fetch('/api/profiles');
+        if (!res.ok) return;
+        const { profiles: dbProfiles } = await res.json();
+        if (dbProfiles && dbProfiles.length > 0) {
           dataStore.mergeProfiles(dbProfiles);
           syncProfilesState();
         }
       } catch (err) {
-        console.warn('Error fetching Supabase profiles:', err);
+        console.warn('Error fetching profiles via API:', err);
       }
     };
 
@@ -473,55 +477,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'posts' },
-        async (payload: any) => {
-          if (payload.eventType === 'INSERT' && payload.new) {
-            const p = payload.new;
-            let author = dataStore.getProfileById(p.user_id);
-            if (!author) {
-              const { data: dbAuthor } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', p.user_id)
-                .maybeSingle();
-              if (dbAuthor) {
-                dataStore.addProfile(dbAuthor);
-                syncProfilesState();
-                author = dbAuthor;
-              }
-            }
-
-            const newPost: Post = {
-              id: p.id ? String(p.id) : 'post-' + Date.now(),
-              user_id: p.user_id,
-              external_url: p.external_url || undefined,
-              normalized_url: p.normalized_url || undefined,
-              provider: p.provider || (p.external_url ? 'generic' : 'generic'),
-              content_type: p.content_type || 'text',
-              description: p.description || '',
-              tags: Array.isArray(p.tags) ? p.tags : [],
-              likes_count: p.likes_count || 0,
-              comments_count: p.comments_count || 0,
-              is_hidden: p.is_hidden || false,
-              created_at: p.created_at || new Date().toISOString(),
-              author: author || {
-                id: p.user_id,
-                username: 'artista_' + String(p.user_id).substring(0, 5),
-                full_name: 'Artista Comunitario',
-                avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-                role: 'user',
-                is_banned: false,
-                created_at: p.created_at || new Date().toISOString(),
-              },
-              metadata: p.metadata,
-              user_has_liked: false,
-              user_has_bookmarked: false,
-              views_count: 1,
-            };
-            dataStore.addExternalPost(newPost);
-            refreshPostsRef.current();
-          } else {
-            fetchSupabasePosts();
-          }
+        (payload: any) => {
+          // Cualquier cambio en posts → re-fetch global via API (sin RLS)
+          fetchSupabasePosts();
         }
       )
       .on(
@@ -543,45 +501,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isSupabaseConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Global listener for realtime incoming direct messages via Supabase relay post
+  // Global listener para alertas de mensajes directos en tiempo real
   useEffect(() => {
     if (!supabase || !isSupabaseConnected) return;
 
     const CHAT_RELAY_POST_ID = '36f632cc-0195-46fb-ae22-ce2dea03376c';
+
     const msgChannel = supabase
-      .channel('public:global_dm_alerts')
+      .channel('global_dm_alerts_v2')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'comments',
-          filter: `post_id=eq.${CHAT_RELAY_POST_ID}`,
+          // Sin filter SQL — lo evaluamos en JS para evitar drops silenciosos
         },
         (payload: any) => {
           try {
             if (!payload.new?.content) return;
-            const parsed = JSON.parse(payload.new.content);
-            if (!parsed.conv_id || !parsed.content) return;
+            // Solo nos importan los del relay de chat
+            if (payload.new.post_id !== CHAT_RELAY_POST_ID) return;
 
-            // Si es un mensaje dirigido a mí
-            if (
-              parsed.recipient_id === currentUser.id ||
-              (parsed.sender_id !== currentUser.id && currentUser.username === parsed.recipient_username)
-            ) {
+            const parsed = JSON.parse(payload.new.content);
+            if (!parsed.conv_id || !parsed.text) return;
+
+            // Accedo al currentUser vía ref para evitar stale closure
+            const me = currentUserRef2.current;
+            if (!me) return;
+
+            const isForMe =
+              parsed.recipient_id === me.id ||
+              (parsed.recipient_username && parsed.recipient_username.toLowerCase() === me.username.toLowerCase());
+            const isFromMe = parsed.sender_id === me.id;
+
+            if (isForMe && !isFromMe) {
               setUnreadMessagesCount((prev) => prev + 1);
 
-              // Disparar notificación en la campanita
+              // Notificación de nuevo mensaje
               const newNotif: Notification = {
                 id: 'notif-msg-' + Date.now(),
-                user_id: currentUser.id,
+                user_id: me.id,
                 actor_id: parsed.sender_id,
                 type: 'mention',
                 actor: {
                   id: parsed.sender_id,
                   username: parsed.sender_username || 'artista',
-                  full_name: parsed.sender_name || 'Compa Larvaz',
-                  avatar_url: parsed.sender_avatar || '',
+                  full_name: parsed.sender_username || 'Compa Larvaz',
+                  avatar_url: '',
                   role: 'user',
                   is_banned: false,
                   created_at: new Date().toISOString(),
@@ -894,49 +861,86 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } catch { }
     }
 
-    // Sincronizar publicación en Supabase si está disponible
-    if (isSupabaseConnected && supabase) {
+    // ── Sincronizar en Supabase via API route (service_role → bypasea RLS) ──
+    if (isSupabaseConnected) {
       (async () => {
         try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const authUser = sessionData?.session?.user;
-          const targetUserId =
-            authUser?.id ||
-            (currentUser.id && currentUser.id.length === 36 && currentUser.id.includes('-')
-              ? currentUser.id
-              : null);
-
-          if (targetUserId) {
-            // Mapear content_type para respetar el CHECK constraint de Supabase ('music', 'video', 'visual_art', 'link')
-            const rawType = (newPost.content_type || 'link') as string;
-            const allowedTypes = ['music', 'video', 'visual_art', 'link'];
-            const supabaseContentType = allowedTypes.includes(rawType) ? rawType : 'link';
-
-            const { data: inserted, error } = await supabase
-              .from('posts')
-              .insert({
-                user_id: targetUserId,
-                external_url: newPost.external_url || 'https://larvaz-hiphop.vercel.app',
-                normalized_url: newPost.normalized_url || null,
-                provider: newPost.provider || 'generic',
-                content_type: supabaseContentType,
-                description: newPost.description || '',
-                tags: newPost.tags || [],
-                created_at: newPost.created_at,
-              })
-              .select('id')
-              .single();
-
-            if (error) {
-              console.warn('Error al guardar post en Supabase:', error);
-            } else if (inserted?.id) {
-              newPost.id = inserted.id;
-              dataStore.saveToStorage();
-              refreshPosts();
+          // Resolver el user_id real (auth UUID o currentUser.id si es UUID válido)
+          let targetUserId = currentUser.id;
+          if (supabase) {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session?.user?.id) {
+              targetUserId = sessionData.session.user.id;
             }
           }
+
+          // Solo intentar si tenemos un UUID válido (no IDs locales como 'user-...')
+          if (!targetUserId || !targetUserId.includes('-') || targetUserId.startsWith('user-') || targetUserId.startsWith('custom-')) {
+            return; // Usuario local demo, no sincronizar
+          }
+
+          const rawType = (newPost.content_type || 'link') as string;
+          const allowedTypes = ['music', 'video', 'visual_art', 'link'];
+          const safeContentType = allowedTypes.includes(rawType) ? rawType : 'link';
+
+          const res = await fetch('/api/post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: targetUserId,
+              description: newPost.description || '',
+              content_type: safeContentType,
+              tags: newPost.tags || [],
+              external_url: newPost.external_url || 'https://larvaz-hiphop.vercel.app',
+              normalized_url: newPost.normalized_url || null,
+              provider: newPost.provider || 'generic',
+              metadata: newPost.metadata || null,
+            }),
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            if (result.id) {
+              newPost.id = result.id;
+              dataStore.saveToStorage();
+              // Re-fetch el feed completo para que todos los usuarios vean el post nuevo
+              const feedRes = await fetch('/api/feed');
+              if (feedRes.ok) {
+                const { posts: dbPosts } = await feedRes.json();
+                if (dbPosts?.length) {
+                  const mapped = dbPosts.map((p: any): Post => ({
+                    id: String(p.id),
+                    user_id: p.user_id,
+                    external_url: p.external_url || undefined,
+                    normalized_url: p.normalized_url || undefined,
+                    provider: p.provider || 'generic',
+                    content_type: p.content_type || 'link',
+                    description: p.description || '',
+                    tags: Array.isArray(p.tags) ? p.tags : [],
+                    likes_count: p.likes_count || 0,
+                    comments_count: p.comments_count || 0,
+                    is_hidden: p.is_hidden || false,
+                    created_at: p.created_at,
+                    author: p.profiles || {
+                      id: p.user_id, username: 'artista', full_name: 'Artista',
+                      avatar_url: '', role: 'user', is_banned: false, created_at: p.created_at,
+                    },
+                    metadata: p.metadata,
+                    user_has_liked: false,
+                    user_has_bookmarked: false,
+                    views_count: p.views_count || 1,
+                  }));
+                  dataStore.mergePosts(mapped);
+                  refreshPosts();
+                }
+              }
+            }
+          } else {
+            const errBody = await res.json().catch(() => ({}));
+            console.warn('Error al guardar post via API:', errBody);
+          }
         } catch (err) {
-          console.warn('Error al guardar post en Supabase:', err);
+          console.warn('Error al guardar post:', err);
         }
       })();
     }

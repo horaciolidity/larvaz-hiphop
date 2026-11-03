@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
-import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle } from 'lucide-react';
+import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle, Search, X } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 
 export const SidebarRight: React.FC = () => {
@@ -19,6 +19,20 @@ export const SidebarRight: React.FC = () => {
     isAdmin,
   } = useApp();
 
+  const [searchUserQuery, setSearchUserQuery] = useState('');
+
+  const filteredSearchResults = searchUserQuery.trim()
+    ? availableProfiles.filter((p) => {
+        if (p.id === currentUser.id) return false;
+        const q = searchUserQuery.toLowerCase();
+        return (
+          p.username.toLowerCase().includes(q) ||
+          p.full_name.toLowerCase().includes(q) ||
+          (p.artistic_disciplines && p.artistic_disciplines.toLowerCase().includes(q))
+        );
+      }).slice(0, 5)
+    : [];
+
   const suggestedArtists = availableProfiles
     .filter((p) => {
       if (p.id === currentUser.id) return false;
@@ -31,6 +45,62 @@ export const SidebarRight: React.FC = () => {
 
   return (
     <aside className="hidden xl:flex flex-col gap-5 w-80 h-screen sticky top-0 border-l border-surface-border bg-background/50 backdrop-blur-sm p-6 overflow-y-auto">
+      {/* 0. BUSCADOR DE USUARIOS CON LUPA */}
+      <div className="relative">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface border border-surface-border focus-within:border-acid transition-colors">
+          <Search className="w-4 h-4 text-acid flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Buscar usuario o compa..."
+            value={searchUserQuery}
+            onChange={(e) => setSearchUserQuery(e.target.value)}
+            className="w-full bg-transparent text-xs text-content-primary placeholder:text-content-muted focus:outline-none"
+          />
+          {searchUserQuery && (
+            <button
+              onClick={() => setSearchUserQuery('')}
+              className="text-content-muted hover:text-content-primary p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Live Search Results Dropdown */}
+        {searchUserQuery.trim() && (
+          <div className="absolute top-full left-0 right-0 mt-1.5 p-2 rounded-xl bg-surface-elevated border border-surface-border shadow-xl z-50 space-y-1">
+            {filteredSearchResults.length === 0 ? (
+              <p className="text-[11px] text-content-muted p-2 text-center">
+                No se encontró a ningún artista con &ldquo;{searchUserQuery}&rdquo;
+              </p>
+            ) : (
+              filteredSearchResults.map((user) => (
+                <Link
+                  key={user.id}
+                  href={`/artista/${user.username}`}
+                  onClick={() => setSearchUserQuery('')}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-surface transition-colors group"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <UserAvatar avatarUrl={user.avatar_url} name={user.full_name} size="sm" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-content-primary group-hover:text-acid truncate">
+                        {user.full_name}
+                      </p>
+                      <p className="text-[10px] text-content-muted truncate">
+                        @{user.username}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-acid bg-acid/10 px-2 py-0.5 rounded-full">
+                    Ver
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+      </div>
       {/* 1. MANIFIESTO CULTURAL URBANO */}
       <div className="p-4 rounded-2xl bg-surface border border-surface-border relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-24 h-24 bg-acid/10 rounded-full blur-2xl pointer-events-none" />

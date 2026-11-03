@@ -1014,7 +1014,7 @@ class LarvazDataStore {
     bookmarkedOnly?: boolean;
     contentType?: ContentType;
   }): Post[] {
-    let result = this.posts.filter((p) => !p.is_hidden);
+    let result = this.posts.filter((p) => !p.is_hidden && p.id !== '36f632cc-0195-46fb-ae22-ce2dea03376c');
 
     if (options?.bookmarkedOnly) {
       result = result.filter((p) => this.bookmarkedPosts.has(p.id));
@@ -1062,17 +1062,12 @@ class LarvazDataStore {
         const ageHoursA = Math.max(0, (now - timeA) / (1000 * 60 * 60));
         const ageHoursB = Math.max(0, (now - timeB) / (1000 * 60 * 60));
 
-        // Prioridad absoluta a posts creados en las últimas 6 horas por el usuario actual
-        const aIsMineRecent = (a.user_id === this.currentUser.id || a.author?.id === this.currentUser.id) && ageHoursA < 12 ? 10000 : 0;
-        const bIsMineRecent = (b.user_id === this.currentUser.id || b.author?.id === this.currentUser.id) && ageHoursB < 12 ? 10000 : 0;
-        if (aIsMineRecent !== bIsMineRecent) return bIsMineRecent - aIsMineRecent;
-
         // Publicaciones de menos de 1 hora siempre van arriba ordenadas cronológicamente
         if (ageHoursA < 1 && ageHoursB < 1) {
           return timeB - timeA;
         }
 
-        // Bonificación por frescura temporal (los posts de hoy tienen ventaja sobre los de hace días)
+        // Bonificación por frescura temporal (posts de hoy tienen ventaja sobre los de hace días)
         const freshnessScoreA = Math.max(0, 500 - ageHoursA * 10);
         const freshnessScoreB = Math.max(0, 500 - ageHoursB * 10);
 

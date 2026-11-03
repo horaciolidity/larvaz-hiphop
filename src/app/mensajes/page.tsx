@@ -263,127 +263,127 @@ function MensajesContent() {
   // Supabase Real-Time messages listener for cross-device DM sync
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
-    const supabase = createClient();
-    if (!supabase) return;
 
-    // Fetch existing recent messages from the relay post
-    const fetchRecentRelayMessages = async () => {
+    // ── Carga inicial: fetch mensajes del relay via API route (bypasa RLS) ──
+    const fetchRelayMessages = async () => {
       try {
-        const { data: dbComments } = await supabase
-          .from('comments')
-          .select('*')
-          .eq('post_id', CHAT_RELAY_POST_ID)
-          .order('created_at', { ascending: true })
-          .limit(100);
+        const myId = currentUser.id;
+        const myUsername = currentUser.username.toLowerCase();
 
-        if (dbComments && dbComments.length > 0) {
-          dbComments.forEach((c: any) => {
-            try {
-              const parsed = JSON.parse(c.content);
-              if (parsed.conv_id && parsed.content) {
-                const incoming: DirectMessage = {
-                  id: parsed.msg_id || c.id,
-                  conversation_id: parsed.conv_id,
-                  sender_id: parsed.sender_id,
-                  content: parsed.content,
-                  created_at: parsed.created_at || c.created_at,
-                  read: true,
-                };
-
-                // Solo agregar si pertenece al usuario actual (como emisor o receptor)
-                if (
-                  parsed.sender_id === currentUser.id ||
-                  parsed.recipient_id === currentUser.id ||
-                  parsed.sender_username === currentUser.username
-                ) {
-                  setMessages((prev) => {
-                    const list = prev[parsed.conv_id] || [];
-                    if (list.some((m) => m.id === incoming.id)) return prev;
-                    return {
-                      ...prev,
-                      [parsed.conv_id]: [...list, incoming],
-                    };
-                  });
-                }
+        // Buscar conversaciones reales (no demos) y cargar sus mensajes
+        const realConvs = conversations.filter(c => !c.id.startsWith('conv-'));
+        for (const conv of realConvs) {
+          const res = await fetch(`/api/chat?conv_id=${encodeURIComponent(conv.id)}&limit=50`);
+          if (!res.ok) continue;
+          const { messages: msgs } = await res.json().catch(() => ({ messages: [] }));
+          if (msgs && msgs.length > 0) {
+            const directMsgs: DirectMessage[] = msgs.map((m: any) => ({
+              id: m.msg_id || m.comment_id,
+              conversation_id: m.conv_id,
+              sender_id: m.sender_id,
+              content: m.text,
+              created_at: m.ts || m.db_ts,
+              read: true,
+            }));
+            setMessages(prev => {
+              const existing = prev[conv.id] || [];
+              const merged = [...existing];
+              for (const dm of directMsgs) {
+                if (!merged.some(m => m.id === dm.id)) merged.push(dm);
               }
-            } catch {}
-          });
+              merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+              return { ...prev, [conv.id]: merged };
+            });
+          }
+        }
+
+        // Si el usuario tiene conversaciones que aún no están en la lista,
+        // buscarlas: generamos los conv_ids con todos los perfiles disponibles
+        // (sólo si hay menos de 10 para no hacer flood de requests)
+        if (realConvs.length === 0) {
+          // Es usuario nuevo sin conversaciones — no hay nada que cargar
         }
       } catch (err) {
-        console.warn('Error fetching Supabase relay messages:', err);
+        console.warn('Error cargando mensajes del relay:', err);
       }
     };
 
-    fetchRecentRelayMessages();
+    fetchRelayMessages();
 
-    // Suscripción Realtime a nuevos comentarios en el post relay (chat global)
+    // ── Listener Realtime: sin filter SQL (lo chequeamos en JS) para evitar drops silenciosos ──
+    const supabase = createClient();
+    if (!supabase) return;
+
     const realtimeChannel = supabase
-      .channel('chat_relay_channel')
+      .channel('chat_relay_v3_' + currentUser.id.slice(0, 8))
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'comments',
-          filter: `post_id=eq.${CHAT_RELAY_POST_ID}`,
+          // Sin filter SQL — chequeamos post_id en JS
         },
         (payload: any) => {
           try {
             if (!payload.new?.content) return;
+            if (payload.new.post_id !== CHAT_RELAY_POST_ID) return;
+
             const parsed = JSON.parse(payload.new.content);
-            if (!parsed.conv_id || !parsed.content) return;
+            if (!parsed.conv_id || !parsed.text) return;
 
-            // Ignorar mensajes enviados por mí mismo (ya están en mi estado)
-            if (parsed.sender_id === currentUser.id && parsed.sender_id !== '00000000-0000-0000-0000-000000000001') {
-              return;
-            }
+            const myId = currentUser.id;
+            const myUsername = currentUser.username.toLowerCase();
 
-            // Verificar si el mensaje es para mí o de mi conversación
-            const isForMe =
-              parsed.recipient_id === currentUser.id ||
-              parsed.sender_id === currentUser.id ||
+            // ¿Es un mensaje mío o de mi conversación activa?
+            const isMyConv =
+              parsed.sender_id === myId ||
+              parsed.recipient_id === myId ||
+              (parsed.sender_username && parsed.sender_username.toLowerCase() === myUsername) ||
+              (parsed.recipient_username && parsed.recipient_username.toLowerCase() === myUsername) ||
               (activeConvRef.current && activeConvRef.current.id === parsed.conv_id);
 
-            if (!isForMe && !currentUser.is_guest) return;
+            if (!isMyConv) return;
 
             const incoming: DirectMessage = {
               id: parsed.msg_id || payload.new.id,
               conversation_id: parsed.conv_id,
               sender_id: parsed.sender_id,
-              content: parsed.content,
-              created_at: parsed.created_at || new Date().toISOString(),
-              read: false,
+              content: parsed.text,
+              created_at: parsed.ts || new Date().toISOString(),
+              read: activeConvRef.current?.id === parsed.conv_id,
             };
 
-            setMessages((prev) => {
+            // Solo agregar si no lo envié yo (evitar duplicado)
+            const isFromMe = parsed.sender_id === myId;
+
+            setMessages(prev => {
               const list = prev[parsed.conv_id] || [];
-              if (list.some((m) => m.id === incoming.id)) return prev;
-              return {
-                ...prev,
-                [parsed.conv_id]: [...list, incoming],
-              };
+              if (list.some(m => m.id === incoming.id)) return prev;
+              return { ...prev, [parsed.conv_id]: [...list, incoming] };
             });
 
-            setConversations((prev) => {
-              const exists = prev.find((c) => c.id === parsed.conv_id);
+            setConversations(prev => {
+              const exists = prev.find(c => c.id === parsed.conv_id);
               if (exists) {
-                return prev.map((c) =>
+                return prev.map(c =>
                   c.id === parsed.conv_id
                     ? {
                         ...c,
                         last_message: incoming.content,
                         last_message_at: incoming.created_at,
-                        unread_count: activeConvRef.current?.id === parsed.conv_id ? 0 : (c.unread_count || 0) + 1,
+                        unread_count: activeConvRef.current?.id === parsed.conv_id ? 0 : (c.unread_count || 0) + (isFromMe ? 0 : 1),
                       }
                     : c
                 );
-              } else {
+              } else if (!isFromMe) {
+                // Nueva conversación entrante
                 const newC: Conversation = {
                   id: parsed.conv_id,
                   participant_id: parsed.sender_id,
                   participant_username: parsed.sender_username || 'artista',
-                  participant_name: parsed.sender_name || 'Compa Larvaz',
-                  participant_avatar: parsed.sender_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+                  participant_name: parsed.sender_username || 'Compa Larvaz',
+                  participant_avatar: '',
                   last_message: incoming.content,
                   last_message_at: incoming.created_at,
                   unread_count: 1,
@@ -391,6 +391,7 @@ function MensajesContent() {
                 };
                 return [newC, ...prev];
               }
+              return prev;
             });
           } catch (e) {
             console.warn('Error parsing incoming chat relay comment:', e);
@@ -402,7 +403,7 @@ function MensajesContent() {
     return () => {
       supabase.removeChannel(realtimeChannel);
     };
-  }, [currentUser]);
+  }, [currentUser.id, currentUser.username]);
 
   // Handle auto-open by query param ?user=username
   useEffect(() => {
@@ -468,37 +469,39 @@ function MensajesContent() {
       } catch {}
     }
 
-    // Persist and relay across different devices via Supabase
+    // ── Persist cross-device via API route (service_role bypasa RLS) ──
     if (isSupabaseConfigured()) {
       (async () => {
         try {
+          // Resolver sender_id real (UUID de Supabase auth o currentUser.id)
+          let senderId = currentUser.id;
           const supabase = createClient();
           if (supabase) {
-            // Guardar en la tabla comments vinculada al relay post
-            const payload = JSON.stringify({
-              msg_id: msg.id,
-              conv_id: activeConv.id,
-              sender_id: currentUser.id,
-              sender_username: currentUser.username,
-              sender_name: currentUser.full_name,
-              sender_avatar: currentUser.avatar_url,
-              recipient_id: activeConv.participant_id,
-              content: msg.content,
-              created_at: msg.created_at,
-            });
-
-            // Enviar con user_id del usuario actual (si es UUID) o usuario de sesión
             const { data: sessionData } = await supabase.auth.getSession();
-            const senderUserId = sessionData?.session?.user?.id || (currentUser.id.includes('-') && currentUser.id.length === 36 ? currentUser.id : '00000000-0000-0000-0000-000000000001');
+            if (sessionData?.session?.user?.id) {
+              senderId = sessionData.session.user.id;
+            }
+          }
 
-            await supabase.from('comments').insert({
-              post_id: CHAT_RELAY_POST_ID,
-              user_id: senderUserId,
-              content: payload,
-            });
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sender_id: senderId,
+              sender_username: currentUser.username,
+              recipient_id: activeConv.participant_id,
+              recipient_username: activeConv.participant_username,
+              text: msg.content,
+              conv_id: activeConv.id,
+            }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.warn('Error enviando chat via API:', err);
           }
         } catch (err) {
-          console.warn('Error syncing chat to Supabase:', err);
+          console.warn('Error enviando chat:', err);
         }
       })();
     }
@@ -543,7 +546,7 @@ function MensajesContent() {
         participant_id: profile.id,
         participant_username: profile.username,
         participant_name: profile.full_name,
-        participant_avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+        participant_avatar: profile.avatar_url || '',
         last_message: '',
         last_message_at: new Date().toISOString(),
         unread_count: 0,
