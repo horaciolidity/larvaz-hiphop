@@ -182,8 +182,8 @@ export const ConnectedUsersBar: React.FC = () => {
               <Link
                 href={`/artista/${user.username}`}
                 className={`relative p-0.5 rounded-full transition-all duration-300 ${isNewUser
-                    ? 'bg-gradient-to-tr from-cyan via-acid to-magenta p-[2px] shadow-acid-sm'
-                    : 'bg-surface-elevated group-hover:bg-acid'
+                  ? 'bg-gradient-to-tr from-cyan via-acid to-magenta p-[2px] shadow-acid-sm'
+                  : 'bg-surface-elevated group-hover:bg-acid'
                   }`}
                 title={`${user.full_name} (@${user.username}) - ${statusInfo.activity}${user.location ? ` • ${user.location}` : ''}`}
               >

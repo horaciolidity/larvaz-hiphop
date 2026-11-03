@@ -4,12 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
-import { Bell, Search, Radio, UserCheck } from 'lucide-react';
+import { Bell, Search, Radio, UserCheck, MessageCircle } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
 
 export const Navbar: React.FC = () => {
-  const { unreadNotifsCount, currentUser, isRadioPlaying, userLocation } = useApp();
+  const { unreadNotifsCount, unreadMessagesCount, currentUser, isRadioPlaying, userLocation } = useApp();
   const flag = getLocationFlag(userLocation || currentUser.location);
 
   return (
@@ -38,6 +38,20 @@ export const Navbar: React.FC = () => {
           aria-label="Buscar"
         >
           <Search className="w-4 h-4" />
+        </Link>
+
+        {/* Messages with unread alert badge */}
+        <Link
+          href="/mensajes"
+          className="relative p-2 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
+          aria-label="Mensajes"
+        >
+          <MessageCircle className="w-4 h-4" />
+          {unreadMessagesCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-acid text-background text-[9px] font-black flex items-center justify-center animate-pulse">
+              {unreadMessagesCount}
+            </span>
+          )}
         </Link>
 
         {/* Notifications */}

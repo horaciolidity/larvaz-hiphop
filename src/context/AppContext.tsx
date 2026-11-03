@@ -28,6 +28,7 @@ interface AppContextType {
   events: HipHopEvent[];
   notifications: Notification[];
   unreadNotifsCount: number;
+  unreadMessagesCount: number;
   feedFilter: FeedFilter;
   setFeedFilter: (f: FeedFilter) => void;
   contentTypeFilter: ContentType | 'all';
@@ -118,6 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<HipHopEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>(() => dataStore.getAllProfiles());
   const [totalMembersCount, setTotalMembersCount] = useState<number>(() => dataStore.getAllProfiles().length);
   const isSupabaseConnected = isSupabaseConfigured();
@@ -303,9 +305,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           username,
           full_name: authUser.user_metadata?.full_name || 'Artista Larvaz',
           bio: 'Creador en la comunidad Larvaz Hip-Hop.',
-          avatar_url:
-            authUser.user_metadata?.avatar_url ||
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+          avatar_url: authUser.user_metadata?.avatar_url || '',
           location: authUser.user_metadata?.location || userLocation || 'Mendoza, Argentina',
           role: 'user',
           is_banned: false,
@@ -543,6 +543,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isSupabaseConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Global listener for realtime incoming direct messages via Supabase relay post
+  useEffect(() => {
+    if (!supabase || !isSupabaseConnected) return;
+
+    const CHAT_RELAY_POST_ID = '36f632cc-0195-46fb-ae22-ce2dea03376c';
+    const msgChannel = supabase
+      .channel('public:global_dm_alerts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `post_id=eq.${CHAT_RELAY_POST_ID}`,
+        },
+        (payload: any) => {
+          try {
+            if (!payload.new?.content) return;
+            const parsed = JSON.parse(payload.new.content);
+            if (!parsed.conv_id || !parsed.content) return;
+
+            // Si es un mensaje dirigido a mí
+            if (
+              parsed.recipient_id === currentUser.id ||
+              (parsed.sender_id !== currentUser.id && currentUser.username === parsed.recipient_username)
+            ) {
+              setUnreadMessagesCount((prev) => prev + 1);
+
+              // Disparar notificación en la campanita
+              const newNotif: Notification = {
+                id: 'notif-msg-' + Date.now(),
+                user_id: currentUser.id,
+                actor_id: parsed.sender_id,
+                type: 'mention',
+                actor: {
+                  id: parsed.sender_id,
+                  username: parsed.sender_username || 'artista',
+                  full_name: parsed.sender_name || 'Compa Larvaz',
+                  avatar_url: parsed.sender_avatar || '',
+                  role: 'user',
+                  is_banned: false,
+                  created_at: new Date().toISOString(),
+                },
+                read: false,
+                created_at: new Date().toISOString(),
+              };
+              setNotifications((prev) => [newNotif, ...prev]);
+            }
+          } catch {}
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(msgChannel);
+    };
+  }, [isSupabaseConnected, currentUser.id, currentUser.username]);
+
   const setCurrentUser = (user: Profile) => {
     dataStore.setCurrentUser(user);
     setCurrentUserState(user);
@@ -677,7 +735,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       username: cleanUsername,
       full_name: data.fullName.trim(),
       bio: 'Nuevo creador y apasionado de la cultura hip-hop en Larvaz.',
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+      avatar_url: '',
       artistic_disciplines: 'MC / Hip Hop',
       role: 'user',
       is_banned: false,
@@ -959,6 +1017,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         events,
         notifications,
         unreadNotifsCount,
+        unreadMessagesCount,
         feedFilter,
         setFeedFilter,
         contentTypeFilter,

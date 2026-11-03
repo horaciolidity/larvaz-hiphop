@@ -37,6 +37,7 @@ export const SidebarLeft: React.FC = () => {
   const {
     currentUser,
     unreadNotifsCount,
+    unreadMessagesCount,
     isSupabaseConnected,
     isRadioPlaying,
     isAdmin,
@@ -59,7 +60,13 @@ export const SidebarLeft: React.FC = () => {
       badgeColor: 'bg-acid text-background',
     },
     { label: 'B-Boys & Breaking', href: '/breaking', icon: Zap },
-    { label: 'Mensajes', href: '/mensajes', icon: MessageCircle },
+    {
+      label: 'Mensajes',
+      href: '/mensajes',
+      icon: MessageCircle,
+      badge: unreadMessagesCount > 0 ? unreadMessagesCount.toString() : undefined,
+      badgeColor: 'bg-acid text-background',
+    },
     { label: 'Eventos', href: '/eventos', icon: Calendar },
     { label: 'Mi Panel', href: '/panel', icon: UserCheck },
     { label: 'Guardados', href: '/guardados', icon: Bookmark },

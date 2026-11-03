@@ -23,7 +23,7 @@ import {
 export default function ArtistProfilePage() {
   const params = useParams();
   const username = params.username as string;
-  const { currentUser, isFollowing, toggleFollow, isAdmin } = useApp();
+  const { currentUser, isFollowing, toggleFollow, isAdmin, posts } = useApp();
 
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'events'>('posts');
 
@@ -51,8 +51,10 @@ export default function ArtistProfilePage() {
   const isOwner = currentUser.id === profile.id;
   const following = isFollowing(profile.id);
 
-  // Fetch artist posts
-  const artistPosts = dataStore.getPosts({ authorId: profile.id });
+  // Fetch artist posts: combina los posts globales del Context (incluye Supabase en vivo) + dataStore
+  const artistPosts = posts.length > 0
+    ? posts.filter((p) => p.user_id === profile.id || p.author?.id === profile.id || p.author?.username.toLowerCase() === profile.username.toLowerCase())
+    : dataStore.getPosts({ authorId: profile.id });
   // Saved posts (only owner can view)
   const savedPosts = isOwner ? dataStore.getPosts({ bookmarkedOnly: true }) : [];
   // Events

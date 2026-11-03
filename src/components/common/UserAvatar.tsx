@@ -89,7 +89,9 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   }
 
   // 3. Resolve IPFS or real image URL
-  const resolvedUrl = avatarUrl ? resolveIpfsUrl(avatarUrl) : '';
+  const resolvedUrl = avatarUrl && !avatarUrl.includes('unsplash.com/photo-1534528741775-53994a69daeb')
+    ? resolveIpfsUrl(avatarUrl)
+    : '';
 
   const handleError = () => {
     if (retryCount < 2 && resolvedUrl) {
@@ -100,11 +102,21 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     }
   };
 
-  const effectiveUrl = imgError || !resolvedUrl
-    ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'
-    : retryCount > 0
-    ? getIpfsFallbackUrl(resolvedUrl, retryCount)
-    : resolvedUrl;
+  // Si no hay foto real o falló, mostrar iniciales con estilo hip-hop urbano en vez de foto genérica de mujer
+  if (imgError || !resolvedUrl) {
+    const initial = (name || 'U').trim().charAt(0).toUpperCase();
+    return (
+      <div
+        className={`rounded-full bg-surface-elevated border border-surface-border text-acid font-display font-black flex items-center justify-center select-none flex-shrink-0 uppercase shadow-inner ${sizeConfig.container} ${className}`}
+        title={name}
+        aria-label={name}
+      >
+        <span>{initial}</span>
+      </div>
+    );
+  }
+
+  const effectiveUrl = retryCount > 0 ? getIpfsFallbackUrl(resolvedUrl, retryCount) : resolvedUrl;
 
   return (
     <img

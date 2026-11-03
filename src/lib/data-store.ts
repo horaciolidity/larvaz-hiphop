@@ -854,14 +854,14 @@ class LarvazDataStore {
     const wasGuest = this.currentUser.is_guest || this.currentUser.id === 'user-guest';
     const permanentId = wasGuest
       ? (typeof window !== 'undefined' && localStorage.getItem('larvaz_permanent_uid')
-          ? localStorage.getItem('larvaz_permanent_uid')!
-          : `user-${Date.now()}`)
+        ? localStorage.getItem('larvaz_permanent_uid')!
+        : `user-${Date.now()}`)
       : this.currentUser.id;
 
     if (wasGuest && typeof window !== 'undefined') {
       try {
         localStorage.setItem('larvaz_permanent_uid', permanentId);
-      } catch {}
+      } catch { }
     }
 
     const previousId = this.currentUser.id;
@@ -1262,7 +1262,7 @@ class LarvazDataStore {
         for (const p of parsed) map.set(p.id, p);
         this.posts = Array.from(map.values());
       }
-    } catch {}
+    } catch { }
   }
 
   // Reload profiles from localStorage (when updated by registrations in any tab)
@@ -1283,7 +1283,7 @@ class LarvazDataStore {
         }
         this.profiles = Array.from(profMap.values());
       }
-    } catch {}
+    } catch { }
   }
 
   // Add an external post (from real-time broadcast or Supabase)
@@ -1304,10 +1304,17 @@ class LarvazDataStore {
       if (!map.has(p.id)) {
         map.set(p.id, p);
         changed = true;
+      } else {
+        // Update existing post with freshest data from Supabase
+        const current = map.get(p.id)!;
+        map.set(p.id, { ...current, ...p });
       }
     }
     if (changed) {
-      this.posts = Array.from(map.values());
+      // Re-sort all posts with newest first so they always appear immediately
+      this.posts = Array.from(map.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
       this.saveToStorage();
     }
   }
