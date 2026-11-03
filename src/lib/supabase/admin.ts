@@ -14,3 +14,4 @@ export const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     autoRefreshToken: false,
   },
 });
+
