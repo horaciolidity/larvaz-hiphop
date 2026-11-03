@@ -1330,12 +1330,20 @@ class LarvazDataStore {
 
   // Merge batch of profiles (from Supabase queries)
   mergeProfiles(incomingProfiles: Profile[]): void {
+    const initialIds = new Set(INITIAL_PROFILES.map((p) => p.id));
     const map = new Map<string, Profile>();
     for (const p of this.profiles) map.set(p.id, p);
     let changed = false;
     for (const p of incomingProfiles) {
+      const isCustom = !initialIds.has(p.id);
+      const profileToAdd = { ...p, is_custom: isCustom ? true : (p.is_custom || false) };
       if (!map.has(p.id)) {
-        map.set(p.id, p);
+        map.set(p.id, profileToAdd);
+        changed = true;
+      } else {
+        // Update existing if new fields present
+        const curr = map.get(p.id)!;
+        map.set(p.id, { ...curr, ...profileToAdd });
         changed = true;
       }
     }

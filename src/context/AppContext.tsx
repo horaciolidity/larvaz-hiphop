@@ -841,6 +841,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               : null);
 
           if (targetUserId) {
+            // Mapear content_type para respetar el CHECK constraint de Supabase ('music', 'video', 'visual_art', 'link')
+            const rawType = (newPost.content_type || 'link') as string;
+            const allowedTypes = ['music', 'video', 'visual_art', 'link'];
+            const supabaseContentType = allowedTypes.includes(rawType) ? rawType : 'link';
+
             const { data: inserted, error } = await supabase
               .from('posts')
               .insert({
@@ -848,7 +853,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 external_url: newPost.external_url || 'https://larvaz-hiphop.vercel.app',
                 normalized_url: newPost.normalized_url || null,
                 provider: newPost.provider || 'generic',
-                content_type: newPost.content_type || 'text',
+                content_type: supabaseContentType,
                 description: newPost.description || '',
                 tags: newPost.tags || [],
                 created_at: newPost.created_at,
