@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
           return null;
         }
       })
-      .filter((m: any) => m && m.conv_id && m.text);
+      .filter((m: any) => m && m.text);   // conv_id puede faltar en msgs viejos
 
     // Filter by conv_id if provided
     if (conv_id && conv_id !== 'all') {

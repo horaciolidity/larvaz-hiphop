@@ -24,11 +24,14 @@ import {
 export default function ArtistProfilePage() {
   const params = useParams();
   const username = params.username as string;
-  const { currentUser, isFollowing, toggleFollow, isAdmin, posts } = useApp();
+  const { currentUser, isFollowing, toggleFollow, isAdmin, posts, availableProfiles } = useApp();
 
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'events'>('posts');
 
-  const profile = dataStore.getProfileByUsername(username);
+  // Busca primero en el store local, luego en los perfiles de Supabase del Context
+  const profile =
+    dataStore.getProfileByUsername(username) ||
+    availableProfiles.find((p) => p.username.toLowerCase() === username.toLowerCase());
 
   if (!profile) {
     return (
@@ -57,8 +60,7 @@ export default function ArtistProfilePage() {
   const artistPosts = allAvailablePosts.filter((p) => {
     const isAuthorId = p.user_id === profile.id || p.author?.id === profile.id;
     const isAuthorUsername = p.author?.username?.toLowerCase() === profile.username.toLowerCase();
-    const isMentionedOnWall = p.description?.toLowerCase().includes(`@${profile.username.toLowerCase()}`);
-    return isAuthorId || isAuthorUsername || isMentionedOnWall;
+    return isAuthorId || isAuthorUsername;
   });
   // Saved posts (only owner can view)
   const savedPosts = isOwner ? dataStore.getPosts({ bookmarkedOnly: true }) : [];
