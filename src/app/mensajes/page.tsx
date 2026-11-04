@@ -263,46 +263,111 @@ function MensajesContent() {
   // Supabase Real-Time messages listener for cross-device DM sync
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
+    const supabase = createClient();
 
-    // ── Carga inicial: fetch mensajes del relay via API route (bypasa RLS) ──
+    // ── Carga de mensajes de TODAS las conversaciones de este usuario ──
     const fetchRelayMessages = async () => {
       try {
         const myId = currentUser.id;
-        const myUsername = currentUser.username.toLowerCase();
+        const myUsername = (currentUser.username || '').toLowerCase();
+        if (!myUsername && !myId) return;
 
-        // Buscar conversaciones reales (no demos) y cargar sus mensajes
-        const realConvs = conversations.filter(c => !c.id.startsWith('conv-'));
-        for (const conv of realConvs) {
-          const res = await fetch(`/api/chat?conv_id=${encodeURIComponent(conv.id)}&limit=50`);
-          if (!res.ok) continue;
-          const { messages: msgs } = await res.json().catch(() => ({ messages: [] }));
-          if (msgs && msgs.length > 0) {
-            const directMsgs: DirectMessage[] = msgs.map((m: any) => ({
-              id: m.msg_id || m.comment_id,
-              conversation_id: m.conv_id,
-              sender_id: m.sender_id,
-              content: m.text,
-              created_at: m.ts || m.db_ts,
-              read: true,
-            }));
-            setMessages(prev => {
-              const existing = prev[conv.id] || [];
-              const merged = [...existing];
-              for (const dm of directMsgs) {
-                if (!merged.some(m => m.id === dm.id)) merged.push(dm);
-              }
-              merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-              return { ...prev, [conv.id]: merged };
-            });
+        const res = await fetch(
+          `/api/chat?user_id=${encodeURIComponent(myId)}&username=${encodeURIComponent(myUsername)}&limit=150`
+        );
+        if (!res.ok) return;
+
+        const { messages: msgs } = await res.json().catch(() => ({ messages: [] }));
+        if (!msgs || msgs.length === 0) return;
+
+        // Agrupar mensajes por conv_id y descubrir conversaciones nuevas
+        const messagesByConv: Record<string, DirectMessage[]> = {};
+        const discoveredPartners = new Map<string, { username: string; id: string; lastMsg: string; lastTs: string }>();
+
+        for (const m of msgs) {
+          const isSender =
+            m.sender_id === myId ||
+            (m.sender_username && m.sender_username.toLowerCase() === myUsername);
+
+          const partnerId = isSender ? m.recipient_id : m.sender_id;
+          const partnerUsername = isSender ? m.recipient_username : m.sender_username;
+
+          const convId = m.conv_id || [m.sender_id, m.recipient_id].sort().join('_');
+
+          if (!messagesByConv[convId]) {
+            messagesByConv[convId] = [];
           }
+
+          const dm: DirectMessage = {
+            id: m.msg_id || m.comment_id,
+            conversation_id: convId,
+            sender_id: m.sender_id,
+            content: m.text,
+            created_at: m.ts || m.db_ts,
+            read: true,
+          };
+          messagesByConv[convId].push(dm);
+
+          // Actualizar última actividad del partner
+          discoveredPartners.set(convId, {
+            id: partnerId,
+            username: partnerUsername || 'artista',
+            lastMsg: m.text,
+            lastTs: m.ts || m.db_ts,
+          });
         }
 
-        // Si el usuario tiene conversaciones que aún no están en la lista,
-        // buscarlas: generamos los conv_ids con todos los perfiles disponibles
-        // (sólo si hay menos de 10 para no hacer flood de requests)
-        if (realConvs.length === 0) {
-          // Es usuario nuevo sin conversaciones — no hay nada que cargar
-        }
+        // 1. Merge mensajes en estado
+        setMessages((prev) => {
+          const updated = { ...prev };
+          for (const [cId, list] of Object.entries(messagesByConv)) {
+            const existing = updated[cId] || [];
+            const merged = [...existing];
+            for (const dm of list) {
+              if (!merged.some((x) => x.id === dm.id)) {
+                merged.push(dm);
+              }
+            }
+            merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            updated[cId] = merged;
+          }
+          return updated;
+        });
+
+        // 2. Actualizar o crear conversaciones en la barra lateral
+        setConversations((prev) => {
+          const next = [...prev];
+          discoveredPartners.forEach((partner, cId) => {
+            const idx = next.findIndex((c) => c.id === cId || c.participant_id === partner.id);
+            if (idx >= 0) {
+              next[idx] = {
+                ...next[idx],
+                last_message: partner.lastMsg,
+                last_message_at: partner.lastTs,
+              };
+            } else {
+              // Buscar perfil del partner
+              const foundProf = availableProfiles.find(
+                (p) =>
+                  p.id === partner.id ||
+                  p.username.toLowerCase() === partner.username.toLowerCase()
+              );
+              const newConv: Conversation = {
+                id: cId,
+                participant_id: foundProf?.id || partner.id,
+                participant_username: foundProf?.username || partner.username,
+                participant_name: foundProf?.full_name || partner.username,
+                participant_avatar: foundProf?.avatar_url || '',
+                last_message: partner.lastMsg,
+                last_message_at: partner.lastTs,
+                unread_count: 0,
+                is_online: true,
+              };
+              next.unshift(newConv);
+            }
+          });
+          return next;
+        });
       } catch (err) {
         console.warn('Error cargando mensajes del relay:', err);
       }
@@ -310,43 +375,32 @@ function MensajesContent() {
 
     fetchRelayMessages();
 
-    // ── Listener Realtime: sin filter SQL (lo chequeamos en JS) para evitar drops silenciosos ──
-    const supabase = createClient();
-    if (!supabase) return;
-
-    const realtimeChannel = supabase
-      .channel('chat_relay_v3_' + currentUser.id.slice(0, 8))
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          // Sin filter SQL — chequeamos post_id en JS
-        },
-        (payload: any) => {
+    // ── WebSocket Broadcast en Vivo (latencia < 50ms entre dispositivos) ──
+    let broadcastChannel: any = null;
+    if (supabase) {
+      broadcastChannel = supabase
+        .channel('larvaz_live_relay')
+        .on('broadcast', { event: 'dm' }, (event: any) => {
           try {
-            if (!payload.new?.content) return;
-            if (payload.new.post_id !== CHAT_RELAY_POST_ID) return;
-
-            const parsed = JSON.parse(payload.new.content);
-            if (!parsed.conv_id || !parsed.text) return;
+            const parsed = event.payload;
+            if (!parsed?.text || !parsed?.conv_id) return;
 
             const myId = currentUser.id;
-            const myUsername = currentUser.username.toLowerCase();
+            const myUsername = (currentUser.username || '').toLowerCase();
 
-            // ¿Es un mensaje mío o de mi conversación activa?
-            const isMyConv =
-              parsed.sender_id === myId ||
+            const isForMe =
               parsed.recipient_id === myId ||
-              (parsed.sender_username && parsed.sender_username.toLowerCase() === myUsername) ||
-              (parsed.recipient_username && parsed.recipient_username.toLowerCase() === myUsername) ||
-              (activeConvRef.current && activeConvRef.current.id === parsed.conv_id);
+              (parsed.recipient_username &&
+                parsed.recipient_username.toLowerCase() === myUsername);
+            const isFromMe =
+              parsed.sender_id === myId ||
+              (parsed.sender_username &&
+                parsed.sender_username.toLowerCase() === myUsername);
 
-            if (!isMyConv) return;
+            if (!isForMe && !isFromMe) return;
 
             const incoming: DirectMessage = {
-              id: parsed.msg_id || payload.new.id,
+              id: parsed.msg_id || 'dm-' + Date.now(),
               conversation_id: parsed.conv_id,
               sender_id: parsed.sender_id,
               content: parsed.text,
@@ -354,56 +408,69 @@ function MensajesContent() {
               read: activeConvRef.current?.id === parsed.conv_id,
             };
 
-            // Solo agregar si no lo envié yo (evitar duplicado)
-            const isFromMe = parsed.sender_id === myId;
-
-            setMessages(prev => {
+            setMessages((prev) => {
               const list = prev[parsed.conv_id] || [];
-              if (list.some(m => m.id === incoming.id)) return prev;
+              if (list.some((m) => m.id === incoming.id)) return prev;
               return { ...prev, [parsed.conv_id]: [...list, incoming] };
             });
 
-            setConversations(prev => {
-              const exists = prev.find(c => c.id === parsed.conv_id);
+            setConversations((prev) => {
+              const exists = prev.find((c) => c.id === parsed.conv_id);
               if (exists) {
-                return prev.map(c =>
+                return prev.map((c) =>
                   c.id === parsed.conv_id
                     ? {
                         ...c,
                         last_message: incoming.content,
                         last_message_at: incoming.created_at,
-                        unread_count: activeConvRef.current?.id === parsed.conv_id ? 0 : (c.unread_count || 0) + (isFromMe ? 0 : 1),
+                        unread_count:
+                          activeConvRef.current?.id === parsed.conv_id
+                            ? 0
+                            : (c.unread_count || 0) + (isFromMe ? 0 : 1),
                       }
                     : c
                 );
-              } else if (!isFromMe) {
-                // Nueva conversación entrante
+              } else {
+                const partnerUsername = isFromMe
+                  ? parsed.recipient_username
+                  : parsed.sender_username;
+                const partnerId = isFromMe ? parsed.recipient_id : parsed.sender_id;
+                const foundProf = availableProfiles.find(
+                  (p) =>
+                    p.id === partnerId ||
+                    p.username.toLowerCase() === (partnerUsername || '').toLowerCase()
+                );
                 const newC: Conversation = {
                   id: parsed.conv_id,
-                  participant_id: parsed.sender_id,
-                  participant_username: parsed.sender_username || 'artista',
-                  participant_name: parsed.sender_username || 'Compa Larvaz',
-                  participant_avatar: '',
+                  participant_id: foundProf?.id || partnerId,
+                  participant_username: foundProf?.username || partnerUsername || 'artista',
+                  participant_name: foundProf?.full_name || partnerUsername || 'Compa Larvaz',
+                  participant_avatar: foundProf?.avatar_url || '',
                   last_message: incoming.content,
                   last_message_at: incoming.created_at,
-                  unread_count: 1,
+                  unread_count: isFromMe ? 0 : 1,
                   is_online: true,
                 };
                 return [newC, ...prev];
               }
-              return prev;
             });
           } catch (e) {
-            console.warn('Error parsing incoming chat relay comment:', e);
+            console.warn('Error en dm broadcast:', e);
           }
-        }
-      )
-      .subscribe();
+        })
+        .subscribe();
+    }
+
+    // ── Heartbeat periódico cada 3.5s mientras la pantalla de mensajes esté abierta ──
+    const intervalId = setInterval(fetchRelayMessages, 3500);
 
     return () => {
-      supabase.removeChannel(realtimeChannel);
+      clearInterval(intervalId);
+      if (broadcastChannel && supabase) {
+        supabase.removeChannel(broadcastChannel);
+      }
     };
-  }, [currentUser.id, currentUser.username]);
+  }, [currentUser.id, currentUser.username, availableProfiles]);
 
   // Handle auto-open by query param ?user=username
   useEffect(() => {
@@ -469,11 +536,10 @@ function MensajesContent() {
       } catch {}
     }
 
-    // ── Persist cross-device via API route (service_role bypasa RLS) ──
+    // ── Persist cross-device via API route + Broadcast en Vivo ──
     if (isSupabaseConfigured()) {
       (async () => {
         try {
-          // Resolver sender_id real (UUID de Supabase auth o currentUser.id)
           let senderId = currentUser.id;
           const supabase = createClient();
           if (supabase) {
@@ -483,17 +549,38 @@ function MensajesContent() {
             }
           }
 
+          const payload = {
+            sender_id: senderId,
+            sender_username: currentUser.username,
+            sender_name: currentUser.full_name,
+            sender_avatar: currentUser.avatar_url,
+            recipient_id: activeConv.participant_id,
+            recipient_username: activeConv.participant_username,
+            text: msg.content,
+            conv_id: activeConv.id,
+          };
+
+          // 1. Broadcast en vivo a todos los dispositivos por Supabase WebSocket
+          if (supabase) {
+            try {
+              const liveChannel = supabase.channel('larvaz_live_relay');
+              await liveChannel.send({
+                type: 'broadcast',
+                event: 'dm',
+                payload: {
+                  ...payload,
+                  msg_id: msg.id,
+                  ts: msg.created_at,
+                },
+              });
+            } catch {}
+          }
+
+          // 2. Persistir en la base de datos
           const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sender_id: senderId,
-              sender_username: currentUser.username,
-              recipient_id: activeConv.participant_id,
-              recipient_username: activeConv.participant_username,
-              text: msg.content,
-              conv_id: activeConv.id,
-            }),
+            body: JSON.stringify(payload),
           });
 
           if (!res.ok) {

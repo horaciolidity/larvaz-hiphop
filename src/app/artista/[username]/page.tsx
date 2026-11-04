@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { dataStore } from '@/lib/data-store';
 import { PostCard } from '@/components/feed/PostCard';
+import { InlineFeedComposer } from '@/components/feed/InlineFeedComposer';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import {
   MapPin,
@@ -52,9 +53,13 @@ export default function ArtistProfilePage() {
   const following = isFollowing(profile.id);
 
   // Fetch artist posts: combina los posts globales del Context (incluye Supabase en vivo) + dataStore
-  const artistPosts = posts.length > 0
-    ? posts.filter((p) => p.user_id === profile.id || p.author?.id === profile.id || p.author?.username.toLowerCase() === profile.username.toLowerCase())
-    : dataStore.getPosts({ authorId: profile.id });
+  const allAvailablePosts = posts.length > 0 ? posts : dataStore.getPosts();
+  const artistPosts = allAvailablePosts.filter((p) => {
+    const isAuthorId = p.user_id === profile.id || p.author?.id === profile.id;
+    const isAuthorUsername = p.author?.username?.toLowerCase() === profile.username.toLowerCase();
+    const isMentionedOnWall = p.description?.toLowerCase().includes(`@${profile.username.toLowerCase()}`);
+    return isAuthorId || isAuthorUsername || isMentionedOnWall;
+  });
   // Saved posts (only owner can view)
   const savedPosts = isOwner ? dataStore.getPosts({ bookmarkedOnly: true }) : [];
   // Events
@@ -248,13 +253,20 @@ export default function ArtistProfilePage() {
       {/* 5. Tab Contents */}
       <div className="divide-y divide-surface-border/50">
         {activeTab === 'posts' && (
-          artistPosts.length === 0 ? (
-            <p className="text-center text-xs text-content-secondary py-12">
-              Este creador todavía no ha publicado piezas en el muro.
-            </p>
-          ) : (
-            artistPosts.map((post) => <PostCard key={post.id} post={post} />)
-          )
+          <div>
+            {/* Compositor en el muro del artista */}
+            <div className="p-4 border-b border-surface-border bg-surface/30">
+              <InlineFeedComposer />
+            </div>
+
+            {artistPosts.length === 0 ? (
+              <p className="text-center text-xs text-content-secondary py-12">
+                Este creador todavía no ha publicado piezas en el muro.
+              </p>
+            ) : (
+              artistPosts.map((post) => <PostCard key={post.id} post={post} />)
+            )}
+          </div>
         )}
 
         {activeTab === 'saved' && (

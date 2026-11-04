@@ -471,14 +471,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     fetchSupabasePosts();
     fetchSupabaseProfiles();
 
-    // Suscripción Realtime ultra-liviana (usa payload directo, costo 0 queries extra)
+    // 1. Sincronización Realtime por WebSocket Broadcast + postgres_changes
     const syncChannel = supabase
-      .channel('public:posts_live_sync')
+      .channel('larvaz_live_relay')
+      .on(
+        'broadcast',
+        { event: 'NEW_POST' },
+        () => {
+          fetchSupabasePosts();
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'dm' },
+        (event: any) => {
+          try {
+            const parsed = event.payload;
+            if (!parsed?.text) return;
+            const me = currentUserRef2.current;
+            if (!me) return;
+
+            const isForMe =
+              parsed.recipient_id === me.id ||
+              (parsed.recipient_username &&
+                parsed.recipient_username.toLowerCase() === me.username.toLowerCase());
+            const isFromMe =
+              parsed.sender_id === me.id ||
+              (parsed.sender_username &&
+                parsed.sender_username.toLowerCase() === me.username.toLowerCase());
+
+            if (isForMe && !isFromMe) {
+              setUnreadMessagesCount((prev) => prev + 1);
+
+              const newNotif: Notification = {
+                id: 'notif-msg-' + Date.now(),
+                user_id: me.id,
+                actor_id: parsed.sender_id,
+                type: 'mention',
+                actor: {
+                  id: parsed.sender_id,
+                  username: parsed.sender_username || 'artista',
+                  full_name: parsed.sender_name || parsed.sender_username || 'Compa Larvaz',
+                  avatar_url: parsed.sender_avatar || '',
+                  role: 'user',
+                  is_banned: false,
+                  created_at: new Date().toISOString(),
+                },
+                read: false,
+                created_at: new Date().toISOString(),
+              };
+              setNotifications((prev) => [newNotif, ...prev]);
+            }
+          } catch {}
+        }
+      )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'posts' },
-        (payload: any) => {
-          // Cualquier cambio en posts → re-fetch global via API (sin RLS)
+        () => {
           fetchSupabasePosts();
         }
       )
@@ -496,77 +546,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       )
       .subscribe();
 
+    // 2. Refresco periódico en background (cada 8s) y al volver a enfocar la pestaña
+    const intervalId = setInterval(() => {
+      fetchSupabasePosts();
+    }, 8000);
+
+    const onFocus = () => {
+      fetchSupabasePosts();
+      fetchSupabaseProfiles();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus);
+    }
+
     return () => {
       supabase.removeChannel(syncChannel);
+      clearInterval(intervalId);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', onFocus);
+      }
     };
-  }, [isSupabaseConnected]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Global listener para alertas de mensajes directos en tiempo real
-  useEffect(() => {
-    if (!supabase || !isSupabaseConnected) return;
-
-    const CHAT_RELAY_POST_ID = '36f632cc-0195-46fb-ae22-ce2dea03376c';
-
-    const msgChannel = supabase
-      .channel('global_dm_alerts_v2')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          // Sin filter SQL — lo evaluamos en JS para evitar drops silenciosos
-        },
-        (payload: any) => {
-          try {
-            if (!payload.new?.content) return;
-            // Solo nos importan los del relay de chat
-            if (payload.new.post_id !== CHAT_RELAY_POST_ID) return;
-
-            const parsed = JSON.parse(payload.new.content);
-            if (!parsed.conv_id || !parsed.text) return;
-
-            // Accedo al currentUser vía ref para evitar stale closure
-            const me = currentUserRef2.current;
-            if (!me) return;
-
-            const isForMe =
-              parsed.recipient_id === me.id ||
-              (parsed.recipient_username && parsed.recipient_username.toLowerCase() === me.username.toLowerCase());
-            const isFromMe = parsed.sender_id === me.id;
-
-            if (isForMe && !isFromMe) {
-              setUnreadMessagesCount((prev) => prev + 1);
-
-              // Notificación de nuevo mensaje
-              const newNotif: Notification = {
-                id: 'notif-msg-' + Date.now(),
-                user_id: me.id,
-                actor_id: parsed.sender_id,
-                type: 'mention',
-                actor: {
-                  id: parsed.sender_id,
-                  username: parsed.sender_username || 'artista',
-                  full_name: parsed.sender_username || 'Compa Larvaz',
-                  avatar_url: '',
-                  role: 'user',
-                  is_banned: false,
-                  created_at: new Date().toISOString(),
-                },
-                read: false,
-                created_at: new Date().toISOString(),
-              };
-              setNotifications((prev) => [newNotif, ...prev]);
-            }
-          } catch {}
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(msgChannel);
-    };
-  }, [isSupabaseConnected, currentUser.id, currentUser.username]);
+  }, [supabase, isSupabaseConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCurrentUser = (user: Profile) => {
     dataStore.setCurrentUser(user);
@@ -865,7 +865,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConnected) {
       (async () => {
         try {
-          // Resolver el user_id real (auth UUID o currentUser.id si es UUID válido)
+          // Resolver el user_id real si existe sesión activa
           let targetUserId = currentUser.id;
           if (supabase) {
             const { data: sessionData } = await supabase.auth.getSession();
@@ -874,9 +874,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          // Solo intentar si tenemos un UUID válido (no IDs locales como 'user-...')
-          if (!targetUserId || !targetUserId.includes('-') || targetUserId.startsWith('user-') || targetUserId.startsWith('custom-')) {
-            return; // Usuario local demo, no sincronizar
+          // Si es visitante genérico no sincronizar a BD
+          if (currentUser.is_guest && currentUser.id === 'user-guest') {
+            return;
           }
 
           const rawType = (newPost.content_type || 'link') as string;
@@ -888,6 +888,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_id: targetUserId,
+              author_username: currentUser.username,
+              author_name: currentUser.full_name,
               description: newPost.description || '',
               content_type: safeContentType,
               tags: newPost.tags || [],
@@ -900,9 +902,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
           if (res.ok) {
             const result = await res.json();
-            if (result.id) {
-              newPost.id = result.id;
+            const createdPostData = result.post || result;
+            if (createdPostData?.id) {
+              newPost.id = String(createdPostData.id);
               dataStore.saveToStorage();
+
+              // Difundir inmediatamente por WebSocket a todos los usuarios conectados en cualquier dispositivo
+              if (supabase) {
+                try {
+                  const liveChannel = supabase.channel('larvaz_live_relay');
+                  await liveChannel.send({
+                    type: 'broadcast',
+                    event: 'NEW_POST',
+                    payload: { post_id: newPost.id },
+                  });
+                } catch {}
+              }
+
               // Re-fetch el feed completo para que todos los usuarios vean el post nuevo
               const feedRes = await fetch('/api/feed');
               if (feedRes.ok) {
@@ -922,8 +938,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                     is_hidden: p.is_hidden || false,
                     created_at: p.created_at,
                     author: p.profiles || {
-                      id: p.user_id, username: 'artista', full_name: 'Artista',
-                      avatar_url: '', role: 'user', is_banned: false, created_at: p.created_at,
+                      id: p.user_id,
+                      username: 'artista',
+                      full_name: 'Artista',
+                      avatar_url: '',
+                      role: 'user',
+                      is_banned: false,
+                      created_at: p.created_at,
                     },
                     metadata: p.metadata,
                     user_has_liked: false,

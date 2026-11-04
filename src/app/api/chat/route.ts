@@ -3,6 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const CHAT_RELAY_POST_ID = '36f632cc-0195-46fb-ae22-ce2dea03376c';
 
+function isUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -10,6 +14,20 @@ export async function POST(req: NextRequest) {
 
     if (!sender_id || !recipient_id || !text?.trim()) {
       return NextResponse.json({ error: 'sender_id, recipient_id y text son requeridos' }, { status: 400 });
+    }
+
+    // Ensure database comment row has a valid UUID for the foreign key
+    let dbUserId = isUUID(sender_id) ? sender_id : null;
+    if (!dbUserId && sender_username) {
+      const { data: prof } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .ilike('username', sender_username.trim())
+        .maybeSingle();
+      if (prof?.id && isUUID(prof.id)) dbUserId = prof.id;
+    }
+    if (!dbUserId) {
+      dbUserId = '00000000-0000-0000-0000-000000000001';
     }
 
     const msg_id = 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
@@ -28,7 +46,7 @@ export async function POST(req: NextRequest) {
       .from('comments')
       .insert({
         post_id: CHAT_RELAY_POST_ID,
-        user_id: sender_id,
+        user_id: dbUserId,
         content: JSON.stringify(payload),
       })
       .select('id, created_at')
@@ -39,7 +57,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, msg_id, comment_id: data.id, ts: data.created_at });
+    return NextResponse.json({
+      success: true,
+      msg_id,
+      comment_id: data.id,
+      ts: data.created_at,
+      message: payload,
+    });
   } catch (err: any) {
     console.error('[API /chat] Unexpected error:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
@@ -50,10 +74,11 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const conv_id = searchParams.get('conv_id');
-    const user_id = searchParams.get('user_id'); // buscar todos los mensajes de un usuario
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const user_id = searchParams.get('user_id');
+    const username = searchParams.get('username')?.toLowerCase()?.trim();
+    const limit = parseInt(searchParams.get('limit') || '100', 10);
 
-    // Fetch all messages from the relay for this user
+    // Fetch messages from the relay
     const { data, error } = await supabaseAdmin
       .from('comments')
       .select('id, content, created_at')
@@ -65,28 +90,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Parse and filter messages
+    // Parse messages
     let messages = (data || [])
       .map((row: any) => {
         try {
           const parsed = JSON.parse(row.content);
-          return { ...parsed, comment_id: row.id, db_ts: row.created_at };
+          return {
+            ...parsed,
+            comment_id: row.id,
+            db_ts: row.created_at,
+            // Normalizar text y ts si el mensaje viejo tenía content/created_at
+            text: parsed.text || parsed.content || '',
+            ts: parsed.ts || parsed.created_at || row.created_at,
+          };
         } catch {
           return null;
         }
       })
-      .filter(Boolean);
+      .filter((m: any) => m && m.conv_id && m.text);
 
     // Filter by conv_id if provided
     if (conv_id && conv_id !== 'all') {
       messages = messages.filter((m: any) => m.conv_id === conv_id);
     }
 
-    // Filter by user_id if provided (sender or recipient)
-    if (user_id) {
-      messages = messages.filter((m: any) =>
-        m.sender_id === user_id || m.recipient_id === user_id
-      );
+    // Filter by user_id or username if provided (sender or recipient)
+    if (user_id || username) {
+      messages = messages.filter((m: any) => {
+        const matchId =
+          user_id &&
+          (m.sender_id === user_id || m.recipient_id === user_id);
+        const matchUsername =
+          username &&
+          (m.sender_username?.toLowerCase() === username ||
+            m.recipient_username?.toLowerCase() === username);
+        return matchId || matchUsername;
+      });
     }
 
     // Return in chronological order (oldest first for display)
@@ -97,3 +136,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }
+
