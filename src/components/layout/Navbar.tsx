@@ -20,11 +20,10 @@ export const Navbar: React.FC = () => {
         {/* Radio Quick Link */}
         <Link
           href="/radio"
-          className={`p-2 rounded-xl border transition-all flex items-center gap-1 ${
-            isRadioPlaying
+          className={`p-2 rounded-xl border transition-all flex items-center gap-1 ${isRadioPlaying
               ? 'bg-acid/10 border-acid text-acid shadow-acid-glow'
               : 'bg-surface border-surface-border text-content-secondary hover:text-acid'
-          }`}
+            }`}
           aria-label="Radio Underground"
         >
           <Radio className="w-4 h-4" />
