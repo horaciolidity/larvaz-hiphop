@@ -2,14 +2,14 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2, Smile } from 'lucide-react';
+import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2, Smile, LogOut } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import AvatarPicker from '@/components/profile/AvatarPicker';
 import { resolveIpfsUrl } from '@/lib/media-utils';
 
 
 export default function ConfiguracionPage() {
-  const { currentUser, updateProfile } = useApp();
+  const { currentUser, updateProfile, logout } = useApp();
 
   const [fullName, setFullName] = useState(currentUser.full_name);
   const [bio, setBio] = useState(currentUser.bio || '');
@@ -296,6 +296,20 @@ export default function ConfiguracionPage() {
             </>
           )}
         </button>
+
+        {/* Logout Section */}
+        {!currentUser.is_guest && (
+          <div className="pt-2 border-t border-surface-border">
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="w-full py-3 rounded-xl bg-surface-elevated hover:bg-red-500/10 border border-surface-border hover:border-red-500/30 text-content-muted hover:text-red-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+        )}
       </form>
 
       {/* Avatar Picker Modal */}

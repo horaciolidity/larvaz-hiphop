@@ -30,6 +30,7 @@ import {
   Gift,
   Share2,
   Camera,
+  LogOut,
 } from 'lucide-react';
 
 export default function UserPanelPage() {
@@ -42,6 +43,7 @@ export default function UserPanelPage() {
     withdrawals,
     requestWithdrawal,
     getReferredUsers,
+    logout,
   } = useApp();
   const [activeTab, setActiveTab] = useState<'resumen' | 'cripto' | 'referidos' | 'publicaciones' | 'eventos'>('resumen');
   const [copiedReferral, setCopiedReferral] = useState(false);
@@ -162,7 +164,7 @@ export default function UserPanelPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <Link
               href="/configuracion"
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated hover:bg-surface-hover border border-surface-border text-xs font-bold text-content-primary transition-colors"
@@ -177,6 +179,14 @@ export default function UserPanelPage() {
               <span>Ver Público</span>
               <ArrowUpRight className="w-3.5 h-3.5 stroke-[3]" />
             </Link>
+            <button
+              onClick={() => logout()}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated hover:bg-red-500/10 border border-surface-border hover:border-red-500/30 text-xs font-bold text-content-muted hover:text-red-400 transition-colors"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="sm:hidden">Salir</span>
+            </button>
           </div>
         </div>
       </div>

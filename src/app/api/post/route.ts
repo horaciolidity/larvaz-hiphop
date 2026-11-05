@@ -46,8 +46,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Fallback: if still no UUID, use the system admin/community UUID
-    if (!finalUserId) {
+    // 3. Verificar si finalUserId existe en profiles; si no existe, crearlo con supabaseAdmin
+    if (finalUserId && finalUserId !== '00000000-0000-0000-0000-000000000001') {
+      const { data: existingProf } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('id', finalUserId)
+        .maybeSingle();
+
+      if (!existingProf) {
+        const autoName = body.author_name || cleanUsername || 'Artista Larvaz';
+        const autoUser = cleanUsername || ('user_' + finalUserId.substring(0, 6));
+        const { error: profErr } = await supabaseAdmin.from('profiles').upsert({
+          id: finalUserId,
+          username: autoUser,
+          full_name: autoName,
+          avatar_url: body.author_avatar || '',
+          role: 'user',
+          is_banned: false,
+          created_at: new Date().toISOString(),
+        });
+        if (profErr) {
+          console.warn('[API /post] Auto-creación de perfil falló, usando fallback UUID:', profErr);
+          finalUserId = '00000000-0000-0000-0000-000000000001';
+        }
+      }
+    } else if (!finalUserId) {
       finalUserId = '00000000-0000-0000-0000-000000000001';
     }
 

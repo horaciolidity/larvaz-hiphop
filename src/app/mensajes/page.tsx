@@ -145,22 +145,22 @@ function MensajesContent() {
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('larvaz_conversations');
+        const saved = localStorage.getItem(`larvaz_conversations_${currentUser.id}`);
         if (saved) return JSON.parse(saved);
       } catch {}
     }
-    // Only show demo conversations for mock admin user, guests see empty inbox
-    return DEMO_CONVS;
+    // Solo mostrar conversaciones demo para visitantes o cuenta de demo; usuarios registrados inician limpios
+    return currentUser.is_guest || currentUser.id === 'user-larvaz-admin' ? DEMO_CONVS : [];
   });
 
   const [messages, setMessages] = useState<Record<string, DirectMessage[]>>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('larvaz_direct_messages');
+        const saved = localStorage.getItem(`larvaz_direct_messages_${currentUser.id}`);
         if (saved) return JSON.parse(saved);
       } catch {}
     }
-    return DEMO_MESSAGES;
+    return currentUser.is_guest || currentUser.id === 'user-larvaz-admin' ? DEMO_MESSAGES : {};
   });
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -171,22 +171,38 @@ function MensajesContent() {
   const activeConvRef = useRef<Conversation | null>(null);
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
-  // Sync to localStorage
+  // Al cambiar de usuario logueado, recargar estrictamente los chats correspondientes a su ID
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedConvs = localStorage.getItem(`larvaz_conversations_${currentUser.id}`);
+      const savedMsgs = localStorage.getItem(`larvaz_direct_messages_${currentUser.id}`);
+      setConversations(
+        savedConvs ? JSON.parse(savedConvs) : (currentUser.is_guest || currentUser.id === 'user-larvaz-admin' ? DEMO_CONVS : [])
+      );
+      setMessages(
+        savedMsgs ? JSON.parse(savedMsgs) : (currentUser.is_guest || currentUser.id === 'user-larvaz-admin' ? DEMO_MESSAGES : {})
+      );
+      setActiveConv(null);
+    } catch {}
+  }, [currentUser.id, currentUser.is_guest]);
+
+  // Sync to localStorage scoped by currentUser.id
+  useEffect(() => {
+    if (typeof window !== 'undefined' && currentUser.id) {
       try {
-        localStorage.setItem('larvaz_conversations', JSON.stringify(conversations));
+        localStorage.setItem(`larvaz_conversations_${currentUser.id}`, JSON.stringify(conversations));
       } catch {}
     }
-  }, [conversations]);
+  }, [conversations, currentUser.id]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && currentUser.id) {
       try {
-        localStorage.setItem('larvaz_direct_messages', JSON.stringify(messages));
+        localStorage.setItem(`larvaz_direct_messages_${currentUser.id}`, JSON.stringify(messages));
       } catch {}
     }
-  }, [messages]);
+  }, [messages, currentUser.id]);
 
   // Cross-tab / cross-window real-time synchronization for messages
   useEffect(() => {
@@ -289,7 +305,13 @@ function MensajesContent() {
         if (!res.ok) return;
 
         const { messages: msgs } = await res.json().catch(() => ({ messages: [] }));
-        if (!msgs || msgs.length === 0) return;
+        if (!msgs || msgs.length === 0) {
+          if (!currentUser.is_guest && currentUser.id !== 'user-larvaz-admin') {
+            setMessages({});
+            setConversations([]);
+          }
+          return;
+        }
 
         // Agrupar mensajes por conv_id y descubrir conversaciones nuevas
         const messagesByConv: Record<string, DirectMessage[]> = {};
@@ -357,7 +379,11 @@ function MensajesContent() {
 
         // 2. Actualizar o crear conversaciones en la barra lateral
         setConversations((prev) => {
-          const next = [...prev];
+          // Filtrar cualquier conversación residual que no pertenezca a los chats de este usuario
+          const base = (!currentUser.is_guest && currentUser.id !== 'user-larvaz-admin')
+            ? prev.filter((c) => discoveredPartners.has(c.id))
+            : [...prev];
+          const next = [...base];
           discoveredPartners.forEach((partner, cId) => {
             const idx = next.findIndex((c) => c.id === cId || c.participant_id === partner.id);
             if (idx >= 0) {

@@ -4,12 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
-import { Bell, Search, Radio, UserCheck, MessageCircle } from 'lucide-react';
+import { Bell, Search, Radio, UserCheck, MessageCircle, LogOut } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
 
 export const Navbar: React.FC = () => {
-  const { unreadNotifsCount, unreadMessagesCount, currentUser, isRadioPlaying, userLocation } = useApp();
+  const { unreadNotifsCount, unreadMessagesCount, currentUser, isRadioPlaying, userLocation, logout } = useApp();
   const flag = getLocationFlag(userLocation || currentUser.location);
 
   return (
@@ -77,26 +77,36 @@ export const Navbar: React.FC = () => {
             Entrar
           </Link>
         ) : (
-          <Link
-            href="/panel"
-            className="ml-0.5 relative p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
-            aria-label="Mi Panel"
-          >
-            <UserAvatar
-              avatarUrl={currentUser.avatar_url}
-              name={currentUser.username}
-              size="sm"
-            />
-            {flag && (
-              <span
-                className="absolute -bottom-1 -right-1 text-[11px] leading-none bg-surface border border-surface-border rounded-full w-5 h-5 flex items-center justify-center"
-                title={userLocation || currentUser.location || ''}
-                aria-hidden="true"
-              >
-                {flag}
-              </span>
-            )}
-          </Link>
+          <div className="flex items-center gap-1 ml-0.5">
+            <Link
+              href="/panel"
+              className="relative p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
+              aria-label="Mi Panel"
+            >
+              <UserAvatar
+                avatarUrl={currentUser.avatar_url}
+                name={currentUser.username}
+                size="sm"
+              />
+              {flag && (
+                <span
+                  className="absolute -bottom-1 -right-1 text-[11px] leading-none bg-surface border border-surface-border rounded-full w-5 h-5 flex items-center justify-center"
+                  title={userLocation || currentUser.location || ''}
+                  aria-hidden="true"
+                >
+                  {flag}
+                </span>
+              )}
+            </Link>
+            <button
+              onClick={() => logout()}
+              className="p-2 rounded-xl bg-surface border border-surface-border text-content-muted hover:text-magenta hover:border-magenta/50 transition-colors"
+              title="Cerrar Sesión"
+              aria-label="Cerrar Sesión"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         )}
       </div>
     </header>

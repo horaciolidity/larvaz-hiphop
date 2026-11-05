@@ -312,10 +312,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           created_at: new Date().toISOString(),
         };
 
-        const { error: upsertErr } = await supabase.from('profiles').upsert(newProf);
-        if (upsertErr) {
-          console.warn('Error upserting profile in Supabase:', upsertErr);
-        }
+        try {
+          await fetch('/api/profiles', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newProf),
+          });
+        } catch {}
+
         dataStore.mergeProfiles([newProf]);
         syncProfilesState();
         setCurrentUser(newProf);
@@ -742,6 +746,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.warn('Error signing out:', e);
       }
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('larvaz_conversations');
+        localStorage.removeItem('larvaz_direct_messages');
+        // Limpiar todas las claves de conversaciones de usuarios para máxima privacidad
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith('larvaz_conversations_') || k.startsWith('larvaz_direct_messages_')) {
+            localStorage.removeItem(k);
+          }
+        });
+      } catch {}
     }
     setCurrentUser(GUEST_USER);
   };

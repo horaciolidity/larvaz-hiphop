@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
     const {
       sender_id,
       sender_username,
+      sender_name,
+      sender_avatar,
       recipient_id,
       recipient_username,
       text,
@@ -35,7 +37,34 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
       if (prof?.id && isUUID(prof.id)) dbUserId = prof.id;
     }
-    if (!dbUserId) {
+
+    // Si el usuario existe como UUID pero aún no está en la tabla profiles,
+    // crearlo automáticamente con supabaseAdmin para evitar violar la Foreign Key
+    if (dbUserId && dbUserId !== '00000000-0000-0000-0000-000000000001') {
+      const { data: existingProf } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('id', dbUserId)
+        .maybeSingle();
+
+      if (!existingProf) {
+        const cleanName = sender_name || sender_username || 'Artista Larvaz';
+        const cleanUser = sender_username || ('user_' + dbUserId.substring(0, 6));
+        const { error: profInsertErr } = await supabaseAdmin.from('profiles').upsert({
+          id: dbUserId,
+          username: cleanUser,
+          full_name: cleanName,
+          avatar_url: sender_avatar || '',
+          role: 'user',
+          is_banned: false,
+          created_at: new Date().toISOString(),
+        });
+        if (profInsertErr) {
+          console.warn('[API /chat] Auto-creación de perfil falló, usando fallback UUID:', profInsertErr);
+          dbUserId = '00000000-0000-0000-0000-000000000001';
+        }
+      }
+    } else if (!dbUserId) {
       dbUserId = '00000000-0000-0000-0000-000000000001';
     }
 
@@ -123,19 +152,23 @@ export async function GET(req: NextRequest) {
       messages = messages.filter((m: any) => m.conv_id === conv_id);
     }
 
-    // Filter by user_id or username if provided (sender or recipient)
-    if (user_id || username) {
-      messages = messages.filter((m: any) => {
-        const matchId =
-          user_id &&
-          (m.sender_id === user_id || m.recipient_id === user_id);
-        const matchUsername =
-          username &&
-          (m.sender_username?.toLowerCase() === username ||
-            m.recipient_username?.toLowerCase() === username);
-        return matchId || matchUsername;
-      });
+    // PRIVACIDAD ESTRICTA: Se requiere obligatoriamente user_id o username
+    // para evitar que un usuario sin sesión o un tercero descargue chats ajenos
+    if (!user_id && !username) {
+      return NextResponse.json({ messages: [] });
     }
+
+    // Filtrar estrictamente solo mensajes donde el usuario sea emisor o receptor
+    messages = messages.filter((m: any) => {
+      const matchId =
+        user_id &&
+        (m.sender_id === user_id || m.recipient_id === user_id);
+      const matchUsername =
+        username &&
+        (m.sender_username?.toLowerCase() === username ||
+          m.recipient_username?.toLowerCase() === username);
+      return matchId || matchUsername;
+    });
 
     // Return in chronological order (oldest first for display)
     messages = messages.slice(0, limit).reverse();
