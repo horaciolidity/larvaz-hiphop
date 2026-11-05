@@ -10,7 +10,16 @@ function isUUID(str: string): boolean {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sender_id, sender_username, recipient_id, recipient_username, text, conv_id } = body;
+    const {
+      sender_id,
+      sender_username,
+      recipient_id,
+      recipient_username,
+      text,
+      conv_id,
+      msg_id: clientMsgId,
+      ts: clientTs,
+    } = body;
 
     if (!sender_id || !recipient_id || !text?.trim()) {
       return NextResponse.json({ error: 'sender_id, recipient_id y text son requeridos' }, { status: 400 });
@@ -30,7 +39,7 @@ export async function POST(req: NextRequest) {
       dbUserId = '00000000-0000-0000-0000-000000000001';
     }
 
-    const msg_id = 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    const msg_id = clientMsgId || ('msg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
     const payload = {
       msg_id,
       conv_id: conv_id || [sender_id, recipient_id].sort().join('_'),
@@ -39,7 +48,7 @@ export async function POST(req: NextRequest) {
       recipient_id,
       recipient_username,
       text: text.trim(),
-      ts: new Date().toISOString(),
+      ts: clientTs || new Date().toISOString(),
     };
 
     const { data, error } = await supabaseAdmin

@@ -201,10 +201,21 @@ function MensajesContent() {
           const convId = incoming.conversation_id;
           const senderProfile = event.data.senderProfile;
 
-          setMessages((prev) => ({
-            ...prev,
-            [convId]: [...(prev[convId] || []), incoming],
-          }));
+          setMessages((prev) => {
+            const list = prev[convId] || [];
+            const alreadyExists = list.some(
+              (m) =>
+                m.id === incoming.id ||
+                (m.sender_id === incoming.sender_id &&
+                  m.content === incoming.content &&
+                  Math.abs(new Date(m.created_at).getTime() - new Date(incoming.created_at).getTime()) < 6000)
+            );
+            if (alreadyExists) return prev;
+            return {
+              ...prev,
+              [convId]: [...list, incoming],
+            };
+          });
 
           setConversations((prev) => {
             const exists = prev.find((c) => c.id === convId);
@@ -225,7 +236,7 @@ function MensajesContent() {
                 participant_id: senderProfile.id,
                 participant_username: senderProfile.username,
                 participant_name: senderProfile.full_name,
-                participant_avatar: senderProfile.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+                participant_avatar: senderProfile.avatar_url || '',
                 last_message: incoming.content,
                 last_message_at: incoming.created_at,
                 unread_count: 1,
@@ -324,7 +335,17 @@ function MensajesContent() {
             const existing = updated[cId] || [];
             const merged = [...existing];
             for (const dm of list) {
-              if (!merged.some((x) => x.id === dm.id)) {
+              const existingIdx = merged.findIndex(
+                (x) =>
+                  x.id === dm.id ||
+                  (x.sender_id === dm.sender_id &&
+                    x.content === dm.content &&
+                    Math.abs(new Date(x.created_at).getTime() - new Date(dm.created_at).getTime()) < 6000)
+              );
+              if (existingIdx >= 0) {
+                // Actualizar ID al canónico de base de datos si era temporal
+                merged[existingIdx] = { ...merged[existingIdx], id: dm.id, created_at: dm.created_at };
+              } else {
                 merged.push(dm);
               }
             }
@@ -410,7 +431,14 @@ function MensajesContent() {
 
             setMessages((prev) => {
               const list = prev[parsed.conv_id] || [];
-              if (list.some((m) => m.id === incoming.id)) return prev;
+              const alreadyExists = list.some(
+                (m) =>
+                  m.id === incoming.id ||
+                  (m.sender_id === incoming.sender_id &&
+                    m.content === incoming.content &&
+                    Math.abs(new Date(m.created_at).getTime() - new Date(incoming.created_at).getTime()) < 6000)
+              );
+              if (alreadyExists) return prev;
               return { ...prev, [parsed.conv_id]: [...list, incoming] };
             });
 
@@ -550,6 +578,8 @@ function MensajesContent() {
           }
 
           const payload = {
+            msg_id: msg.id,
+            ts: msg.created_at,
             sender_id: senderId,
             sender_username: currentUser.username,
             sender_name: currentUser.full_name,
@@ -567,11 +597,7 @@ function MensajesContent() {
               await liveChannel.send({
                 type: 'broadcast',
                 event: 'dm',
-                payload: {
-                  ...payload,
-                  msg_id: msg.id,
-                  ts: msg.created_at,
-                },
+                payload,
               });
             } catch {}
           }
