@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/common/Logo';
@@ -48,6 +48,8 @@ export const SidebarLeft: React.FC = () => {
   const flag = getLocationFlag(userLocation || currentUser.location);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const mainLinks = [
     { label: 'Inicio', href: '/', icon: Home },
@@ -153,7 +155,9 @@ export const SidebarLeft: React.FC = () => {
 
       {/* Bottom User Area: Real Session or Login/Register */}
       <div className="pt-4 border-t border-surface-border relative">
-        {currentUser.is_guest ? (
+        {!mounted ? (
+          <div className="w-full h-14 rounded-xl bg-surface animate-pulse" />
+        ) : currentUser.is_guest ? (
           <div className="space-y-2">
             <Link
               href="/login"

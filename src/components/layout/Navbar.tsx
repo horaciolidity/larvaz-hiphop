@@ -10,6 +10,8 @@ import { getLocationFlag } from '@/lib/country-utils';
 
 export const Navbar: React.FC = () => {
   const { unreadNotifsCount, unreadMessagesCount, currentUser, isRadioPlaying, userLocation, logout } = useApp();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
   const flag = getLocationFlag(userLocation || currentUser.location);
 
   return (
@@ -68,7 +70,9 @@ export const Navbar: React.FC = () => {
         </Link>
 
         {/* User Panel or Login Link */}
-        {currentUser.is_guest ? (
+        {!mounted ? (
+          <div className="ml-1 w-16 h-8 rounded-xl bg-surface-elevated animate-pulse" />
+        ) : currentUser.is_guest ? (
           <Link
             href="/login"
             className="ml-1 px-3 py-1.5 rounded-xl bg-acid text-background text-xs font-black uppercase tracking-wider shadow-acid-sm"

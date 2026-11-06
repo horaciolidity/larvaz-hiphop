@@ -54,16 +54,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className="dark">
+    <html lang="es" className="dark" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta property="og:image" content="/og-larvaz.jpg" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:image" content="/og-larvaz.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
       </head>
-      <body className="bg-background text-content-primary antialiased min-h-screen">
+      <body className="bg-background text-content-primary antialiased min-h-screen" suppressHydrationWarning>
         <AppProvider>
           <AppLayout>{children}</AppLayout>
         </AppProvider>

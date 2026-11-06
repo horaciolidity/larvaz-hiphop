@@ -23,9 +23,15 @@ const ACTIVITIES: Record<string, { activity: string; tag: string }> = {
 
 export const ConnectedUsersBar: React.FC = () => {
   const { availableProfiles, totalMembersCount, currentUser, isAdmin, userLocation } = useApp();
+  const [mounted, setMounted] = useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
   const currentFlag = getLocationFlag(userLocation || currentUser.location);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  if (!mounted) {
+    return <div className="w-full bg-surface/80 border-b border-surface-border h-16 animate-pulse" />;
+  }
 
   // Exclude current user and admin profiles (unless logged user is admin)
   // Put newly registered users first (they have newer timestamps or custom IDs)

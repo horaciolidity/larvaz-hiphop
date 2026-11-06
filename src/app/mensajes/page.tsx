@@ -166,6 +166,8 @@ function MensajesContent() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewChat, setShowNewChat] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Keep a ref so BroadcastChannel handler always sees the latest activeConv
   const activeConvRef = useRef<Conversation | null>(null);
@@ -718,6 +720,17 @@ function MensajesContent() {
 
   const convMessages = activeConv ? (messages[activeConv.id] || []) : [];
   const totalUnread = conversations.reduce((acc, c) => acc + c.unread_count, 0);
+
+  if (!mounted) {
+    return (
+      <div className="h-[calc(100vh-140px)] flex items-center justify-center rounded-2xl border border-surface-border bg-surface mx-4 md:mx-6 mb-4">
+        <div className="flex flex-col items-center gap-3 text-content-muted text-xs">
+          <div className="w-6 h-6 border-2 border-acid border-t-transparent rounded-full animate-spin" />
+          <span>Cargando mensajes directos...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-0 overflow-hidden rounded-2xl border border-surface-border bg-surface shadow-2xl mx-4 md:mx-6 mb-4">

@@ -20,6 +20,8 @@ export const SidebarRight: React.FC = () => {
   } = useApp();
 
   const [searchUserQuery, setSearchUserQuery] = useState('');
+  const [mounted, setMounted] = useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
 
   const filteredSearchResults = searchUserQuery.trim()
     ? availableProfiles.filter((p) => {
@@ -42,6 +44,15 @@ export const SidebarRight: React.FC = () => {
     })
     .slice(0, 3);
   const upcomingEvents = events.slice(0, 2);
+
+  if (!mounted) {
+    return (
+      <aside className="hidden xl:flex flex-col gap-5 w-80 h-screen sticky top-0 border-l border-surface-border bg-background/50 backdrop-blur-sm p-6 overflow-y-auto">
+        <div className="w-full h-10 rounded-xl bg-surface animate-pulse" />
+        <div className="w-full h-40 rounded-xl bg-surface animate-pulse" />
+      </aside>
+    );
+  }
 
   return (
     <aside className="hidden xl:flex flex-col gap-5 w-80 h-screen sticky top-0 border-l border-surface-border bg-background/50 backdrop-blur-sm p-6 overflow-y-auto">

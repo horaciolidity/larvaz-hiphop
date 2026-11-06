@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { MapPin, Radio, Share2, Check, Edit3, X, Users } from 'lucide-react';
 import { getLocationFlag } from '@/lib/country-utils';
@@ -8,9 +8,15 @@ import { getLocationFlag } from '@/lib/country-utils';
 
 export const TopLocationBar: React.FC = () => {
   const { userLocation, setUserLocation, currentStation, isRadioPlaying, currentUser, totalMembersCount } = useApp();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [isEditing, setIsEditing] = useState(false);
   const [tempLocation, setTempLocation] = useState(userLocation);
   const [copiedRef, setCopiedRef] = useState(false);
+
+  if (!mounted) {
+    return <div className="w-full bg-surface-elevated/90 border-b border-surface-border text-xs px-3 sm:px-4 py-2 h-9" />;
+  }
 
   const handleSaveLocation = (e: React.FormEvent) => {
     e.preventDefault();
