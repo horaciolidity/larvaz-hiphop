@@ -171,6 +171,12 @@ function MensajesContent() {
   const activeConvRef = useRef<Conversation | null>(null);
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
+  // Refs para prevenir memory leaks y re-suscripciones constantes de WebSocket
+  const broadcastChannelRef = useRef<any>(null);
+  const availableProfilesRef = useRef<any[]>(availableProfiles);
+  useEffect(() => { availableProfilesRef.current = availableProfiles; }, [availableProfiles]);
+  const hasAutoOpenedRef = useRef<string | null>(null);
+
   // Al cambiar de usuario logueado, recargar estrictamente los chats correspondientes a su ID
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -305,13 +311,7 @@ function MensajesContent() {
         if (!res.ok) return;
 
         const { messages: msgs } = await res.json().catch(() => ({ messages: [] }));
-        if (!msgs || msgs.length === 0) {
-          if (!currentUser.is_guest && currentUser.id !== 'user-larvaz-admin') {
-            setMessages({});
-            setConversations([]);
-          }
-          return;
-        }
+        if (!msgs || msgs.length === 0) return;
 
         // Agrupar mensajes por conv_id y descubrir conversaciones nuevas
         const messagesByConv: Record<string, DirectMessage[]> = {};
@@ -379,11 +379,7 @@ function MensajesContent() {
 
         // 2. Actualizar o crear conversaciones en la barra lateral
         setConversations((prev) => {
-          // Filtrar cualquier conversación residual que no pertenezca a los chats de este usuario
-          const base = (!currentUser.is_guest && currentUser.id !== 'user-larvaz-admin')
-            ? prev.filter((c) => discoveredPartners.has(c.id))
-            : [...prev];
-          const next = [...base];
+          const next = [...prev];
           discoveredPartners.forEach((partner, cId) => {
             const idx = next.findIndex((c) => c.id === cId || c.participant_id === partner.id);
             if (idx >= 0) {
@@ -394,7 +390,7 @@ function MensajesContent() {
               };
             } else {
               // Buscar perfil del partner
-              const foundProf = availableProfiles.find(
+              const foundProf = availableProfilesRef.current.find(
                 (p) =>
                   p.id === partner.id ||
                   p.username.toLowerCase() === partner.username.toLowerCase()
@@ -489,7 +485,7 @@ function MensajesContent() {
                   ? parsed.recipient_username
                   : parsed.sender_username;
                 const partnerId = isFromMe ? parsed.recipient_id : parsed.sender_id;
-                const foundProf = availableProfiles.find(
+                const foundProf = availableProfilesRef.current.find(
                   (p) =>
                     p.id === partnerId ||
                     p.username.toLowerCase() === (partnerUsername || '').toLowerCase()
@@ -513,6 +509,7 @@ function MensajesContent() {
           }
         })
         .subscribe();
+      broadcastChannelRef.current = broadcastChannel;
     }
 
     // ── Heartbeat periódico cada 3.5s mientras la pantalla de mensajes esté abierta ──
@@ -522,19 +519,21 @@ function MensajesContent() {
       clearInterval(intervalId);
       if (broadcastChannel && supabase) {
         supabase.removeChannel(broadcastChannel);
+        broadcastChannelRef.current = null;
       }
     };
-  }, [currentUser.id, currentUser.username, availableProfiles]);
+  }, [currentUser.id, currentUser.username]);
 
-  // Handle auto-open by query param ?user=username
+  // Handle auto-open by query param ?user=username (solo abre una vez por parámetro)
   useEffect(() => {
-    if (targetUserParam) {
+    if (targetUserParam && hasAutoOpenedRef.current !== targetUserParam) {
       const match = availableProfiles.find(
         (p) =>
           p.username.toLowerCase() === targetUserParam.toLowerCase() ||
           p.id.toLowerCase() === targetUserParam.toLowerCase()
       );
       if (match) {
+        hasAutoOpenedRef.current = targetUserParam;
         startNewConversation(match);
       }
     }
@@ -568,13 +567,25 @@ function MensajesContent() {
       [activeConv.id]: [...(prev[activeConv.id] || []), msg],
     }));
 
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeConv.id
-          ? { ...c, last_message: msg.content, last_message_at: msg.created_at }
-          : c
-      )
-    );
+    setConversations((prev) => {
+      const exists = prev.some((c) => c.id === activeConv.id);
+      if (exists) {
+        return prev.map((c) =>
+          c.id === activeConv.id
+            ? { ...c, last_message: msg.content, last_message_at: msg.created_at }
+            : c
+        );
+      } else {
+        return [
+          {
+            ...activeConv,
+            last_message: msg.content,
+            last_message_at: msg.created_at,
+          },
+          ...prev,
+        ];
+      }
+    });
     setNewMessage('');
 
     // Broadcast message to all other open tabs/windows in real time!
@@ -616,16 +627,17 @@ function MensajesContent() {
             conv_id: activeConv.id,
           };
 
-          // 1. Broadcast en vivo a todos los dispositivos por Supabase WebSocket
-          if (supabase) {
+          // 1. Broadcast en vivo a todos los dispositivos por Supabase WebSocket (reutilizando canal activo sin leaks)
+          if (broadcastChannelRef.current) {
             try {
-              const liveChannel = supabase.channel('larvaz_live_relay');
-              await liveChannel.send({
+              await broadcastChannelRef.current.send({
                 type: 'broadcast',
                 event: 'dm',
                 payload,
               });
-            } catch {}
+            } catch (err) {
+              console.warn('Error en broadcast send:', err);
+            }
           }
 
           // 2. Persistir en la base de datos
