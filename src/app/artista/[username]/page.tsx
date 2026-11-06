@@ -55,8 +55,8 @@ export default function ArtistProfilePage() {
   const isOwner = currentUser.id === profile.id;
   const following = isFollowing(profile.id);
 
-  // Fetch artist posts: combina los posts globales del Context (incluye Supabase en vivo) + dataStore
-  const allAvailablePosts = posts.length > 0 ? posts : dataStore.getPosts();
+  // Fetch artist posts: combina todos los posts del dataStore (incluye Supabase sincronizado) sin verse afectado por filtros del home
+  const allAvailablePosts = dataStore.getPosts();
   const artistPosts = allAvailablePosts.filter((p) => {
     const isAuthorId = p.user_id === profile.id || p.author?.id === profile.id;
     const isAuthorUsername = p.author?.username?.toLowerCase() === profile.username.toLowerCase();
@@ -143,11 +143,10 @@ export default function ArtistProfilePage() {
                     }
                     toggleFollow(profile.id);
                   }}
-                  className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    following
+                  className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${following
                       ? 'bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary'
                       : 'bg-acid text-background hover:bg-acid-hover shadow-acid-glow'
-                  }`}
+                    }`}
                 >
                   {following ? 'Siguiendo' : 'Seguir Creador'}
                 </button>
@@ -235,11 +234,10 @@ export default function ArtistProfilePage() {
       <div className="flex border-b border-surface-border mt-6 px-4 sm:px-6 gap-2 text-xs font-bold">
         <button
           onClick={() => setActiveTab('posts')}
-          className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'posts'
+          className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'posts'
               ? 'border-acid text-acid font-bold'
               : 'border-transparent text-content-secondary hover:text-content-primary'
-          }`}
+            }`}
         >
           <Disc3 className="w-4 h-4" />
           <span>Publicaciones ({artistPosts.length})</span>
@@ -248,11 +246,10 @@ export default function ArtistProfilePage() {
         {isOwner && (
           <button
             onClick={() => setActiveTab('saved')}
-            className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === 'saved'
+            className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'saved'
                 ? 'border-acid text-acid font-bold'
                 : 'border-transparent text-content-secondary hover:text-content-primary'
-            }`}
+              }`}
           >
             <Bookmark className="w-4 h-4" />
             <span>Guardados ({savedPosts.length})</span>
@@ -261,11 +258,10 @@ export default function ArtistProfilePage() {
 
         <button
           onClick={() => setActiveTab('events')}
-          className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'events'
+          className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'events'
               ? 'border-acid text-acid font-bold'
               : 'border-transparent text-content-secondary hover:text-content-primary'
-          }`}
+            }`}
         >
           <Calendar className="w-4 h-4" />
           <span>Eventos ({artistEvents.length})</span>

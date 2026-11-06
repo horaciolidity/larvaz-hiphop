@@ -172,6 +172,17 @@ export const INITIAL_PROFILES: Profile[] = [
   },
 ];
 
+export const DEMO_POST_IDS = new Set([
+  'post-text-freestyle',
+  'post-1',
+  'post-2',
+  'post-3',
+  'post-4',
+  '10000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000002',
+  '10000000-0000-0000-0000-000000000003',
+]);
+
 export const INITIAL_POSTS: Post[] = [
   {
     id: 'post-text-freestyle',
@@ -183,7 +194,7 @@ export const INITIAL_POSTS: Post[] = [
     likes_count: 63,
     comments_count: 9,
     is_hidden: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    created_at: '2026-10-20T18:45:00.000Z',
     author: INITIAL_PROFILES[3],
     user_has_liked: true,
     user_has_bookmarked: false,
@@ -200,7 +211,7 @@ export const INITIAL_POSTS: Post[] = [
     likes_count: 38,
     comments_count: 4,
     is_hidden: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 min ago
+    created_at: '2026-10-20T18:15:00.000Z',
     author: INITIAL_PROFILES[1],
     metadata: {
       title: 'Muros Vivos — Sesión de Graffiti Nocturno en Gran Formato',
@@ -225,7 +236,7 @@ export const INITIAL_POSTS: Post[] = [
     likes_count: 56,
     comments_count: 8,
     is_hidden: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(), // 3 hours ago
+    created_at: '2026-10-20T16:00:00.000Z',
     author: INITIAL_PROFILES[2],
     metadata: {
       title: 'Raw Tape Session #4 (Vinyl Digging & Boom-Bap)',
@@ -250,7 +261,7 @@ export const INITIAL_POSTS: Post[] = [
     likes_count: 72,
     comments_count: 11,
     is_hidden: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(), // 12 hours ago
+    created_at: '2026-10-20T12:00:00.000Z',
     author: INITIAL_PROFILES[3],
     metadata: {
       title: 'Resistencia de Cemento — Single Oficial',
@@ -275,7 +286,7 @@ export const INITIAL_POSTS: Post[] = [
     likes_count: 44,
     comments_count: 6,
     is_hidden: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+    created_at: '2026-10-19T20:00:00.000Z',
     author: INITIAL_PROFILES[4],
     metadata: {
       title: 'Raw Cypher Session — Callejón Central 2026',
@@ -724,12 +735,34 @@ class LarvazDataStore {
       if (storedPosts) {
         try {
           const parsed: Post[] = JSON.parse(storedPosts);
+          const initialMap = new Map<string, Post>(INITIAL_POSTS.map((p) => [p.id, p]));
           const map = new Map<string, Post>();
           for (const p of INITIAL_POSTS) map.set(p.id, p);
-          for (const p of parsed) map.set(p.id, p);
+          for (const p of parsed) {
+            if (initialMap.has(p.id)) {
+              // Preserve fixed historical created_at on demo posts so they never jump ahead of real community posts
+              const seedPost = initialMap.get(p.id)!;
+              map.set(p.id, { ...p, created_at: seedPost.created_at });
+            } else {
+              map.set(p.id, p);
+            }
+          }
           this.posts = Array.from(map.values());
         } catch {
           this.posts = [...INITIAL_POSTS];
+        }
+      }
+
+      const storedComments = localStorage.getItem('larvaz_comments');
+      if (storedComments) {
+        try {
+          const parsedComments: Comment[] = JSON.parse(storedComments);
+          const commentMap = new Map<string, Comment>();
+          for (const c of INITIAL_COMMENTS) commentMap.set(c.id, c);
+          for (const c of parsedComments) commentMap.set(c.id, c);
+          this.comments = Array.from(commentMap.values());
+        } catch {
+          this.comments = [...INITIAL_COMMENTS];
         }
       }
 
@@ -804,6 +837,7 @@ class LarvazDataStore {
     if (typeof window === 'undefined') return;
     try {
       localStorage.setItem('larvaz_posts', JSON.stringify(this.posts));
+      localStorage.setItem('larvaz_comments', JSON.stringify(this.comments));
       localStorage.setItem('larvaz_events', JSON.stringify(this.events));
       localStorage.setItem('larvaz_withdrawals', JSON.stringify(this.withdrawals));
       localStorage.setItem('larvaz_community_tracks', JSON.stringify(this.communityTracks));
@@ -1014,7 +1048,18 @@ class LarvazDataStore {
     bookmarkedOnly?: boolean;
     contentType?: ContentType;
   }): Post[] {
-    let result = this.posts.filter((p) => !p.is_hidden && p.id !== '36f632cc-0195-46fb-ae22-ce2dea03376c');
+    const duplicateDbSeedIds = new Set([
+      '10000000-0000-0000-0000-000000000001',
+      '10000000-0000-0000-0000-000000000002',
+      '10000000-0000-0000-0000-000000000003',
+    ]);
+
+    let result = this.posts.filter(
+      (p) =>
+        !p.is_hidden &&
+        p.id !== '36f632cc-0195-46fb-ae22-ce2dea03376c' &&
+        !duplicateDbSeedIds.has(p.id)
+    );
 
     if (options?.bookmarkedOnly) {
       result = result.filter((p) => this.bookmarkedPosts.has(p.id));
@@ -1052,39 +1097,35 @@ class LarvazDataStore {
     }));
 
     // Sorting according to selected filter
+    // En el muro comunitario ("Para Ti" y "Reciente"), las publicaciones reales de la comunidad
+    // siempre tienen prioridad sobre los posts de demostración estáticos y se ordenan de más reciente a más antigua
+    // para que lo que publica cualquier usuario lo vean todos al instante arriba (como Facebook / X).
     if (options?.filter === 'popular') {
       result.sort((a, b) => (b.likes_count * 2 + b.comments_count) - (a.likes_count * 2 + a.comments_count));
     } else if (options?.filter === 'para_ti') {
       result.sort((a, b) => {
+        const aIsDemo = DEMO_POST_IDS.has(a.id);
+        const bIsDemo = DEMO_POST_IDS.has(b.id);
+
+        // Las publicaciones reales de usuarios de la comunidad siempre van arriba de las demos iniciales
+        if (aIsDemo !== bIsDemo) {
+          return aIsDemo ? 1 : -1;
+        }
+
         const timeA = new Date(a.created_at).getTime();
         const timeB = new Date(b.created_at).getTime();
-        const now = Date.now();
-        const ageHoursA = Math.max(0, (now - timeA) / (1000 * 60 * 60));
-        const ageHoursB = Math.max(0, (now - timeB) / (1000 * 60 * 60));
-
-        // Publicaciones de menos de 1 hora siempre van arriba ordenadas cronológicamente
-        if (ageHoursA < 1 && ageHoursB < 1) {
-          return timeB - timeA;
-        }
-
-        // Bonificación por frescura temporal (posts de hoy tienen ventaja sobre los de hace días)
-        const freshnessScoreA = Math.max(0, 500 - ageHoursA * 10);
-        const freshnessScoreB = Math.max(0, 500 - ageHoursB * 10);
-
-        const aFollowed = this.followingMap.has(a.user_id) ? 30 : 0;
-        const bFollowed = this.followingMap.has(b.user_id) ? 30 : 0;
-
-        const totalA = freshnessScoreA + aFollowed + (a.likes_count * 1.5) + a.comments_count;
-        const totalB = freshnessScoreB + bFollowed + (b.likes_count * 1.5) + b.comments_count;
-
-        if (Math.abs(totalB - totalA) > 15) {
-          return totalB - totalA;
-        }
         return timeB - timeA;
       });
     } else {
-      // 'reciente' default: chronologically descending (newest on top)
-      result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // 'reciente' default: chronologically descending (newest on top), community posts first
+      result.sort((a, b) => {
+        const aIsDemo = DEMO_POST_IDS.has(a.id);
+        const bIsDemo = DEMO_POST_IDS.has(b.id);
+        if (aIsDemo !== bIsDemo) {
+          return aIsDemo ? 1 : -1;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
     }
 
     return result;
@@ -1251,13 +1292,40 @@ class LarvazDataStore {
       const storedPosts = localStorage.getItem('larvaz_posts');
       if (storedPosts) {
         const parsed: Post[] = JSON.parse(storedPosts);
+        const initialMap = new Map<string, Post>(INITIAL_POSTS.map((p) => [p.id, p]));
         const map = new Map<string, Post>();
         for (const p of INITIAL_POSTS) map.set(p.id, p);
         for (const p of this.posts) map.set(p.id, p);
-        for (const p of parsed) map.set(p.id, p);
+        for (const p of parsed) {
+          if (initialMap.has(p.id)) {
+            const seedPost = initialMap.get(p.id)!;
+            map.set(p.id, { ...p, created_at: seedPost.created_at });
+          } else {
+            map.set(p.id, p);
+          }
+        }
         this.posts = Array.from(map.values());
       }
     } catch { }
+  }
+
+  getUnsyncedLocalPosts(syncedDbIds: Set<string>): Post[] {
+    return this.posts.filter(
+      (p) =>
+        !p.is_hidden &&
+        !DEMO_POST_IDS.has(p.id) &&
+        p.id !== '36f632cc-0195-46fb-ae22-ce2dea03376c' &&
+        !syncedDbIds.has(p.id)
+    );
+  }
+
+  replacePostId(oldId: string, newId: string): void {
+    if (oldId === newId) return;
+    const idx = this.posts.findIndex((p) => p.id === oldId);
+    if (idx !== -1) {
+      this.posts[idx] = { ...this.posts[idx], id: newId };
+      this.saveToStorage();
+    }
   }
 
   // Reload profiles from localStorage (when updated by registrations in any tab)
@@ -1302,7 +1370,37 @@ class LarvazDataStore {
       } else {
         // Update existing post with freshest data from Supabase
         const current = map.get(p.id)!;
-        map.set(p.id, { ...current, ...p });
+        map.set(p.id, {
+          ...current,
+          ...p,
+          // Preserve local author details if DB returned generic fallback
+          author:
+            p.author && p.author.username && p.author.username !== 'admin_demo'
+              ? p.author
+              : current.author || p.author,
+          metadata: p.metadata || current.metadata,
+        });
+        changed = true;
+      }
+
+      // Automatically sync music posts from the community into Radio Automática Comunitaria
+      if (
+        p.external_url &&
+        p.external_url !== 'https://larvaz-hiphop.vercel.app' &&
+        (p.content_type === 'music' || p.provider === 'soundcloud' || p.provider === 'spotify') &&
+        !DEMO_POST_IDS.has(p.id)
+      ) {
+        this.addTrackToCommunityRadio({
+          id: 'track-' + p.id,
+          title: p.metadata?.title || (p.description ? p.description.slice(0, 40) : `Pista de @${p.author?.username || 'artista'}`),
+          artist: p.metadata?.author_name || p.author?.full_name || `@${p.author?.username || 'artista'}`,
+          url: p.external_url,
+          album_art: p.metadata?.thumbnail_url || p.author?.avatar_url,
+          user_id: p.user_id,
+          username: p.author?.username || 'artista',
+          post_id: p.id,
+          created_at: p.created_at,
+        });
       }
     }
     if (changed) {
@@ -1310,6 +1408,23 @@ class LarvazDataStore {
       this.posts = Array.from(map.values()).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
+      this.saveToStorage();
+    }
+  }
+
+  mergeComments(incomingComments: Comment[]): void {
+    if (!incomingComments || incomingComments.length === 0) return;
+    const map = new Map<string, Comment>();
+    for (const c of this.comments) map.set(c.id, c);
+    let changed = false;
+    for (const c of incomingComments) {
+      if (!map.has(c.id)) {
+        map.set(c.id, c);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.comments = Array.from(map.values());
       this.saveToStorage();
     }
   }

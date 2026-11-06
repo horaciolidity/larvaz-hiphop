@@ -377,6 +377,97 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const currentUserRef2 = React.useRef<Profile>(currentUser);
   useEffect(() => { currentUserRef2.current = currentUser; }, [currentUser]);
 
+  // Ref al canal WebSocket suscrito para enviar broadcasts sin recrear canales duplicados
+  const syncChannelRef = React.useRef<any>(null);
+  const autoSyncedIdsRef = React.useRef<Set<string>>(new Set());
+
+  const mapPostFromDB = useCallback((p: any): Post => {
+    const pm = Array.isArray(p.post_metadata) ? p.post_metadata[0] : p.post_metadata;
+    const rawMeta = pm?.raw_metadata || p.metadata || {};
+    const savedAuthor = rawMeta?.author;
+
+    const isFallbackDbUser =
+      p.user_id === '00000000-0000-0000-0000-000000000001' ||
+      p.profiles?.username === 'admin_demo';
+
+    let author: Profile;
+    if (savedAuthor && (isFallbackDbUser || !p.profiles)) {
+      author = {
+        id: savedAuthor.id || p.user_id,
+        username: savedAuthor.username || 'artista',
+        full_name: savedAuthor.full_name || savedAuthor.username || 'Artista Larvaz',
+        avatar_url: savedAuthor.avatar_url || '',
+        location: savedAuthor.location || rawMeta.location || 'Mendoza, Argentina',
+        artistic_disciplines: savedAuthor.artistic_disciplines || '',
+        role: savedAuthor.role || 'user',
+        is_banned: false,
+        created_at: p.created_at,
+      };
+    } else if (p.profiles) {
+      author = {
+        ...p.profiles,
+        avatar_url: p.profiles.avatar_url || savedAuthor?.avatar_url || '',
+        location: p.profiles.location || savedAuthor?.location || rawMeta.location || 'Mendoza, Argentina',
+        artistic_disciplines: p.profiles.artistic_disciplines || savedAuthor?.artistic_disciplines || '',
+      };
+    } else {
+      author = {
+        id: p.user_id,
+        username: 'artista_' + (p.user_id ? String(p.user_id).substring(0, 5) : 'comunitario'),
+        full_name: 'Artista Comunitario',
+        avatar_url: '',
+        location: rawMeta.location || 'Mendoza, Argentina',
+        role: 'user',
+        is_banned: false,
+        created_at: p.created_at,
+      };
+    }
+
+    const isPlaceholderUrl =
+      !p.external_url || p.external_url === 'https://larvaz-hiphop.vercel.app';
+    const hasRealExternalUrl =
+      rawMeta.has_external_url !== undefined
+        ? Boolean(rawMeta.has_external_url)
+        : !isPlaceholderUrl;
+
+    const realContentType: ContentType =
+      rawMeta.real_content_type ||
+      (!hasRealExternalUrl ? 'text' : (p.content_type || 'link'));
+
+    const postMeta =
+      pm || rawMeta
+        ? {
+            title: pm?.title || rawMeta?.title || undefined,
+            author_name: pm?.author_name || rawMeta?.author_name || undefined,
+            thumbnail_url: pm?.thumbnail_url || rawMeta?.thumbnail_url || undefined,
+            description: pm?.description || rawMeta?.description || undefined,
+            embed_url: pm?.embed_url || rawMeta?.embed_url || undefined,
+            provider: p.provider || rawMeta?.provider || 'generic',
+            location: rawMeta?.location || author.location,
+          }
+        : undefined;
+
+    return {
+      id: p.id ? String(p.id) : 'post-' + p.created_at,
+      user_id: savedAuthor?.id || p.user_id,
+      external_url: hasRealExternalUrl ? p.external_url : undefined,
+      normalized_url: hasRealExternalUrl ? (p.normalized_url || p.external_url) : undefined,
+      provider: p.provider || 'generic',
+      content_type: realContentType,
+      description: p.description || '',
+      tags: Array.isArray(p.tags) ? p.tags : [],
+      likes_count: p.likes_count || 0,
+      comments_count: p.comments_count || 0,
+      is_hidden: p.is_hidden || false,
+      created_at: p.created_at,
+      author,
+      metadata: postMeta,
+      user_has_liked: false,
+      user_has_bookmarked: false,
+      views_count: p.views_count || 1,
+    };
+  }, []);
+
   // Cross-tab real-time sync via BroadcastChannel & LocalStorage events
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -425,46 +516,88 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!supabase || !isSupabaseConnected) return;
 
     // ── Usa API routes server-side (service_role key) → bypasea RLS totalmente ──
-    const mapPostFromDB = (p: any): Post => {
-      const author = p.profiles || {
-        id: p.user_id,
-        username: 'artista_' + (p.user_id ? String(p.user_id).substring(0, 5) : 'comunitario'),
-        full_name: 'Artista Comunitario',
-        avatar_url: '',
-        role: 'user',
-        is_banned: false,
-        created_at: p.created_at,
-      };
-      return {
-        id: p.id ? String(p.id) : 'post-' + p.created_at,
-        user_id: p.user_id,
-        external_url: p.external_url || undefined,
-        normalized_url: p.normalized_url || undefined,
-        provider: p.provider || 'generic',
-        content_type: p.content_type || 'link',
-        description: p.description || '',
-        tags: Array.isArray(p.tags) ? p.tags : [],
-        likes_count: p.likes_count || 0,
-        comments_count: p.comments_count || 0,
-        is_hidden: p.is_hidden || false,
-        created_at: p.created_at,
-        author,
-        metadata: p.metadata,
-        user_has_liked: false,
-        user_has_bookmarked: false,
-        views_count: p.views_count || 1,
-      };
-    };
-
     const fetchSupabasePosts = async () => {
       try {
-        const res = await fetch('/api/feed');
+        const res = await fetch(`/api/feed?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const { posts: dbPosts } = await res.json();
-        if (dbPosts && dbPosts.length > 0) {
-          const mappedPosts: Post[] = dbPosts.map(mapPostFromDB);
+        const dbList = Array.isArray(dbPosts) ? dbPosts : [];
+
+        if (dbList.length > 0) {
+          const mappedPosts: Post[] = dbList.map(mapPostFromDB);
           dataStore.mergePosts(mappedPosts);
+
+          // Extraer y sincronizar comentarios de la comunidad para que todos los vean
+          const allDbComments: Comment[] = [];
+          for (const rawPost of dbList) {
+            if (Array.isArray(rawPost.comments)) {
+              for (const c of rawPost.comments) {
+                if (!c.is_hidden) {
+                  allDbComments.push({
+                    id: String(c.id),
+                    post_id: String(c.post_id || rawPost.id),
+                    user_id: c.user_id,
+                    content: c.content || '',
+                    is_hidden: false,
+                    created_at: c.created_at,
+                    author: c.profiles || {
+                      id: c.user_id,
+                      username: 'artista',
+                      full_name: 'Artista Larvaz',
+                      avatar_url: '',
+                      role: 'user',
+                      is_banned: false,
+                      created_at: c.created_at,
+                    },
+                  });
+                }
+              }
+            }
+          }
+          if (allDbComments.length > 0) {
+            dataStore.mergeComments(allDbComments);
+          }
+
           refreshPostsRef.current();
+          setRadioStations([...dataStore.getRadioStations()]);
+          setCommunityTracks([...dataStore.getCommunityTracks()]);
+        }
+
+        // Auto-sincronizar cualquier publicación local que haya quedado sin subir a Supabase
+        const syncedIds = new Set<string>(dbList.map((p: any) => String(p.id)));
+        const unsynced = dataStore.getUnsyncedLocalPosts(syncedIds);
+        for (const localPost of unsynced) {
+          if (autoSyncedIdsRef.current.has(localPost.id)) continue;
+          autoSyncedIdsRef.current.add(localPost.id);
+          try {
+            const syncRes = await fetch('/api/post', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: localPost.id,
+                user_id: localPost.user_id,
+                author_username: localPost.author?.username,
+                author_name: localPost.author?.full_name,
+                author_avatar: localPost.author?.avatar_url,
+                author_location: localPost.author?.location || (localPost.metadata as any)?.location,
+                author_disciplines: localPost.author?.artistic_disciplines,
+                description: localPost.description || '',
+                content_type: localPost.content_type || 'text',
+                tags: localPost.tags || ['hiphop'],
+                external_url: localPost.external_url || '',
+                normalized_url: localPost.normalized_url || null,
+                provider: localPost.provider || 'generic',
+                metadata: localPost.metadata || null,
+                created_at: localPost.created_at,
+              }),
+            });
+            if (syncRes.ok) {
+              const syncData = await syncRes.json();
+              if (syncData?.post?.id && String(syncData.post.id) !== localPost.id) {
+                dataStore.replacePostId(localPost.id, String(syncData.post.id));
+              }
+            }
+          } catch {}
         }
       } catch (err) {
         console.warn('Error fetching posts via API:', err);
@@ -473,7 +606,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const fetchSupabaseProfiles = async () => {
       try {
-        const res = await fetch('/api/profiles');
+        const res = await fetch(`/api/profiles?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const { profiles: dbProfiles } = await res.json();
         if (dbProfiles && dbProfiles.length > 0) {
@@ -494,7 +627,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .on(
         'broadcast',
         { event: 'NEW_POST' },
-        () => {
+        (event: any) => {
+          if (event?.payload?.post) {
+            dataStore.mergePosts([event.payload.post]);
+            refreshPostsRef.current();
+          }
           fetchSupabasePosts();
         }
       )
@@ -561,12 +698,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'comments' },
+        () => {
+          fetchSupabasePosts();
+        }
+      )
       .subscribe();
 
-    // 2. Refresco periódico en background (cada 8s) y al volver a enfocar la pestaña
+    syncChannelRef.current = syncChannel;
+
+    // 2. Refresco periódico en background (cada 6s) y al volver a enfocar la pestaña
     const intervalId = setInterval(() => {
       fetchSupabasePosts();
-    }, 8000);
+    }, 6000);
 
     const onFocus = () => {
       fetchSupabasePosts();
@@ -577,6 +723,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => {
+      syncChannelRef.current = null;
       supabase.removeChannel(syncChannel);
       clearInterval(intervalId);
       if (typeof window !== 'undefined') {
@@ -841,6 +988,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           : p
       )
     );
+
+    if (isSupabaseConnected) {
+      fetch('/api/post', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          action: res.userHasLiked ? 'like' : 'unlike',
+          user_id: currentUser.id,
+        }),
+      }).catch(() => {});
+    }
   };
 
   const toggleBookmark = (postId: string) => {
@@ -866,6 +1025,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addComment = (postId: string, content: string) => {
     const comment = dataStore.addComment(postId, content);
     refreshPosts();
+
+    if (isSupabaseConnected) {
+      fetch('/api/post', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          action: 'comment',
+          user_id: currentUser.id,
+          username: currentUser.username,
+          author_name: currentUser.full_name,
+          author_avatar: currentUser.avatar_url,
+          content,
+        }),
+      }).catch(() => {});
+    }
+
     return comment;
   };
 
@@ -877,6 +1053,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const createPost = (data: any) => {
     const newPost = dataStore.createPost(data);
+    autoSyncedIdsRef.current.add(newPost.id);
     refreshPosts();
     setRadioStations([...dataStore.getRadioStations()]);
     setCommunityTracks([...dataStore.getCommunityTracks()]);
@@ -908,24 +1085,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          const rawType = (newPost.content_type || 'link') as string;
-          const allowedTypes = ['music', 'video', 'visual_art', 'link'];
-          const safeContentType = allowedTypes.includes(rawType) ? rawType : 'link';
-
           const res = await fetch('/api/post', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              id: newPost.id,
               user_id: targetUserId,
               author_username: currentUser.username,
               author_name: currentUser.full_name,
+              author_avatar: currentUser.avatar_url,
+              author_location: userLocation || currentUser.location || 'Mendoza, Argentina',
+              author_disciplines: currentUser.artistic_disciplines || '',
               description: newPost.description || '',
-              content_type: safeContentType,
-              tags: newPost.tags || [],
-              external_url: newPost.external_url || 'https://larvaz-hiphop.vercel.app',
+              content_type: newPost.content_type || 'text',
+              tags: newPost.tags || ['hiphop'],
+              external_url: newPost.external_url || '',
               normalized_url: newPost.normalized_url || null,
               provider: newPost.provider || 'generic',
               metadata: newPost.metadata || null,
+              created_at: newPost.created_at,
             }),
           });
 
@@ -933,53 +1111,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const result = await res.json();
             const createdPostData = result.post || result;
             if (createdPostData?.id) {
-              newPost.id = String(createdPostData.id);
-              dataStore.saveToStorage();
+              const canonicalPost = mapPostFromDB(createdPostData);
+              if (String(createdPostData.id) !== newPost.id) {
+                dataStore.replacePostId(newPost.id, String(createdPostData.id));
+              }
+              dataStore.mergePosts([canonicalPost]);
+              refreshPosts();
 
               // Difundir inmediatamente por WebSocket a todos los usuarios conectados en cualquier dispositivo
-              if (supabase) {
+              if (syncChannelRef.current) {
                 try {
-                  const liveChannel = supabase.channel('larvaz_live_relay');
-                  await liveChannel.send({
+                  await syncChannelRef.current.send({
                     type: 'broadcast',
                     event: 'NEW_POST',
-                    payload: { post_id: newPost.id },
+                    payload: { post_id: canonicalPost.id, post: canonicalPost },
                   });
                 } catch {}
               }
 
-              // Re-fetch el feed completo para que todos los usuarios vean el post nuevo
-              const feedRes = await fetch('/api/feed');
+              // Re-fetch el feed completo para confirmar sincronización global
+              const feedRes = await fetch(`/api/feed?t=${Date.now()}`, { cache: 'no-store' });
               if (feedRes.ok) {
                 const { posts: dbPosts } = await feedRes.json();
                 if (dbPosts?.length) {
-                  const mapped = dbPosts.map((p: any): Post => ({
-                    id: String(p.id),
-                    user_id: p.user_id,
-                    external_url: p.external_url || undefined,
-                    normalized_url: p.normalized_url || undefined,
-                    provider: p.provider || 'generic',
-                    content_type: p.content_type || 'link',
-                    description: p.description || '',
-                    tags: Array.isArray(p.tags) ? p.tags : [],
-                    likes_count: p.likes_count || 0,
-                    comments_count: p.comments_count || 0,
-                    is_hidden: p.is_hidden || false,
-                    created_at: p.created_at,
-                    author: p.profiles || {
-                      id: p.user_id,
-                      username: 'artista',
-                      full_name: 'Artista',
-                      avatar_url: '',
-                      role: 'user',
-                      is_banned: false,
-                      created_at: p.created_at,
-                    },
-                    metadata: p.metadata,
-                    user_has_liked: false,
-                    user_has_bookmarked: false,
-                    views_count: p.views_count || 1,
-                  }));
+                  const mapped = dbPosts.map(mapPostFromDB);
                   dataStore.mergePosts(mapped);
                   refreshPosts();
                 }
@@ -1052,7 +1207,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deletePost = (postId: string) => {
     const res = dataStore.deletePost(postId);
-    if (res) refreshPosts();
+    if (res) {
+      refreshPosts();
+      if (isSupabaseConnected) {
+        fetch(`/api/post?id=${encodeURIComponent(postId)}`, {
+          method: 'DELETE',
+        }).catch(() => {});
+      }
+    }
     return res;
   };
 

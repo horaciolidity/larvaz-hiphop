@@ -116,8 +116,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
     return true;
   };
 
+  React.useEffect(() => {
+    if (showComments) {
+      const { dataStore } = require('@/lib/data-store');
+      setLocalComments(dataStore.getComments(post.id));
+      setHasLoadedComments(true);
+    }
+  }, [showComments, post.id, post.comments_count]);
+
   const handleOpenComments = () => {
-    if (!requireAuth('Iniciá sesión para participar y comentar en las publicaciones del muro.')) return;
     if (!showComments && !hasLoadedComments) {
       // Lazy load from dataStore
       const { dataStore } = require('@/lib/data-store');
@@ -295,17 +302,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
             if (!requireAuth('Iniciá sesión para dar Props y apoyar las publicaciones del muro.')) return;
             toggleLike(post.id);
           }}
-          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors group ${
-            post.user_has_liked
+          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors group ${post.user_has_liked
               ? 'text-magenta font-bold'
               : 'hover:text-magenta hover:bg-magenta/10'
-          }`}
+            }`}
           aria-label="Me gusta"
         >
           <Heart
-            className={`w-4 h-4 transition-transform group-hover:scale-125 ${
-              post.user_has_liked ? 'fill-current text-magenta' : ''
-            }`}
+            className={`w-4 h-4 transition-transform group-hover:scale-125 ${post.user_has_liked ? 'fill-current text-magenta' : ''
+              }`}
           />
           <span>{post.likes_count}</span>
         </button>
@@ -313,9 +318,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
         {/* Comments Toggle */}
         <button
           onClick={handleOpenComments}
-          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors hover:text-cyan hover:bg-cyan/10 ${
-            showComments ? 'text-cyan font-bold' : ''
-          }`}
+          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors hover:text-cyan hover:bg-cyan/10 ${showComments ? 'text-cyan font-bold' : ''
+            }`}
           aria-label="Comentarios"
         >
           <MessageCircle className="w-4 h-4" />
@@ -328,11 +332,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
             if (!requireAuth('Iniciá sesión para enviar propinas cripto al artista.')) return;
             setShowTipModal(true);
           }}
-          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-all group ${
-            (post.crypto_tips_count || 0) > 0
+          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-all group ${(post.crypto_tips_count || 0) > 0
               ? 'text-acid bg-acid/10 border border-acid/30 font-bold'
               : 'hover:text-acid hover:bg-acid/10'
-          }`}
+            }`}
           title="Propina cripto directa al artista"
           aria-label="Propina Cripto"
         >
@@ -348,17 +351,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
             if (!requireAuth('Iniciá sesión para guardar publicaciones en tu colección personal.')) return;
             toggleBookmark(post.id);
           }}
-          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors group ${
-            post.user_has_bookmarked
+          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors group ${post.user_has_bookmarked
               ? 'text-acid font-bold'
               : 'hover:text-acid hover:bg-acid/10'
-          }`}
+            }`}
           aria-label="Guardar"
         >
           <Bookmark
-            className={`w-4 h-4 transition-transform group-hover:scale-125 ${
-              post.user_has_bookmarked ? 'fill-current text-acid' : ''
-            }`}
+            className={`w-4 h-4 transition-transform group-hover:scale-125 ${post.user_has_bookmarked ? 'fill-current text-acid' : ''
+              }`}
           />
         </button>
 
