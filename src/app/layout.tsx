@@ -9,9 +9,11 @@ export const metadata: Metadata = {
   description: 'Comunidad digital de cultura hip-hop. Todos los elementos en un solo muro compartido: MC, DJ, Breaking, Graffiti y Beatmaking. ¡Únete al cypher!',
   manifest: '/manifest.json',
   appleWebApp: {
-    capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Larvaz Hip-Hop',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
   icons: {
     icon: '/icons/icon-192.svg',
@@ -55,15 +57,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className="dark" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta property="og:image" content="/og-larvaz.jpg" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta name="twitter:image" content="/og-larvaz.jpg" />
-        <meta name="twitter:card" content="summary_large_image" />
-      </head>
       <body className="bg-background text-content-primary antialiased min-h-screen" suppressHydrationWarning>
         <AppProvider>
           <AppLayout>{children}</AppLayout>

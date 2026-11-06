@@ -7,6 +7,10 @@ import { Radio, Play, Pause, Volume2, SkipForward } from 'lucide-react';
 
 export const RadioMiniPlayer: React.FC = () => {
   const { isRadioPlaying, currentStation, toggleRadio, changeStation, radioStations } = useApp();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return null;
 
   const handleNextStation = (e: React.MouseEvent) => {
     e.preventDefault();

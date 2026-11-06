@@ -1,15 +1,38 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { dataStore } from '@/lib/data-store';
 import { PostCard } from '@/components/feed/PostCard';
 import { Bookmark, Compass } from 'lucide-react';
+import { Post } from '@/types';
 
 export default function GuardadosPage() {
   const { currentUser } = useApp();
-  const savedPosts = dataStore.getPosts({ bookmarkedOnly: true });
+  const [mounted, setMounted] = useState(false);
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+    setSavedPosts(dataStore.getPosts({ bookmarkedOnly: true }));
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+        <div className="border-b border-surface-border pb-4">
+          <div className="flex items-center gap-2">
+            <Bookmark className="w-5 h-5 text-acid fill-current" />
+            <h1 className="font-display font-black text-2xl text-content-primary tracking-wide">
+              PUBLICACIONES GUARDADAS
+            </h1>
+          </div>
+        </div>
+        <div className="py-16 text-center text-xs text-content-secondary">Cargando publicaciones guardadas...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">

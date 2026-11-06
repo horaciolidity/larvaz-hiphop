@@ -16,7 +16,7 @@ import {
   UserRole,
   WithdrawalRequest,
 } from '@/types';
-import { dataStore, GUEST_USER } from '@/lib/data-store';
+import { dataStore, GUEST_USER, INITIAL_PROFILES } from '@/lib/data-store';
 import { isSupabaseConfigured, createClient } from '@/lib/supabase/client';
 
 interface AppContextType {
@@ -113,15 +113,16 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUserState] = useState<Profile>(dataStore.getCurrentUser());
+  // Deterministic SSR-safe initial state so server-rendered HTML and client initial pass match 100%
+  const [currentUser, setCurrentUserState] = useState<Profile>(GUEST_USER);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('para_ti');
   const [contentTypeFilter, setContentTypeFilter] = useState<ContentType | 'all'>('all');
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<HipHopEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
-  const [availableProfiles, setAvailableProfiles] = useState<Profile[]>(() => dataStore.getAllProfiles());
-  const [totalMembersCount, setTotalMembersCount] = useState<number>(() => dataStore.getAllProfiles().length);
+  const [availableProfiles, setAvailableProfiles] = useState<Profile[]>(INITIAL_PROFILES);
+  const [totalMembersCount, setTotalMembersCount] = useState<number>(INITIAL_PROFILES.length);
   const isSupabaseConnected = isSupabaseConfigured();
 
   const syncProfilesState = useCallback(() => {
@@ -131,14 +132,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
 
-  // Geographic Location state (default Mendoza, Argentina)
-  const [userLocation, setUserLocationState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('larvaz_user_location');
-      if (saved) return saved;
-    }
-    return 'Mendoza, Argentina';
-  });
+  // Geographic Location state (default Mendoza, Argentina for SSR)
+  const [userLocation, setUserLocationState] = useState<string>('Mendoza, Argentina');
 
   const setUserLocation = (loc: string) => {
     setUserLocationState(loc);
@@ -273,8 +268,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [feedFilter, contentTypeFilter, currentUser, refreshPosts]);
 
   const supabase = createClient();
-  const [balance, setBalance] = useState<number>(dataStore.getUserBalance(currentUser.id));
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>(dataStore.getUserWithdrawals(currentUser.id));
+  const [balance, setBalance] = useState<number>(0);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+
+  // Hydrate client-side persisted state after initial SSR mount cleanly without hydration mismatch
+  useEffect(() => {
+    const user = dataStore.getCurrentUser();
+    setCurrentUserState(user);
+
+    const all = dataStore.getAllProfiles();
+    setAvailableProfiles([...all]);
+    setTotalMembersCount(all.length);
+
+    if (typeof window !== 'undefined') {
+      const savedLoc = localStorage.getItem('larvaz_user_location');
+      if (savedLoc) setUserLocationState(savedLoc);
+    }
+
+    setBalance(dataStore.getUserBalance(user.id));
+    setWithdrawals(dataStore.getUserWithdrawals(user.id));
+  }, []);
 
   const refreshBalance = (userId: string = currentUser.id) => {
     setBalance(dataStore.getUserBalance(userId));

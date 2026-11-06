@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { dataStore } from '@/lib/data-store';
@@ -45,11 +45,14 @@ export default function UserPanelPage() {
     getReferredUsers,
     logout,
   } = useApp();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const [activeTab, setActiveTab] = useState<'resumen' | 'cripto' | 'referidos' | 'publicaciones' | 'eventos'>('resumen');
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const referredUsers = getReferredUsers();
-  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/registro?ref=${currentUser.username}` : '';
+  const referralLink = mounted && typeof window !== 'undefined' ? `${window.location.origin}/registro?ref=${currentUser.username}` : '';
 
   // Wallet form state
   const [solWallet, setSolWallet] = useState(currentUser.wallet_addresses?.sol || '');

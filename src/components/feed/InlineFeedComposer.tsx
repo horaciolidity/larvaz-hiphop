@@ -16,6 +16,8 @@ import { getLocationFlag } from '@/lib/country-utils';
 
 export const InlineFeedComposer: React.FC = () => {
   const { currentUser, createPost, userLocation } = useApp();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const flag = getLocationFlag(userLocation || currentUser.location);
   const locationName = userLocation || currentUser.location || 'Mendoza, Argentina';
   const [description, setDescription] = useState('');
@@ -145,12 +147,12 @@ export const InlineFeedComposer: React.FC = () => {
       <div className="flex items-start gap-3">
         <div className="relative flex-shrink-0">
           <UserAvatar
-            avatarUrl={currentUser.avatar_url}
-            name={currentUser.full_name}
+            avatarUrl={mounted ? currentUser.avatar_url : undefined}
+            name={mounted ? currentUser.full_name : ''}
             size="md"
             className="mt-0.5"
           />
-          {flag && (
+          {mounted && flag && (
             <span
               className="absolute -bottom-1 -right-1 text-[11px] leading-none bg-surface border border-surface-border rounded-full w-4 h-4 flex items-center justify-center shadow-sm pointer-events-none"
               title={`Publicando desde: ${locationName}`}
