@@ -5,9 +5,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #0A0A0A;
-  --surface: #151515;
-  --surface-elevated: #202020;
+  --background: #08080A;
+  --surface: #121316;
+  --surface-elevated: #1A1C21;
   --acid: #C6FF00;
   --magenta: #FF2D95;
   --orange: #FF5A1F;
@@ -16,7 +16,12 @@
 
 body {
   background-color: var(--background);
-  color: #F5F5F5;
+  background-image:
+    radial-gradient(circle at 12% 10%, rgba(198, 255, 0, 0.045) 0%, transparent 38%),
+    radial-gradient(circle at 88% 18%, rgba(0, 217, 255, 0.04) 0%, transparent 35%),
+    radial-gradient(circle at 50% 90%, rgba(255, 45, 149, 0.03) 0%, transparent 40%);
+  background-attachment: fixed;
+  color: #F5F5F7;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
 }
@@ -28,11 +33,11 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: #08080A;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #202020;
+  background: #23262E;
   border-radius: 9999px;
 }
 
@@ -52,6 +57,21 @@ body {
 
 .animate-spin-slow {
   animation: spin-slow 8s linear infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.22s ease-out forwards;
 }
 
 /* Street Art text outline utility */

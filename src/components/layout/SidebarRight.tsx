@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
-import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle, Search, X } from 'lucide-react';
+import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle, Search, X, Sliders } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 
 export const SidebarRight: React.FC = () => {
@@ -174,7 +174,41 @@ export const SidebarRight: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. ARTISTAS Y COLECTIVOS SUGERIDOS */}
+      {/* 2.5 ESTUDIO DE MASTERIZACIÓN DE AUDIO INTEGRADO */}
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-surface-elevated via-surface to-background border border-cyan/40 relative overflow-hidden space-y-2.5 shadow-lg">
+        <div className="absolute -top-8 -right-8 w-24 h-24 bg-cyan/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-cyan font-display font-black text-sm tracking-wide">
+            <Sliders className="w-4 h-4 text-cyan" />
+            <span>🎚️ ESTUDIO DE MASTERING</span>
+          </div>
+          <span className="px-2 py-0.5 rounded-full bg-cyan/15 text-cyan text-[9px] font-mono font-bold uppercase border border-cyan/30">
+            PRO AUDIO
+          </span>
+        </div>
+        <p className="text-xs text-content-secondary leading-relaxed">
+          Masterizá tus canciones, acapellas y beats directo desde Larvaz antes de subirlos a la radio o al muro.
+        </p>
+        <div className="flex items-center gap-2 pt-1">
+          <Link
+            href="/estudio"
+            className="flex-1 py-2 px-3 rounded-xl bg-cyan text-background font-black text-xs text-center hover:opacity-90 transition-all shadow-sm"
+          >
+            Abrir en Larvaz
+          </Link>
+          <a
+            href="https://app-master-audio.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-xl bg-surface-elevated border border-surface-border hover:border-cyan text-content-secondary hover:text-cyan transition-colors"
+            title="Ir a https://app-master-audio.vercel.app/"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </div>
+
+      {/* 3. ARTISTAS Y COLECTIVOS SUGERIDOS */}
       <div className="p-4 rounded-2xl bg-surface border border-surface-border space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-content-primary font-bold text-sm">
@@ -214,7 +248,17 @@ export const SidebarRight: React.FC = () => {
 
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <Link
-                    href={`/mensajes?user=${artist.username}`}
+                    href={currentUser.is_guest ? '#' : `/mensajes?user=${artist.username}`}
+                    onClick={(e) => {
+                      if (currentUser.is_guest) {
+                        e.preventDefault();
+                        window.dispatchEvent(
+                          new CustomEvent('larvaz:require-login', {
+                            detail: { reason: `Iniciá sesión para enviar mensajes privados a @${artist.username}.` },
+                          })
+                        );
+                      }
+                    }}
                     className="p-1.5 rounded-full bg-surface-elevated hover:bg-surface border border-surface-border hover:border-acid text-content-secondary hover:text-acid transition-colors"
                     title={`Enviar mensaje a @${artist.username}`}
                   >
@@ -222,7 +266,17 @@ export const SidebarRight: React.FC = () => {
                   </Link>
 
                   <button
-                    onClick={() => toggleFollow(artist.id)}
+                    onClick={() => {
+                      if (currentUser.is_guest) {
+                        window.dispatchEvent(
+                          new CustomEvent('larvaz:require-login', {
+                            detail: { reason: `Iniciá sesión para seguir a @${artist.username} y armar tu red.` },
+                          })
+                        );
+                        return;
+                      }
+                      toggleFollow(artist.id);
+                    }}
                     className={`text-xs px-3 py-1 rounded-full font-bold transition-all flex-shrink-0 ${
                       following
                         ? 'bg-surface-elevated text-content-secondary hover:text-content-primary hover:border-surface-border border border-transparent'

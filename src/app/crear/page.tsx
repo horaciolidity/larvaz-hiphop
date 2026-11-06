@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { MediaEmbed } from '@/components/feed/MediaEmbed';
@@ -13,6 +14,8 @@ import {
   Plus,
   Send,
   Check,
+  Lock,
+  Sliders,
 } from 'lucide-react';
 import { ContentType, PostMetadata } from '@/types';
 import { getLocationFlag } from '@/lib/country-utils';
@@ -20,6 +23,8 @@ import { getLocationFlag } from '@/lib/country-utils';
 export default function CrearPublicacionPage() {
   const router = useRouter();
   const { createPost, currentUser, userLocation } = useApp();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const flag = getLocationFlag(userLocation || currentUser.location);
   const locationName = userLocation || currentUser.location || 'Mendoza, Argentina';
 
@@ -131,6 +136,52 @@ export default function CrearPublicacionPage() {
     }
   };
 
+  if (!mounted) {
+    return (
+      <div className="p-4 md:p-6 max-w-xl mx-auto space-y-6">
+        <div className="h-24 rounded-2xl bg-surface animate-pulse" />
+        <div className="h-64 rounded-2xl bg-surface animate-pulse" />
+      </div>
+    );
+  }
+
+  if (currentUser.is_guest) {
+    return (
+      <div className="p-4 md:p-6 max-w-xl mx-auto">
+        <div className="p-6 rounded-3xl bg-surface border-2 border-acid/40 shadow-2xl text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-acid/15 border border-acid/40 flex items-center justify-center mx-auto text-acid shadow-acid-sm">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <span className="inline-block px-2.5 py-0.5 rounded-full bg-magenta/15 border border-magenta/30 text-magenta text-[10px] font-mono font-bold uppercase">
+              MODO OBSERVADOR — SOLO LECTURA
+            </span>
+            <h1 className="font-display font-black text-2xl text-content-primary tracking-wide">
+              INICIÁ SESIÓN PARA PUBLICAR
+            </h1>
+            <p className="text-xs text-content-secondary leading-relaxed max-w-md mx-auto">
+              Los visitantes sin sesión activa están en modo observador y no pueden publicar en el muro ni enviar mensajes. Iniciá sesión con tu cuenta o registrate gratis en segundos para compartir tu arte.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+            <Link
+              href="/login"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-acid text-background font-black text-xs shadow-acid-glow hover:bg-acid-hover transition-all"
+            >
+              Iniciar Sesión
+            </Link>
+            <Link
+              href="/registro"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-surface-elevated border border-acid/40 hover:border-acid text-content-primary font-bold text-xs transition-all"
+            >
+              Crear Cuenta Gratis
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-xl mx-auto space-y-6">
       {/* Header */}
@@ -141,11 +192,20 @@ export default function CrearPublicacionPage() {
         <p className="text-xs text-content-secondary mt-1">
           Comparte tus barras, reflexiones, freestyle, música, batallas, graffiti o novedades en el muro comunitario.
         </p>
-        <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-elevated border border-surface-border text-xs">
-          <span>{flag || '🌐'}</span>
-          <span className="text-content-secondary font-mono text-[11px]">
-            Publicando desde: <strong className="text-content-primary">{locationName}</strong>
-          </span>
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-elevated border border-surface-border text-xs">
+            <span>{flag || '🌐'}</span>
+            <span className="text-content-secondary font-mono text-[11px]">
+              Publicando desde: <strong className="text-content-primary">{locationName}</strong>
+            </span>
+          </div>
+          <Link
+            href="/estudio"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan/15 border border-cyan/40 text-cyan hover:bg-cyan hover:text-background text-[11px] font-bold transition-colors"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>🎚️ Masterizar mi Audio antes de subir</span>
+          </Link>
         </div>
       </div>
 

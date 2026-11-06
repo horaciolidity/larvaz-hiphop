@@ -194,14 +194,22 @@ function UploadToRadioForm() {
 
   return (
     <form onSubmit={handleSubmit} className="p-4 rounded-2xl bg-surface-elevated/60 border border-acid/20 space-y-3">
-      <div className="flex items-center gap-2">
-        <UploadCloud className="w-4 h-4 text-acid flex-shrink-0" />
-        <p className="text-xs font-black text-content-primary uppercase tracking-wide">
-          Subir mi música a la radio
-        </p>
-        <span className="text-[10px] text-content-muted font-mono">
-          YouTube · SoundCloud · Spotify · .mp3
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <UploadCloud className="w-4 h-4 text-acid flex-shrink-0" />
+          <p className="text-xs font-black text-content-primary uppercase tracking-wide">
+            Subir mi música a la radio
+          </p>
+          <span className="text-[10px] text-content-muted font-mono hidden sm:inline">
+            YouTube · SoundCloud · Spotify · .mp3
+          </span>
+        </div>
+        <Link
+          href="/estudio"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan/15 border border-cyan/40 text-cyan hover:bg-cyan hover:text-background text-[10px] font-bold transition-colors"
+        >
+          <span>🎚️ Masterizar Audio en Larvaz</span>
+        </Link>
       </div>
 
       <div className="flex items-center gap-2 p-2 rounded-xl bg-surface border border-surface-border focus-within:border-acid transition-colors">

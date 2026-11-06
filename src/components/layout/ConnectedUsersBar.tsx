@@ -235,7 +235,17 @@ export const ConnectedUsersBar: React.FC = () => {
 
               {/* Quick message icon on hover */}
               <Link
-                href={`/mensajes?user=${user.username}`}
+                href={currentUser.is_guest ? '#' : `/mensajes?user=${user.username}`}
+                onClick={(e) => {
+                  if (currentUser.is_guest) {
+                    e.preventDefault();
+                    window.dispatchEvent(
+                      new CustomEvent('larvaz:require-login', {
+                        detail: { reason: `Iniciá sesión para enviar mensajes directos a @${user.username}.` },
+                      })
+                    );
+                  }
+                }}
                 className="absolute -top-1 -right-1 p-1 rounded-full bg-surface-elevated border border-acid text-acid opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                 title={`Enviar mensaje a @${user.username}`}
               >

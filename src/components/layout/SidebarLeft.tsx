@@ -28,6 +28,7 @@ import {
   User,
   Sparkles,
   Share2,
+  Sliders,
 } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
@@ -60,6 +61,13 @@ export const SidebarLeft: React.FC = () => {
       icon: Radio,
       badge: isRadioPlaying ? 'VIVO' : undefined,
       badgeColor: 'bg-acid text-background',
+    },
+    {
+      label: 'Estudio Mastering',
+      href: '/estudio',
+      icon: Sliders,
+      badge: 'STUDIO',
+      badgeColor: 'bg-cyan text-background',
     },
     { label: 'B-Boys & Breaking', href: '/breaking', icon: Zap },
     {

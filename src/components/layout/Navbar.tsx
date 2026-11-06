@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
-import { Bell, Search, Radio, UserCheck, MessageCircle, LogOut } from 'lucide-react';
+import { Bell, Search, Radio, UserCheck, MessageCircle, LogOut, Sliders } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
 
@@ -30,6 +30,16 @@ export const Navbar: React.FC = () => {
         >
           <Radio className="w-4 h-4" />
           {isRadioPlaying && <span className="w-1.5 h-1.5 rounded-full bg-acid animate-ping" />}
+        </Link>
+
+        {/* Mastering Studio Quick Link */}
+        <Link
+          href="/estudio"
+          className="p-2 rounded-xl bg-cyan/10 border border-cyan/30 text-cyan hover:bg-cyan hover:text-background transition-all flex items-center gap-1"
+          title="Estudio de Masterización de Audio"
+          aria-label="Estudio de Masterización"
+        >
+          <Sliders className="w-4 h-4" />
         </Link>
 
         {/* Search */}

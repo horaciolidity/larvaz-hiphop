@@ -106,7 +106,18 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
     }
   };
 
+  const requireAuth = (reason: string): boolean => {
+    if (currentUser?.is_guest) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('larvaz:require-login', { detail: { reason } }));
+      }
+      return false;
+    }
+    return true;
+  };
+
   const handleOpenComments = () => {
+    if (!requireAuth('Iniciá sesión para participar y comentar en las publicaciones del muro.')) return;
     if (!showComments && !hasLoadedComments) {
       // Lazy load from dataStore
       const { dataStore } = require('@/lib/data-store');
@@ -118,6 +129,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
 
   const handleSendComment = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!requireAuth('Iniciá sesión para dejar tu comentario en el muro.')) return;
     if (!commentText.trim()) return;
 
     const newComment = addComment(post.id, commentText);
@@ -179,7 +191,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {post.user_id !== currentUser?.id && (
             <Link
-              href={`/mensajes?user=${post.author.username}`}
+              href={currentUser?.is_guest ? '#' : `/mensajes?user=${post.author.username}`}
+              onClick={(e) => {
+                if (!requireAuth(`Iniciá sesión para enviar mensajes privados a @${post.author.username}.`)) {
+                  e.preventDefault();
+                }
+              }}
               className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface border border-surface-border hover:border-acid text-content-secondary hover:text-acid text-[11px] font-bold transition-all shadow-sm"
               title={`Enviar mensaje directo a @${post.author.username}`}
             >
@@ -274,7 +291,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-border/50 text-content-secondary text-xs">
         {/* Likes / Props */}
         <button
-          onClick={() => toggleLike(post.id)}
+          onClick={() => {
+            if (!requireAuth('Iniciá sesión para dar Props y apoyar las publicaciones del muro.')) return;
+            toggleLike(post.id);
+          }}
           className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors group ${
             post.user_has_liked
               ? 'text-magenta font-bold'
@@ -304,7 +324,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
 
         {/* Crypto Tip / Micro-mecenazgo */}
         <button
-          onClick={() => setShowTipModal(true)}
+          onClick={() => {
+            if (!requireAuth('Iniciá sesión para enviar propinas cripto al artista.')) return;
+            setShowTipModal(true);
+          }}
           className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-all group ${
             (post.crypto_tips_count || 0) > 0
               ? 'text-acid bg-acid/10 border border-acid/30 font-bold'
@@ -321,7 +344,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
 
         {/* Bookmark */}
         <button
-          onClick={() => toggleBookmark(post.id)}
+          onClick={() => {
+            if (!requireAuth('Iniciá sesión para guardar publicaciones en tu colección personal.')) return;
+            toggleBookmark(post.id);
+          }}
           className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-colors group ${
             post.user_has_bookmarked
               ? 'text-acid font-bold'

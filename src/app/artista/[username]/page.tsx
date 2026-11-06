@@ -115,14 +115,34 @@ export default function ArtistProfilePage() {
             ) : (
               <div className="flex items-center gap-2">
                 <Link
-                  href={`/mensajes?user=${profile.username}`}
+                  href={currentUser.is_guest ? '#' : `/mensajes?user=${profile.username}`}
+                  onClick={(e) => {
+                    if (currentUser.is_guest) {
+                      e.preventDefault();
+                      window.dispatchEvent(
+                        new CustomEvent('larvaz:require-login', {
+                          detail: { reason: `Iniciá sesión para enviar mensajes privados a @${profile.username}.` },
+                        })
+                      );
+                    }
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface border border-surface-border hover:border-acid text-content-primary text-xs font-bold transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5 text-acid" />
                   <span>Mensaje</span>
                 </Link>
                 <button
-                  onClick={() => toggleFollow(profile.id)}
+                  onClick={() => {
+                    if (currentUser.is_guest) {
+                      window.dispatchEvent(
+                        new CustomEvent('larvaz:require-login', {
+                          detail: { reason: `Iniciá sesión para seguir a @${profile.username} y conectar con su música.` },
+                        })
+                      );
+                      return;
+                    }
+                    toggleFollow(profile.id);
+                  }}
                   className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
                     following
                       ? 'bg-surface-elevated border border-surface-border text-content-secondary hover:text-content-primary'

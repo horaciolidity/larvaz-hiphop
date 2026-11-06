@@ -8,6 +8,9 @@ import {
   Link as LinkIcon,
   X,
   Loader2,
+  Lock,
+  Flame,
+  Sliders,
 } from 'lucide-react';
 import { ContentType, PostMetadata } from '@/types';
 import { UserAvatar } from '@/components/common/UserAvatar';
@@ -141,8 +144,56 @@ export const InlineFeedComposer: React.FC = () => {
     }
   };
 
+  if (mounted && currentUser.is_guest) {
+    return (
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-surface-elevated via-surface to-background border border-acid/40 shadow-acid-sm space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-acid/15 border border-acid/40 flex items-center justify-center text-acid flex-shrink-0">
+            <Lock className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs font-black uppercase tracking-wider text-acid">
+                👀 Estás en Modo Observador (Solo Lectura)
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-magenta/15 border border-magenta/30 text-magenta font-bold">
+                PUBLICACIÓN BLOQUEADA
+              </span>
+            </div>
+            <p className="text-xs text-content-secondary leading-relaxed">
+              Los visitantes no logueados no pueden publicar ni enviar mensajes. Iniciá sesión o creá tu cuenta gratis para tirar tus barras, beats o videos al muro y conectar con la comunidad.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Link
+            href="/login"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-acid text-background font-black text-xs shadow-acid-sm hover:bg-acid-hover transition-all"
+          >
+            <Flame className="w-3.5 h-3.5" />
+            <span>Iniciar Sesión</span>
+          </Link>
+          <Link
+            href="/registro"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-surface-elevated border border-acid/40 hover:border-acid text-content-primary font-bold text-xs transition-all"
+          >
+            <span>Crear Cuenta Gratis</span>
+          </Link>
+          <Link
+            href="/estudio"
+            className="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan/15 border border-cyan/40 text-cyan hover:bg-cyan hover:text-background font-bold text-xs transition-all"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>🎚️ Estudio Mastering</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-3.5 rounded-2xl bg-surface border border-surface-border hover:border-surface-hover transition-all space-y-3">
+    <div className="p-3.5 rounded-2xl bg-surface border border-surface-border hover:border-acid/30 transition-all space-y-3 shadow-lg">
       {/* Top: User Avatar + Input */}
       <div className="flex items-start gap-3">
         <div className="relative flex-shrink-0">
@@ -235,25 +286,33 @@ export const InlineFeedComposer: React.FC = () => {
         </div>
       </div>
 
-      {/* Expanded controls when typing or focused */}
-      {(isFocused || description.length > 0 || showUrlInput) && (
-        <div className="pt-2 border-t border-surface-border/60 flex flex-wrap items-center justify-between gap-2 text-xs">
-          {/* Quick Tags & Multimedia Button */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setShowUrlInput(!showUrlInput)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                showUrlInput || url
-                  ? 'bg-acid/10 border-acid text-acid'
-                  : 'bg-surface-elevated border-surface-border text-content-secondary hover:text-content-primary'
-              }`}
-            >
-              <LinkIcon className="w-3 h-3" />
-              <span>{url ? 'Enlace añadido ✓' : '+ Enlace multimedia'}</span>
-            </button>
+      {/* Bottom Toolbar: Multimedia, Mastering Studio & Submit */}
+      <div className="pt-2 border-t border-surface-border/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowUrlInput(!showUrlInput)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+              showUrlInput || url
+                ? 'bg-acid/10 border-acid text-acid'
+                : 'bg-surface-elevated border-surface-border text-content-secondary hover:text-content-primary'
+            }`}
+          >
+            <LinkIcon className="w-3 h-3" />
+            <span>{url ? 'Enlace añadido ✓' : '+ Enlace multimedia'}</span>
+          </button>
 
-            {availableTags.map((tag) => (
+          <Link
+            href="/estudio"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-cyan/10 border-cyan/30 text-cyan hover:bg-cyan hover:text-background transition-colors"
+            title="Masterizá tus canciones y beats dentro de Larvaz"
+          >
+            <Sliders className="w-3 h-3" />
+            <span>🎚️ Masterizar Audio</span>
+          </Link>
+
+          {(isFocused || description.length > 0) &&
+            availableTags.map((tag) => (
               <button
                 key={tag}
                 type="button"
@@ -267,32 +326,31 @@ export const InlineFeedComposer: React.FC = () => {
                 #{tag}
               </button>
             ))}
-          </div>
-
-          {/* Submit */}
-          <div className="flex items-center gap-2">
-            <Link
-              href="/crear"
-              className="text-[11px] text-content-muted hover:text-acid font-bold transition-colors"
-            >
-              Más opciones
-            </Link>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSubmitting || (!description.trim() && !url.trim())}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-acid text-background font-black text-xs shadow-acid-sm hover:bg-acid-hover active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5 stroke-[2.5]" />
-              )}
-              <span>Tirar al Muro</span>
-            </button>
-          </div>
         </div>
-      )}
+
+        {/* Submit */}
+        <div className="flex items-center gap-2 ml-auto">
+          <Link
+            href="/crear"
+            className="text-[11px] text-content-muted hover:text-acid font-bold transition-colors"
+          >
+            Más opciones
+          </Link>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting || (!description.trim() && !url.trim())}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-acid text-background font-black text-xs shadow-acid-sm hover:bg-acid-hover active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+            )}
+            <span>Tirar al Muro</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

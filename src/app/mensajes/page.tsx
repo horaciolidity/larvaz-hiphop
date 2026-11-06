@@ -732,6 +732,43 @@ function MensajesContent() {
     );
   }
 
+  if (currentUser.is_guest) {
+    return (
+      <div className="h-[calc(100vh-140px)] flex items-center justify-center rounded-2xl border-2 border-acid/40 bg-surface shadow-2xl mx-4 md:mx-6 mb-4 p-6">
+        <div className="max-w-md text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-acid/15 border border-acid/40 flex items-center justify-center mx-auto text-acid shadow-acid-sm">
+            <MessageCircle className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <span className="inline-block px-2.5 py-0.5 rounded-full bg-magenta/15 border border-magenta/30 text-magenta text-[10px] font-mono font-bold uppercase">
+              MODO OBSERVADOR — ACCESO RESTRINGIDO
+            </span>
+            <h1 className="font-display font-black text-2xl text-content-primary tracking-wide">
+              CASILLA DE MENSAJES PRIVADOS
+            </h1>
+            <p className="text-xs text-content-secondary leading-relaxed">
+              Los visitantes no logueados están únicamente en modo observador y no pueden enviar ni recibir mensajes privados. Iniciá sesión o registrate gratis para escribirte con cualquier artista de Larvaz.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+            <Link
+              href="/login"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-acid text-background font-black text-xs shadow-acid-glow hover:bg-acid-hover transition-all"
+            >
+              Iniciar Sesión
+            </Link>
+            <Link
+              href="/registro"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-surface-elevated border border-acid/40 hover:border-acid text-content-primary font-bold text-xs transition-all"
+            >
+              Crear Cuenta Gratis
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-0 overflow-hidden rounded-2xl border border-surface-border bg-surface shadow-2xl mx-4 md:mx-6 mb-4">
       {/* Sidebar: Conversations List */}
