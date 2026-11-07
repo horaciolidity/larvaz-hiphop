@@ -301,6 +301,14 @@ export const INITIAL_POSTS: Post[] = [
   },
 ];
 
+export const DEMO_EVENT_IDS = new Set([
+  'event-1',
+  'event-2',
+  'event-3',
+  '20000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000002',
+]);
+
 export const INITIAL_EVENTS: HipHopEvent[] = [
   {
     id: 'event-1',
@@ -767,7 +775,25 @@ class LarvazDataStore {
       }
 
       const storedEvents = localStorage.getItem('larvaz_events');
-      if (storedEvents) this.events = JSON.parse(storedEvents);
+      if (storedEvents) {
+        try {
+          const parsedEvents: HipHopEvent[] = JSON.parse(storedEvents);
+          const initialEventMap = new Map<string, HipHopEvent>(INITIAL_EVENTS.map((e) => [e.id, e]));
+          const evMap = new Map<string, HipHopEvent>();
+          for (const e of INITIAL_EVENTS) evMap.set(e.id, e);
+          for (const e of parsedEvents) {
+            if (initialEventMap.has(e.id)) {
+              const seedEv = initialEventMap.get(e.id)!;
+              evMap.set(e.id, { ...e, start_date: seedEv.start_date, end_date: seedEv.end_date });
+            } else {
+              evMap.set(e.id, e);
+            }
+          }
+          this.events = Array.from(evMap.values());
+        } catch {
+          this.events = [...INITIAL_EVENTS];
+        }
+      }
 
       const storedWithdrawals = localStorage.getItem('larvaz_withdrawals');
       if (storedWithdrawals) this.withdrawals = JSON.parse(storedWithdrawals);
@@ -1551,11 +1577,15 @@ class LarvazDataStore {
 
   // --- Events ---
   getEvents(options?: { upcomingOnly?: boolean; search?: string; tag?: string }): HipHopEvent[] {
-    let result = [...this.events];
+    const duplicateDbSeedEventIds = new Set([
+      '20000000-0000-0000-0000-000000000001',
+      '20000000-0000-0000-0000-000000000002',
+    ]);
+    let result = this.events.filter((e) => !duplicateDbSeedEventIds.has(e.id));
     const now = new Date().getTime();
 
     if (options?.upcomingOnly) {
-      result = result.filter((e) => new Date(e.start_date).getTime() >= now - 1000 * 60 * 60 * 12);
+      result = result.filter((e) => new Date(e.start_date).getTime() >= now - 1000 * 60 * 60 * 24);
     }
 
     if (options?.tag) {
@@ -1573,12 +1603,25 @@ class LarvazDataStore {
       );
     }
 
-    result.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    // Los eventos reales creados por la comunidad van primero, luego los de demostración
+    result.sort((a, b) => {
+      const aIsDemo = DEMO_EVENT_IDS.has(a.id);
+      const bIsDemo = DEMO_EVENT_IDS.has(b.id);
+      if (aIsDemo !== bIsDemo) {
+        return aIsDemo ? 1 : -1;
+      }
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+    });
     return result;
   }
 
   getEventBySlug(slug: string): HipHopEvent | undefined {
-    return this.events.find((e) => e.slug === slug);
+    const clean = decodeURIComponent(slug || '').trim().toLowerCase();
+    return this.events.find(
+      (e) =>
+        e.slug?.toLowerCase() === clean ||
+        e.id?.toLowerCase() === clean
+    );
   }
 
   createEvent(data: {
@@ -1600,28 +1643,111 @@ class LarvazDataStore {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') + '-' + Date.now().toString().slice(-4);
 
+    const newEventId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'event-' + Date.now();
+
     const newEvent: HipHopEvent = {
-      id: 'event-' + Date.now(),
+      id: newEventId,
       organizer_id: this.currentUser.id,
-      title: data.title,
+      title: data.title.trim(),
       slug,
-      description: data.description,
-      flyer_url: data.flyerUrl || 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=800&h=1000&fit=crop',
+      description: data.description.trim(),
+      flyer_url: data.flyerUrl?.trim() || 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=800&h=1000&fit=crop',
       start_date: data.startDate,
       end_date: data.endDate,
       timezone: data.timezone || 'America/Argentina/Buenos_Aires',
-      location: data.location,
+      location: data.location.trim(),
       is_online: false,
-      organizer_name: data.organizerName || this.currentUser.full_name,
-      ticket_url: data.ticketUrl,
-      tags: data.tags || ['hiphop', 'cultura'],
+      organizer_name: (data.organizerName || this.currentUser.full_name || 'Comunidad Larvaz').trim(),
+      ticket_url: data.ticketUrl?.trim() || undefined,
+      tags: data.tags && data.tags.length > 0 ? data.tags : ['hiphop', 'cultura'],
       created_at: new Date().toISOString(),
       organizer: this.currentUser,
     };
 
-    this.events.push(newEvent);
+    this.events.unshift(newEvent);
     this.saveToStorage();
     return newEvent;
+  }
+
+  reloadEvents(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedEvents = localStorage.getItem('larvaz_events');
+      if (storedEvents) {
+        const parsedEvents: HipHopEvent[] = JSON.parse(storedEvents);
+        const initialEventMap = new Map<string, HipHopEvent>(INITIAL_EVENTS.map((e) => [e.id, e]));
+        const evMap = new Map<string, HipHopEvent>();
+        for (const e of INITIAL_EVENTS) evMap.set(e.id, e);
+        for (const e of this.events) evMap.set(e.id, e);
+        for (const e of parsedEvents) {
+          if (initialEventMap.has(e.id)) {
+            const seedEv = initialEventMap.get(e.id)!;
+            evMap.set(e.id, { ...e, start_date: seedEv.start_date, end_date: seedEv.end_date });
+          } else {
+            evMap.set(e.id, e);
+          }
+        }
+        this.events = Array.from(evMap.values());
+      }
+    } catch { }
+  }
+
+  addExternalEvent(ev: HipHopEvent): boolean {
+    const exists = this.events.some((e) => e.id === ev.id || e.slug === ev.slug);
+    if (exists) return false;
+    this.events.unshift(ev);
+    this.saveToStorage();
+    return true;
+  }
+
+  mergeEvents(incomingEvents: HipHopEvent[]): void {
+    if (!incomingEvents || incomingEvents.length === 0) return;
+    const bySlugOrId = new Map<string, HipHopEvent>();
+    for (const e of this.events) {
+      bySlugOrId.set(e.slug || e.id, e);
+    }
+    let changed = false;
+    for (const incoming of incomingEvents) {
+      const key = incoming.slug || incoming.id;
+      const existing = bySlugOrId.get(key);
+      if (!existing) {
+        bySlugOrId.set(key, incoming);
+        changed = true;
+      } else {
+        bySlugOrId.set(key, {
+          ...existing,
+          ...incoming,
+          organizer: incoming.organizer || existing.organizer,
+        });
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.events = Array.from(bySlugOrId.values());
+      this.saveToStorage();
+    }
+  }
+
+  getUnsyncedLocalEvents(syncedKeys: Set<string>): HipHopEvent[] {
+    return this.events.filter(
+      (e) =>
+        !DEMO_EVENT_IDS.has(e.id) &&
+        !syncedKeys.has(e.id) &&
+        !syncedKeys.has(e.slug)
+    );
+  }
+
+  deleteEvent(eventIdOrSlug: string): boolean {
+    const idx = this.events.findIndex(
+      (e) => e.id === eventIdOrSlug || e.slug === eventIdOrSlug
+    );
+    if (idx === -1) return false;
+    this.events.splice(idx, 1);
+    this.saveToStorage();
+    return true;
   }
 
   // --- Notifications ---

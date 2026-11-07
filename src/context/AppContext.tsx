@@ -104,6 +104,7 @@ interface AppContextType {
     metadata?: any;
   }) => Post;
   createEvent: (data: any) => HipHopEvent;
+  deleteEvent: (eventIdOrSlug: string) => boolean;
   createReport: (data: any) => Report;
   markNotificationsAsRead: () => void;
   updateProfile: (data: Partial<Profile>) => void;
@@ -380,6 +381,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Ref al canal WebSocket suscrito para enviar broadcasts sin recrear canales duplicados
   const syncChannelRef = React.useRef<any>(null);
   const autoSyncedIdsRef = React.useRef<Set<string>>(new Set());
+  const autoSyncedEventIdsRef = React.useRef<Set<string>>(new Set());
+
+  const mapEventFromDB = useCallback((e: any): HipHopEvent => {
+    const organizer: Profile = e.profiles || {
+      id: e.organizer_id,
+      username: 'organizador',
+      full_name: e.organizer_name || 'Organizador Larvaz',
+      avatar_url: '',
+      role: 'user',
+      is_banned: false,
+      created_at: e.created_at,
+    };
+
+    return {
+      id: e.id ? String(e.id) : 'event-' + e.created_at,
+      organizer_id: e.organizer_id,
+      title: e.title || '',
+      slug: e.slug || String(e.id),
+      description: e.description || '',
+      flyer_url: e.flyer_url || 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=800&h=1000&fit=crop',
+      start_date: e.start_date,
+      end_date: e.end_date || undefined,
+      timezone: e.timezone || 'America/Argentina/Buenos_Aires',
+      location: e.location || 'Mendoza, Argentina',
+      is_online: Boolean(e.is_online),
+      organizer_name: e.organizer_name || organizer.full_name,
+      ticket_url: e.ticket_url || undefined,
+      tags: Array.isArray(e.tags) ? e.tags : ['hiphop', 'cultura'],
+      created_at: e.created_at,
+      organizer,
+    };
+  }, []);
 
   const mapPostFromDB = useCallback((p: any): Post => {
     const pm = Array.isArray(p.post_metadata) ? p.post_metadata[0] : p.post_metadata;
@@ -482,6 +515,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } else if (event.data?.type === 'SYNC_FEED') {
           dataStore.reloadPosts();
           refreshPostsRef.current();
+        } else if (event.data?.type === 'NEW_EVENT' && event.data.event) {
+          dataStore.addExternalEvent(event.data.event);
+          setEvents(dataStore.getEvents());
+        } else if (event.data?.type === 'SYNC_EVENTS') {
+          dataStore.reloadEvents();
+          setEvents(dataStore.getEvents());
         } else if (event.data?.type === 'NEW_PROFILE' && event.data.profile) {
           dataStore.addProfile(event.data.profile);
           syncProfilesStateRef.current();
@@ -496,6 +535,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (e.key === 'larvaz_posts') {
         dataStore.reloadPosts();
         refreshPostsRef.current();
+      }
+      if (e.key === 'larvaz_events') {
+        dataStore.reloadEvents();
+        setEvents(dataStore.getEvents());
       }
       if (e.key === 'larvaz_profiles') {
         dataStore.reloadProfiles();
@@ -618,8 +661,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const fetchSupabaseEvents = async () => {
+      try {
+        const res = await fetch(`/api/events?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const { events: dbEvents } = await res.json();
+        const dbList = Array.isArray(dbEvents) ? dbEvents : [];
+
+        if (dbList.length > 0) {
+          const mappedEvents: HipHopEvent[] = dbList.map(mapEventFromDB);
+          dataStore.mergeEvents(mappedEvents);
+          setEvents(dataStore.getEvents());
+        }
+
+        // Auto-sincronizar cualquier evento local creado previamente que no esté aún en Supabase
+        const syncedEventKeys = new Set<string>();
+        for (const ev of dbList) {
+          if (ev.id) syncedEventKeys.add(String(ev.id));
+          if (ev.slug) syncedEventKeys.add(String(ev.slug));
+        }
+
+        const unsyncedEvents = dataStore.getUnsyncedLocalEvents(syncedEventKeys);
+        for (const localEv of unsyncedEvents) {
+          const evKey = localEv.slug || localEv.id;
+          if (autoSyncedEventIdsRef.current.has(evKey)) continue;
+          autoSyncedEventIdsRef.current.add(evKey);
+          try {
+            await fetch('/api/events', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: localEv.id,
+                organizer_id: localEv.organizer_id,
+                organizer_username: localEv.organizer?.username,
+                organizer_name: localEv.organizer_name || localEv.organizer?.full_name,
+                organizer_avatar: localEv.organizer?.avatar_url,
+                title: localEv.title,
+                slug: localEv.slug,
+                description: localEv.description,
+                flyer_url: localEv.flyer_url,
+                start_date: localEv.start_date,
+                end_date: localEv.end_date || null,
+                timezone: localEv.timezone || 'America/Argentina/Buenos_Aires',
+                location: localEv.location,
+                is_online: localEv.is_online || false,
+                ticket_url: localEv.ticket_url || null,
+                tags: localEv.tags || ['hiphop', 'cultura'],
+                created_at: localEv.created_at,
+              }),
+            });
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Error fetching events via API:', err);
+      }
+    };
+
     fetchSupabasePosts();
     fetchSupabaseProfiles();
+    fetchSupabaseEvents();
 
     // 1. Sincronización Realtime por WebSocket Broadcast + postgres_changes
     const syncChannel = supabase
@@ -633,6 +733,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             refreshPostsRef.current();
           }
           fetchSupabasePosts();
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'NEW_EVENT' },
+        (event: any) => {
+          if (event?.payload?.event) {
+            dataStore.mergeEvents([event.payload.event]);
+            setEvents(dataStore.getEvents());
+          }
+          fetchSupabaseEvents();
         }
       )
       .on(
@@ -705,6 +816,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           fetchSupabasePosts();
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'events' },
+        () => {
+          fetchSupabaseEvents();
+        }
+      )
       .subscribe();
 
     syncChannelRef.current = syncChannel;
@@ -712,11 +830,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // 2. Refresco periódico en background (cada 6s) y al volver a enfocar la pestaña
     const intervalId = setInterval(() => {
       fetchSupabasePosts();
+      fetchSupabaseEvents();
     }, 6000);
 
     const onFocus = () => {
       fetchSupabasePosts();
       fetchSupabaseProfiles();
+      fetchSupabaseEvents();
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('focus', onFocus);
@@ -1155,8 +1275,102 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const createEvent = (data: any) => {
     const ev = dataStore.createEvent(data);
+    autoSyncedEventIdsRef.current.add(ev.slug || ev.id);
     setEvents(dataStore.getEvents());
+
+    // Difundir a otras pestañas locales
+    if (typeof window !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('larvaz_community_sync');
+        ch.postMessage({ type: 'NEW_EVENT', event: ev });
+        ch.close();
+      } catch {}
+    }
+
+    // Persistir en Supabase via API route para que todos los usuarios de la comunidad puedan ver y acceder al evento
+    if (isSupabaseConnected) {
+      (async () => {
+        try {
+          let targetOrganizerId = currentUser.id;
+          if (supabase) {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session?.user?.id) {
+              targetOrganizerId = sessionData.session.user.id;
+            }
+          }
+
+          const res = await fetch('/api/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: ev.id,
+              organizer_id: targetOrganizerId,
+              organizer_username: currentUser.username,
+              organizer_name: ev.organizer_name || currentUser.full_name,
+              organizer_avatar: currentUser.avatar_url,
+              title: ev.title,
+              slug: ev.slug,
+              description: ev.description,
+              flyer_url: ev.flyer_url,
+              start_date: ev.start_date,
+              end_date: ev.end_date || null,
+              timezone: ev.timezone || 'America/Argentina/Buenos_Aires',
+              location: ev.location,
+              is_online: ev.is_online || false,
+              ticket_url: ev.ticket_url || null,
+              tags: ev.tags || ['hiphop', 'cultura'],
+              created_at: ev.created_at,
+            }),
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            const createdEvData = result.event || result;
+            if (createdEvData?.id) {
+              const canonicalEv = mapEventFromDB(createdEvData);
+              dataStore.mergeEvents([canonicalEv]);
+              setEvents(dataStore.getEvents());
+
+              if (syncChannelRef.current) {
+                try {
+                  await syncChannelRef.current.send({
+                    type: 'broadcast',
+                    event: 'NEW_EVENT',
+                    payload: { event_id: canonicalEv.id, event: canonicalEv },
+                  });
+                } catch {}
+              }
+
+              const eventsRes = await fetch(`/api/events?t=${Date.now()}`, { cache: 'no-store' });
+              if (eventsRes.ok) {
+                const { events: dbEvents } = await eventsRes.json();
+                if (dbEvents?.length) {
+                  dataStore.mergeEvents(dbEvents.map(mapEventFromDB));
+                  setEvents(dataStore.getEvents());
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Error al guardar evento:', err);
+        }
+      })();
+    }
+
     return ev;
+  };
+
+  const deleteEvent = (eventIdOrSlug: string) => {
+    const res = dataStore.deleteEvent(eventIdOrSlug);
+    if (res) {
+      setEvents(dataStore.getEvents());
+      if (isSupabaseConnected) {
+        fetch(`/api/events?id=${encodeURIComponent(eventIdOrSlug)}&slug=${encodeURIComponent(eventIdOrSlug)}`, {
+          method: 'DELETE',
+        }).catch(() => {});
+      }
+    }
+    return res;
   };
 
   const createReport = (data: any) => {
@@ -1271,6 +1485,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteComment,
         createPost,
         createEvent,
+        deleteEvent,
         createReport,
         markNotificationsAsRead,
         updateProfile,

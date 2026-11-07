@@ -13,16 +13,44 @@ import {
   Ticket,
   User,
   Share2,
-  Tag,
+  Check,
+  Trash2,
 } from 'lucide-react';
 
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
-  const { currentUser } = useApp();
+  const { currentUser, events, deleteEvent, isAdmin } = useApp();
+  const [isCopied, setIsCopied] = React.useState(false);
 
-  const event = dataStore.getEventBySlug(slug);
+  const cleanSlug = decodeURIComponent(slug || '').trim().toLowerCase();
+  const event =
+    events.find(
+      (e) =>
+        e.slug?.toLowerCase() === cleanSlug ||
+        e.id?.toLowerCase() === cleanSlug
+    ) || dataStore.getEventBySlug(slug);
+
+  const handleShare = async () => {
+    if (!event) return;
+    const eventUrl = typeof window !== 'undefined' ? window.location.href : '';
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Evento Larvaz: ${event.title}`,
+          text: `${event.title} — ${event.location}`,
+          url: eventUrl,
+        });
+        return;
+      } catch {}
+    }
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(eventUrl);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
 
   if (!event) {
     return (
@@ -48,14 +76,50 @@ export default function EventDetailPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
-      {/* Back button */}
-      <button
-        onClick={() => router.back()}
-        className="inline-flex items-center gap-2 text-xs font-bold text-content-secondary hover:text-acid transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Volver a Eventos</span>
-      </button>
+      {/* Back button & Actions */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 text-xs font-bold text-content-secondary hover:text-acid transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Volver a Eventos</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleShare}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface border border-surface-border hover:border-acid text-xs font-bold text-content-secondary hover:text-acid transition-colors"
+          >
+            {isCopied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-acid" />
+                <span className="text-acid">Enlace copiado</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Compartir</span>
+              </>
+            )}
+          </button>
+
+          {(isAdmin || event.organizer_id === currentUser.id) && (
+            <button
+              onClick={() => {
+                if (window.confirm('¿Seguro que deseas eliminar este evento de la agenda?')) {
+                  deleteEvent(event.id);
+                  router.push('/eventos');
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface border border-surface-border hover:border-magenta text-xs font-bold text-magenta transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Eliminar</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Flyer */}
       {event.flyer_url && (

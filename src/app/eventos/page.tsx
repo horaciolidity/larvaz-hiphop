@@ -27,31 +27,46 @@ export default function EventosPage() {
   const [startDate, setStartDate] = useState('');
   const [location, setLocation] = useState('');
   const [ticketUrl, setTicketUrl] = useState('');
-  const [organizerName, setOrganizerName] = useState(currentUser.full_name);
+  const [organizerName, setOrganizerName] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(['cultura', 'encuentro']);
+
+  React.useEffect(() => {
+    if (currentUser?.full_name && currentUser.full_name !== 'Visitante Larvaz' && !organizerName) {
+      setOrganizerName(currentUser.full_name);
+    }
+  }, [currentUser?.full_name]);
 
   const now = new Date().getTime();
   const filteredEvents = events.filter((e) => {
     const time = new Date(e.start_date).getTime();
-    return filter === 'proximos' ? time >= now - 1000 * 60 * 60 * 12 : time < now - 1000 * 60 * 60 * 12;
+    if (isNaN(time)) return filter === 'proximos';
+    return filter === 'proximos' ? time >= now - 1000 * 60 * 60 * 24 : time < now - 1000 * 60 * 60 * 24;
   });
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !startDate || !location || !description) return;
 
+    let isoStartDate: string;
+    try {
+      isoStartDate = new Date(startDate).toISOString();
+    } catch {
+      isoStartDate = new Date().toISOString();
+    }
+
     createEvent({
       title,
       description,
       flyerUrl: flyerUrl || 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=800&h=1000&fit=crop',
-      startDate: new Date(startDate).toISOString(),
+      startDate: isoStartDate,
       location,
-      organizerName,
+      organizerName: organizerName.trim() || currentUser.full_name || 'Comunidad Larvaz',
       ticketUrl,
       tags,
     });
 
+    setFilter('proximos');
     setShowCreateModal(false);
     // Reset
     setTitle('');
