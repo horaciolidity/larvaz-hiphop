@@ -17,8 +17,10 @@ import {
   Lock,
   Sliders,
 } from 'lucide-react';
-import { ContentType, PostMetadata } from '@/types';
+import { ContentType, PostMedia, PostMetadata } from '@/types';
 import { getLocationFlag } from '@/lib/country-utils';
+import { normalizeInputUrl } from '@/lib/media-utils';
+import { PostMediaComposer } from '@/components/feed/PostMediaComposer';
 
 export default function CrearPublicacionPage() {
   const router = useRouter();
@@ -30,6 +32,7 @@ export default function CrearPublicacionPage() {
 
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [media, setMedia] = useState<PostMedia[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(['hiphop']);
   const [contentType, setContentType] = useState<ContentType>('music');
@@ -41,7 +44,8 @@ export default function CrearPublicacionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchPreview = async (urlToFetch: string) => {
-    if (!urlToFetch.trim()) return;
+    const normalizedUrl = normalizeInputUrl(urlToFetch);
+    if (!normalizedUrl) return;
     setIsLoadingPreview(true);
     setPreviewError(null);
 
@@ -49,18 +53,26 @@ export default function CrearPublicacionPage() {
       const res = await fetch('/api/metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlToFetch.trim() }),
+        body: JSON.stringify({ url: normalizedUrl }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         setPreviewError(data.error || 'No se pudo obtener vista previa');
         // fallback generic metadata
-        setMetadata({
-          title: `Enlace externo (${new URL(urlToFetch).hostname})`,
-          description: 'Contenido compartido en Larvaz',
-          provider: 'generic',
-        });
+        try {
+          setMetadata({
+            title: `Enlace externo (${new URL(normalizedUrl).hostname})`,
+            description: 'Contenido compartido en Larvaz',
+            provider: 'generic',
+          });
+        } catch {
+          setMetadata({
+            title: normalizedUrl,
+            description: 'Contenido compartido en Larvaz',
+            provider: 'generic',
+          });
+        }
       } else {
         setMetadata(data.metadata);
         setDetectedProvider(data.provider);
@@ -99,12 +111,21 @@ export default function CrearPublicacionPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() && !url.trim()) return;
+    if (!description.trim() && !url.trim() && media.length === 0) return;
 
     setIsSubmitting(true);
     try {
-      const cleanUrl = url.trim();
-      const finalContentType: ContentType = cleanUrl ? contentType : 'text';
+      const cleanUrl = normalizeInputUrl(url.trim());
+      let finalContentType: ContentType = cleanUrl || media.length > 0 ? contentType : 'text';
+
+      // La publicación subida sin enlace define su tipo según el archivo real.
+      if (!cleanUrl && media.length > 0) {
+        finalContentType = media.some((m) => m.type === 'audio')
+          ? 'music'
+          : media.some((m) => m.type === 'video')
+            ? 'video'
+            : 'visual_art';
+      }
 
       let postMetadata = metadata;
       if (cleanUrl && !postMetadata) {
@@ -121,13 +142,36 @@ export default function CrearPublicacionPage() {
         }
       }
 
+      const finalMetadata: PostMetadata | undefined =
+        media.length > 0 || postMetadata
+          ? {
+              ...(postMetadata || {}),
+              ...(media.length > 0
+                ? {
+                    media,
+                    media_type: media[0].type,
+                    thumbnail_url:
+                      postMetadata?.thumbnail_url ||
+                      media.find((m) => m.type === 'image')?.url,
+                  }
+                : {}),
+            }
+          : undefined;
+
+      const fallbackDescription = cleanUrl
+        ? `Compartiendo: ${cleanUrl}`
+        : media.length > 0
+          ? 'Comparto fotos y audios con la comunidad Larvaz.'
+          : '';
+
       createPost({
         externalUrl: cleanUrl || undefined,
-        description: description.trim() || (cleanUrl ? `Compartiendo: ${cleanUrl}` : ''),
+        description: description.trim() || fallbackDescription,
         tags,
         contentType: finalContentType,
         provider: cleanUrl ? detectedProvider : 'generic',
-        metadata: cleanUrl ? postMetadata : undefined,
+        metadata: finalMetadata,
+        media,
       });
 
       router.push('/');
@@ -221,10 +265,10 @@ export default function CrearPublicacionPage() {
                 <LinkIcon className="w-4 h-4" />
               </div>
               <input
-                type="url"
+                type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=... (opcional)"
+                placeholder="https://youtube.com/... · ipfs://CID · Qm... (opcional)"
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-surface border border-surface-border text-xs text-content-primary placeholder:text-content-muted focus:border-acid focus:outline-none"
               />
             </div>
@@ -264,6 +308,13 @@ export default function CrearPublicacionPage() {
           </div>
         )}
 
+        {/* Fotos y audios subidos directamente a Larvaz */}
+        <PostMediaComposer
+          value={media}
+          onChange={setMedia}
+          disabled={isSubmitting}
+        />
+
         {/* Content Type Selector */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-content-secondary uppercase tracking-wider">
@@ -299,7 +350,6 @@ export default function CrearPublicacionPage() {
             {url.trim() ? 'Descripción y Respeto Cultural *' : 'Tus Barras, Letras o Pensamiento *'}
           </label>
           <textarea
-            required
             rows={5}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -365,7 +415,7 @@ export default function CrearPublicacionPage() {
         <div className="pt-3">
           <button
             type="submit"
-            disabled={isSubmitting || (!description.trim() && !url.trim())}
+            disabled={isSubmitting || (!description.trim() && !url.trim() && media.length === 0)}
             className="w-full py-3.5 rounded-xl bg-acid hover:bg-acid-hover text-background font-display font-black text-lg tracking-wider uppercase shadow-acid-glow flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none transition-all"
           >
             {isSubmitting ? (

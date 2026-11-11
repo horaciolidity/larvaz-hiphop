@@ -26,7 +26,10 @@ export default function NotificacionesPage() {
     }
   };
 
-  const getMessage = (type: string, actorName: string) => {
+  const getMessage = (type: string, isReferral: boolean) => {
+    if (isReferral) {
+      return `se registró en Larvaz con tu enlace de referido. ¡Ganaste +50 Props!`;
+    }
     switch (type) {
       case 'like':
         return `le dio props a tu publicación en el muro.`;
@@ -65,7 +68,9 @@ export default function NotificacionesPage() {
             </p>
           </div>
         ) : (
-          notifications.map((notif) => (
+          notifications.map((notif) => {
+            const isReferral = notif.type === 'mention' && !notif.post_id;
+            return (
             <div
               key={notif.id}
               className={`p-3.5 rounded-xl border transition-colors flex items-center justify-between gap-3 ${
@@ -76,7 +81,7 @@ export default function NotificacionesPage() {
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="p-2 rounded-lg bg-surface border border-surface-border flex-shrink-0">
-                  {getIcon(notif.type)}
+                  {isReferral ? <UserPlus className="w-4 h-4 text-acid" /> : getIcon(notif.type)}
                 </div>
 
                 <Link
@@ -92,7 +97,7 @@ export default function NotificacionesPage() {
                     <p className="text-xs text-content-primary group-hover:text-acid transition-colors">
                       <strong className="font-bold">{notif.actor?.full_name}</strong>{' '}
                       <span className="text-content-secondary font-normal">
-                        {getMessage(notif.type, notif.actor?.full_name)}
+                        {getMessage(notif.type, isReferral)}
                       </span>
                     </p>
                     <span className="text-[10px] text-content-muted">
@@ -114,7 +119,8 @@ export default function NotificacionesPage() {
                 </Link>
               )}
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

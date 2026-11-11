@@ -15,8 +15,10 @@ import {
   RadioTrack,
   UserRole,
   WithdrawalRequest,
+  PostMedia,
 } from '@/types';
 import { dataStore, GUEST_USER, INITIAL_PROFILES } from '@/lib/data-store';
+import { mapDbPostToPost } from '@/lib/post-mapper';
 import { isSupabaseConfigured, createClient } from '@/lib/supabase/client';
 
 interface AppContextType {
@@ -52,6 +54,9 @@ interface AppContextType {
 
   // Referrals
   getReferredUsers: () => Profile[];
+  referredUsers: Profile[];
+  referralStats: { count: number; props: number };
+  refreshReferrals: () => Promise<void>;
 
   // Crypto Tipping, Balance & Withdrawals
   sendCryptoTip: (data: {
@@ -102,6 +107,7 @@ interface AppContextType {
     contentType?: ContentType;
     provider?: any;
     metadata?: any;
+    media?: PostMedia[];
   }) => Post;
   createEvent: (data: any) => HipHopEvent;
   deleteEvent: (eventIdOrSlug: string) => boolean;
@@ -197,8 +203,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       audioRef.current.pause();
       setIsRadioPlaying(false);
     } else {
-      if (!audioRef.current.src || audioRef.current.src !== currentStation.stream_url) {
-        audioRef.current.src = currentStation.stream_url;
+      // Leer la emisora activa del store evita reproducir la anterior cuando
+      // changeStation() y toggleRadio() se llaman en el mismo click.
+      const activeStation = dataStore.getActiveRadioStation() || currentStation;
+      if (!audioRef.current.src || audioRef.current.src !== activeStation.stream_url) {
+        audioRef.current.src = activeStation.stream_url;
       }
       audioRef.current
         .play()
@@ -415,90 +424,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const mapPostFromDB = useCallback((p: any): Post => {
-    const pm = Array.isArray(p.post_metadata) ? p.post_metadata[0] : p.post_metadata;
-    const rawMeta = pm?.raw_metadata || p.metadata || {};
-    const savedAuthor = rawMeta?.author;
-
-    const isFallbackDbUser =
-      p.user_id === '00000000-0000-0000-0000-000000000001' ||
-      p.profiles?.username === 'admin_demo';
-
-    let author: Profile;
-    if (savedAuthor && (isFallbackDbUser || !p.profiles)) {
-      author = {
-        id: savedAuthor.id || p.user_id,
-        username: savedAuthor.username || 'artista',
-        full_name: savedAuthor.full_name || savedAuthor.username || 'Artista Larvaz',
-        avatar_url: savedAuthor.avatar_url || '',
-        location: savedAuthor.location || rawMeta.location || 'Mendoza, Argentina',
-        artistic_disciplines: savedAuthor.artistic_disciplines || '',
-        role: savedAuthor.role || 'user',
-        is_banned: false,
-        created_at: p.created_at,
-      };
-    } else if (p.profiles) {
-      author = {
-        ...p.profiles,
-        avatar_url: p.profiles.avatar_url || savedAuthor?.avatar_url || '',
-        location: p.profiles.location || savedAuthor?.location || rawMeta.location || 'Mendoza, Argentina',
-        artistic_disciplines: p.profiles.artistic_disciplines || savedAuthor?.artistic_disciplines || '',
-      };
-    } else {
-      author = {
-        id: p.user_id,
-        username: 'artista_' + (p.user_id ? String(p.user_id).substring(0, 5) : 'comunitario'),
-        full_name: 'Artista Comunitario',
-        avatar_url: '',
-        location: rawMeta.location || 'Mendoza, Argentina',
-        role: 'user',
-        is_banned: false,
-        created_at: p.created_at,
-      };
-    }
-
-    const isPlaceholderUrl =
-      !p.external_url || p.external_url === 'https://larvaz-hiphop.vercel.app';
-    const hasRealExternalUrl =
-      rawMeta.has_external_url !== undefined
-        ? Boolean(rawMeta.has_external_url)
-        : !isPlaceholderUrl;
-
-    const realContentType: ContentType =
-      rawMeta.real_content_type ||
-      (!hasRealExternalUrl ? 'text' : (p.content_type || 'link'));
-
-    const postMeta =
-      pm || rawMeta
-        ? {
-            title: pm?.title || rawMeta?.title || undefined,
-            author_name: pm?.author_name || rawMeta?.author_name || undefined,
-            thumbnail_url: pm?.thumbnail_url || rawMeta?.thumbnail_url || undefined,
-            description: pm?.description || rawMeta?.description || undefined,
-            embed_url: pm?.embed_url || rawMeta?.embed_url || undefined,
-            provider: p.provider || rawMeta?.provider || 'generic',
-            location: rawMeta?.location || author.location,
-          }
-        : undefined;
-
-    return {
-      id: p.id ? String(p.id) : 'post-' + p.created_at,
-      user_id: savedAuthor?.id || p.user_id,
-      external_url: hasRealExternalUrl ? p.external_url : undefined,
-      normalized_url: hasRealExternalUrl ? (p.normalized_url || p.external_url) : undefined,
-      provider: p.provider || 'generic',
-      content_type: realContentType,
-      description: p.description || '',
-      tags: Array.isArray(p.tags) ? p.tags : [],
-      likes_count: p.likes_count || 0,
-      comments_count: p.comments_count || 0,
-      is_hidden: p.is_hidden || false,
-      created_at: p.created_at,
-      author,
-      metadata: postMeta,
-      user_has_liked: false,
-      user_has_bookmarked: false,
-      views_count: p.views_count || 1,
-    };
+    return mapDbPostToPost(p);
   }, []);
 
   // Cross-tab real-time sync via BroadcastChannel & LocalStorage events
@@ -971,6 +897,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (authData.user) {
         await syncSupabaseProfile(authData.user);
+
+        // Registrar el referido también en el servidor (notifications como fuente de verdad)
+        if (data.referralCode) {
+          try {
+            await fetch('/api/referrals', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                referrer: data.referralCode,
+                referred_id: authData.user.id,
+                referred_username: cleanUsername,
+                referred_name: data.fullName,
+                referred_avatar: authData.user.user_metadata?.avatar_url || '',
+              }),
+            });
+          } catch {
+            // el registro local sigue funcionando como respaldo
+          }
+        }
+
         return {
           success: true,
           message: authData.session
@@ -1007,6 +953,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Save profile into store list and notify other tabs
     dataStore.addProfile(newProfile);
     syncProfilesState();
+    refreshReferrals();
     if (typeof window !== 'undefined') {
       try {
         const bc = new BroadcastChannel('larvaz_community_sync');
@@ -1042,7 +989,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentUser(GUEST_USER);
   };
 
+  const [referredUsers, setReferredUsers] = useState<Profile[]>([]);
+  const [referralStats, setReferralStats] = useState<{ count: number; props: number }>({
+    count: 0,
+    props: 0,
+  });
+
+  const refreshReferrals = useCallback(async () => {
+    const local = dataStore.getReferredUsers(currentUser.username);
+    const localStats = dataStore.updateReferralStats(currentUser.username);
+    const merged = new Map<string, Profile>();
+    local.forEach((p) => merged.set(p.id, p));
+    setReferredUsers(Array.from(merged.values()));
+    setReferralStats({
+      count: localStats.count,
+      props: localStats.props,
+    });
+
+    if (!currentUser.username || currentUser.is_guest) return;
+
+    try {
+      const res = await fetch(
+        `/api/referrals?username=${encodeURIComponent(currentUser.username)}&t=${Date.now()}`,
+        { cache: 'no-store' }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const remote: Profile[] = Array.isArray(data?.referredUsers) ? data.referredUsers : [];
+      remote.forEach((p) => merged.set(p.id, p));
+      const list = Array.from(merged.values());
+      setReferredUsers(list);
+
+      const count = Math.max(Number(data?.count) || 0, list.length);
+      setReferralStats({
+        count,
+        props: Number(data?.props) || count * 50,
+      });
+    } catch {
+      // el conteo local queda como respaldo
+    }
+  }, [currentUser.username, currentUser.is_guest]);
+
+  useEffect(() => {
+    refreshReferrals();
+  }, [refreshReferrals]);
+
   const getReferredUsers = (): Profile[] => {
+    if (referredUsers.length > 0) return referredUsers;
     return dataStore.getReferredUsers(currentUser.username);
   };
 
@@ -1172,7 +1165,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createPost = (data: any) => {
-    const newPost = dataStore.createPost(data);
+    const media = Array.isArray(data.media) ? data.media : data.metadata?.media;
+    const metadata = media?.length
+      ? { ...(data.metadata || {}), media }
+      : data.metadata;
+    const newPost = dataStore.createPost({ ...data, media, metadata });
     autoSyncedIdsRef.current.add(newPost.id);
     refreshPosts();
     setRadioStations([...dataStore.getRadioStations()]);
@@ -1465,6 +1462,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         changeStation,
         playCommunityTrack,
         getReferredUsers,
+        referredUsers,
+        referralStats,
+        refreshReferrals,
         sendCryptoTip,
         getCryptoTips,
         balance,

@@ -42,7 +42,8 @@ export default function UserPanelPage() {
     balance,
     withdrawals,
     requestWithdrawal,
-    getReferredUsers,
+    referredUsers,
+    referralStats,
     logout,
   } = useApp();
   const [mounted, setMounted] = useState(false);
@@ -51,7 +52,6 @@ export default function UserPanelPage() {
   const [activeTab, setActiveTab] = useState<'resumen' | 'cripto' | 'referidos' | 'publicaciones' | 'eventos'>('resumen');
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const referredUsers = getReferredUsers();
   const referralLink = mounted && typeof window !== 'undefined' ? `${window.location.origin}/registro?ref=${currentUser.username}` : '';
 
   // Wallet form state
@@ -195,7 +195,7 @@ export default function UserPanelPage() {
       </div>
 
       {/* 2. Key Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="p-3.5 rounded-2xl bg-surface border border-surface-border text-center">
           <p className="font-display font-black text-2xl text-acid">{userPosts.length}</p>
           <p className="text-[11px] font-bold text-content-secondary uppercase mt-0.5">Publicaciones</p>
@@ -211,6 +211,12 @@ export default function UserPanelPage() {
         <div className="p-3.5 rounded-2xl bg-surface border border-surface-border text-center">
           <p className="font-display font-black text-2xl text-orange">{currentUser.followers_count || 0}</p>
           <p className="text-[11px] font-bold text-content-secondary uppercase mt-0.5">Seguidores</p>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-surface border border-acid/30 text-center">
+          <p className="font-display font-black text-2xl text-acid">
+            {referralStats.count || referredUsers.length}
+          </p>
+          <p className="text-[11px] font-bold text-content-secondary uppercase mt-0.5">Referidos</p>
         </div>
       </div>
 
@@ -246,7 +252,7 @@ export default function UserPanelPage() {
           }`}
         >
           <Gift className="w-3.5 h-3.5" />
-          <span>Referidos ({currentUser.referrals_count || referredUsers.length})</span>
+          <span>Referidos ({referralStats.count || referredUsers.length})</span>
         </button>
         <button
           onClick={() => setActiveTab('publicaciones')}
@@ -350,8 +356,8 @@ export default function UserPanelPage() {
               </button>
             </div>
             <div className="flex items-center justify-between pt-1 border-t border-surface-border/40 text-[11px] text-content-secondary">
-              <span>Referidos activos: <strong className="text-content-primary">{currentUser.referrals_count || referredUsers.length}</strong></span>
-              <span>Props obtenidos: <strong className="text-acid">+{currentUser.referral_props_earned || (referredUsers.length * 50)}</strong></span>
+              <span>Referidos activos: <strong className="text-content-primary">{referralStats.count || referredUsers.length}</strong></span>
+              <span>Props obtenidos: <strong className="text-acid">+{referralStats.props || (referredUsers.length * 50)}</strong></span>
             </div>
           </div>
 

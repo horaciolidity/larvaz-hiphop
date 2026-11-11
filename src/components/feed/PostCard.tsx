@@ -5,20 +5,21 @@ import Link from 'next/link';
 import { Post } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { MediaEmbed } from './MediaEmbed';
+import { PostMediaGallery } from './PostMediaGallery';
+import { SharePostButton } from './SharePostButton';
 import { ReportModal } from '@/components/common/ReportModal';
 import { CryptoTipModal } from './CryptoTipModal';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
+import { normalizeMediaList } from '@/lib/media-utils';
 import {
   Heart,
   MessageCircle,
   Bookmark,
-  Share2,
   MoreVertical,
   Flag,
   Trash2,
   Send,
-  Check,
   Coins,
   Eye,
 } from 'lucide-react';
@@ -42,7 +43,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
 
   const [showComments, setShowComments] = useState(showCommentsDefault);
   const [commentText, setCommentText] = useState('');
-  const [isCopied, setIsCopied] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
@@ -84,27 +84,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
     }
   };
 
-  const handleShare = async () => {
-    const postUrl = typeof window !== 'undefined' ? `${window.location.origin}/publicacion/${post.id}` : '';
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Larvaz Hip-Hop: ${post.author.full_name}`,
-          text: post.description,
-          url: postUrl,
-        });
-        return;
-      } catch {
-        // fallback to clipboard
-      }
-    }
-
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(postUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
-  };
+  const postMedia =
+    post.media && post.media.length > 0
+      ? post.media
+      : normalizeMediaList(post.metadata?.media);
 
   const requireAuth = (reason: string): boolean => {
     if (currentUser?.is_guest) {
@@ -285,7 +268,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
         )}
       </div>
 
-      {/* 3. Media Preview / Embedded Player (only if externalUrl is present) */}
+      {/* 3. Archivos subidos a Larvaz (fotos / audios con plantilla visual) */}
+      <PostMediaGallery media={postMedia} />
+
+      {/* Embed externo (solo si hay un enlace real) */}
       {post.external_url && (
         <MediaEmbed
           metadata={post.metadata}
@@ -376,21 +362,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
           </span>
         </div>
 
-        {/* Share Button with Toast indication */}
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-1.5 py-1 px-2 rounded-lg hover:text-content-primary hover:bg-surface-elevated transition-colors"
-          aria-label="Compartir"
-        >
-          {isCopied ? (
-            <span className="flex items-center gap-1 text-acid font-bold">
-              <Check className="w-4 h-4" />
-              <span>Copiado</span>
-            </span>
-          ) : (
-            <Share2 className="w-4 h-4" />
-          )}
-        </button>
+        {/* Share Button: siempre comparte el enlace oficial de Larvaz */}
+        <SharePostButton post={post} variant="icon" />
       </div>
 
       {/* 5. Inline Comments Drawer */}

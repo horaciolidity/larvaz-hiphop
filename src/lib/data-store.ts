@@ -12,8 +12,9 @@ import {
   RadioTrack,
   UserRole,
   WithdrawalRequest,
+  PostMedia,
 } from '@/types';
-import { resolveIpfsUrl } from './media-utils';
+import { normalizeMediaList, resolveIpfsUrl } from './media-utils';
 
 
 
@@ -563,6 +564,22 @@ export const INITIAL_RADIO_STATIONS: RadioStation[] = [
       album_art: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop',
     },
     listeners_count: 310,
+    is_live: true,
+  },
+  {
+    id: 'station-breaking-bboys',
+    name: 'B-BOYS & B-GIRLS RADIO',
+    dial: 'BREAKBEAT FM',
+    region: '🌎 Cyphers & Battles (Global)',
+    tagline: 'Breakbeats, funk, soul y clásicos para entrar al cypher y entrenar tus moves',
+    stream_url: 'https://listen.181fm.com/181-party_128k.mp3',
+    genre: 'Breaking / Breakbeat / Funk & Soul',
+    current_track: {
+      title: 'Cypher Breakbeats & Funk Essentials',
+      artist: 'Larvaz B-Boy Radio',
+      album_art: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=300&h=300&fit=crop',
+    },
+    listeners_count: 430,
     is_live: true,
   },
 
@@ -1177,38 +1194,116 @@ class LarvazDataStore {
 
 
   getReferredUsers(usernameOrId: string): Profile[] {
-    const clean = usernameOrId.toLowerCase();
-    return this.profiles.filter(
+    const clean = (usernameOrId || '').toLowerCase().trim().replace(/^@/, '');
+    if (!clean) return [];
+
+    const me = this.profiles.find(
       (p) =>
-        p.referred_by?.toLowerCase() === clean ||
-        p.referral_code?.toLowerCase() === clean
+        p.id === usernameOrId ||
+        p.username.toLowerCase() === clean
     );
+
+    // Aceptamos tanto el @usuario como el código "larvaz-usuario"
+    const validKeys = new Set<string>([
+      clean,
+      `larvaz-${clean}`,
+      ...(me?.referral_code ? [me.referral_code.toLowerCase()] : []),
+      ...(me?.username ? [me.username.toLowerCase()] : []),
+    ]);
+
+    const unique = new Map<string, Profile>();
+    for (const profile of this.profiles) {
+      if (me && profile.id === me.id) continue;
+      const referredBy = (profile.referred_by || '').toLowerCase().trim().replace(/^@/, '');
+      if (referredBy && validKeys.has(referredBy)) {
+        unique.set(profile.id, profile);
+      }
+    }
+
+    return Array.from(unique.values());
   }
 
-  registerReferral(referrerUsername: string, newProfile: Profile) {
-    const clean = referrerUsername.toLowerCase();
+  registerReferral(referrerUsername: string, newProfile: Profile): boolean {
+    const clean = (referrerUsername || '').toLowerCase().trim().replace(/^@/, '');
+    if (!clean) return false;
+
     const referrer = this.profiles.find(
       (p) =>
         p.username.toLowerCase() === clean ||
+        p.username.toLowerCase() === clean.replace(/^larvaz-/, '') ||
         p.referral_code?.toLowerCase() === clean
     );
+
+    if (!referrer) return false;
+
+    // Nunca permitir auto-referidos ni referidos duplicados
+    if (
+      referrer.id === newProfile.id ||
+      referrer.username.toLowerCase() === newProfile.username.toLowerCase()
+    ) {
+      return false;
+    }
+
+    const alreadyExists =
+      Boolean(newProfile.referred_by) &&
+      newProfile.referred_by !== referrer.username;
+    const alreadyTracked = this.notifications.some(
+      (n) =>
+        n.user_id === referrer.id &&
+        n.type === 'mention' &&
+        !n.post_id &&
+        (n.actor_id === newProfile.id ||
+          (n.actor?.username || '').toLowerCase() ===
+            newProfile.username.toLowerCase())
+    );
+    const profileAlreadyReferred =
+      newProfile.id &&
+      this.profiles.some(
+        (p) =>
+          (p.id === newProfile.id ||
+            p.username.toLowerCase() === newProfile.username.toLowerCase()) &&
+          Boolean(p.referred_by)
+      );
+
+    if (alreadyExists || alreadyTracked || profileAlreadyReferred) {
+      return false;
+    }
+
+    referrer.referrals_count = (referrer.referrals_count || 0) + 1;
+    referrer.referral_props_earned = (referrer.referral_props_earned || 0) + 50;
+    newProfile.referred_by = referrer.username;
+
+    this.notifications.unshift({
+      id: 'notif-referral-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      user_id: referrer.id,
+      actor_id: newProfile.id,
+      type: 'mention',
+      actor: newProfile,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+
+    this.saveToStorage();
+    return true;
+  }
+
+  /** Recalcula contadores de referidos a partir de la lista real de miembros. */
+  updateReferralStats(usernameOrId: string) {
+    const referred = this.getReferredUsers(usernameOrId);
+    const clean = (usernameOrId || '').toLowerCase().trim().replace(/^@/, '');
+    const referrer = this.profiles.find(
+      (p) => p.username.toLowerCase() === clean || p.id === usernameOrId
+    );
     if (referrer) {
-      referrer.referrals_count = (referrer.referrals_count || 0) + 1;
-      referrer.referral_props_earned = (referrer.referral_props_earned || 0) + 50;
-      newProfile.referred_by = referrer.username;
-
-      this.notifications.unshift({
-        id: 'notif-referral-' + Date.now(),
-        user_id: referrer.id,
-        actor_id: newProfile.id,
-        type: 'mention',
-        actor: newProfile,
-        read: false,
-        created_at: new Date().toISOString(),
-      });
-
+      referrer.referrals_count = referred.length;
+      referrer.referral_props_earned = referred.length * 50;
+      if (this.currentUser.id === referrer.id) {
+        this.currentUser.referrals_count = referrer.referrals_count;
+        this.currentUser.referral_props_earned = referrer.referral_props_earned;
+      }
       this.saveToStorage();
     }
+    return { count: referred.length, props: referred.length * 50 };
   }
 
   createPost(data: {
@@ -1218,7 +1313,14 @@ class LarvazDataStore {
     contentType?: ContentType;
     provider?: any;
     metadata?: any;
+    media?: PostMedia[];
   }): Post {
+    const media = normalizeMediaList(
+      Array.isArray(data.media) ? data.media : data.metadata?.media
+    );
+    const hasMedia = media.length > 0;
+    const hasAudioMedia = media.some((m) => m.type === 'audio');
+    const hasImageMedia = media.some((m) => m.type === 'image');
     const hasUrl = Boolean(data.externalUrl && data.externalUrl.trim());
     const isMusicTrack =
       data.contentType === 'music' ||
@@ -1254,7 +1356,15 @@ class LarvazDataStore {
       external_url: hasUrl ? data.externalUrl!.trim() : undefined,
       normalized_url: hasUrl ? data.externalUrl!.trim() : undefined,
       provider: data.provider || (hasUrl ? 'generic' : 'generic'),
-      content_type: data.contentType || (hasUrl ? (isMusicTrack ? 'music' : 'link') : 'text'),
+      content_type:
+        data.contentType ||
+        (hasUrl
+          ? (isMusicTrack ? 'music' : 'link')
+          : hasAudioMedia
+            ? 'music'
+            : hasImageMedia
+              ? 'visual_art'
+              : 'text'),
       description: data.description,
       tags: data.tags || [],
       likes_count: 0,
@@ -1264,8 +1374,18 @@ class LarvazDataStore {
       author: authorWithLocation,
       metadata: {
         ...data.metadata,
+        media: hasMedia ? media : undefined,
+        media_type:
+          media[0]?.type === 'audio'
+            ? 'audio'
+            : media[0]?.type === 'image'
+              ? 'image'
+              : media[0]?.type === 'video'
+                ? 'video'
+                : data.metadata?.media_type,
         location: userLocation,
       },
+      media: hasMedia ? media : undefined,
       user_has_liked: false,
       user_has_bookmarked: false,
       views_count: 1,
@@ -1286,6 +1406,26 @@ class LarvazDataStore {
         username: this.currentUser.username,
         post_id: newPost.id,
         created_at: newPost.created_at,
+      });
+    }
+
+    // Los audios subidos directamente también entran a la radio comunitaria
+    const uploadedAudios = media.filter((m) => m.type === 'audio');
+    if (uploadedAudios.length > 0) {
+      const cover = media.find((m) => m.type === 'image')?.url || this.currentUser.avatar_url;
+      uploadedAudios.forEach((audio, index) => {
+        this.addTrackToCommunityRadio({
+          id: `track-upload-${Date.now()}-${index}`,
+          title: audio.name || data.description?.slice(0, 40) || `Audio de @${this.currentUser.username}`,
+          artist: this.currentUser.full_name || `@${this.currentUser.username}`,
+          url: audio.url,
+          audio_url: audio.url,
+          album_art: cover,
+          user_id: this.currentUser.id,
+          username: this.currentUser.username,
+          post_id: newPost.id,
+          created_at: newPost.created_at,
+        });
       });
     }
 
@@ -1982,10 +2122,10 @@ class LarvazDataStore {
   }
 
   addTrackToCommunityRadio(track: RadioTrack): void {
-    // Avoid duplicates by post_id or url
-    const exists = this.communityTracks.some(
-      (t) => t.post_id === track.post_id || (t.url && t.url === track.url)
-    );
+    // Evitar duplicados por URL; si no hay URL, por publicación
+    const exists = track.url
+      ? this.communityTracks.some((t) => t.url === track.url)
+      : this.communityTracks.some((t) => Boolean(track.post_id) && t.post_id === track.post_id);
     if (!exists) {
       this.communityTracks.unshift(track);
     }

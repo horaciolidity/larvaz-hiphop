@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import {
@@ -8,18 +8,32 @@ import {
   Users,
   Star,
   Play,
+  Pause,
   Trophy,
   MapPin,
   Calendar,
-  ChevronRight,
   Flame,
   Radio,
-  Music,
   Target,
   Shield,
+  Check,
+  PlusCircle,
+  Music,
+  Mic2,
 } from 'lucide-react';
 
-const CREWS = [
+const BREAKING_TAGS = [
+  'breaking',
+  'bboy',
+  'bgirl',
+  'b-boy',
+  'b-girl',
+  'breakdance',
+  'cypher',
+  'battle',
+];
+
+const STATIC_CREWS = [
   {
     id: 'c1',
     name: 'Vortex Bboy Crew',
@@ -28,6 +42,7 @@ const CREWS = [
     style: 'Power Moves & Freezes',
     avatar: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=100&h=100&fit=crop',
     wins: 12,
+    username: '',
   },
   {
     id: 'c2',
@@ -37,6 +52,7 @@ const CREWS = [
     style: 'Footwork & Toprock',
     avatar: 'https://images.unsplash.com/photo-1547910780-d1694e2d41c1?w=100&h=100&fit=crop',
     wins: 9,
+    username: '',
   },
   {
     id: 'c3',
@@ -46,6 +62,7 @@ const CREWS = [
     style: 'Old School & Windmills',
     avatar: 'https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=100&h=100&fit=crop',
     wins: 15,
+    username: '',
   },
   {
     id: 'c4',
@@ -55,6 +72,7 @@ const CREWS = [
     style: 'Floorwork & Backspin',
     avatar: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=100&h=100&fit=crop',
     wins: 7,
+    username: '',
   },
 ];
 
@@ -67,15 +85,23 @@ const MOVES = [
   { name: 'Airflare', level: 'Avanzado', emoji: '🔥', desc: 'Rotación aérea solo sobre las manos. El move más difícil del breaking.' },
 ];
 
-const BATTLES = [
+const TIPS = [
+  { icon: '🎵', title: 'Musicalidad', desc: 'Estudia los breaks del vinilo. Tu cuerpo tiene que responder al snare, el kick y el sample.' },
+  { icon: '💪', title: 'Acondicionamiento', desc: 'Trabaja core, muñecas y cuello antes de intentar power moves. La prevención es clave.' },
+  { icon: '🎯', title: 'Practica el Cypher', desc: 'Entra al círculo aunque no estés listo. El cypher enseña más que cualquier espejo.' },
+  { icon: '📹', title: 'Filmate', desc: 'Graba tus sessions. El ojo externo revela errores que no ves desde adentro.' },
+];
+
+const STATIC_BATTLES = [
   {
     id: 'b1',
     name: 'Cypher del Sur 2026',
     date: 'Nov 15, 2026',
     location: 'Plaza de Armas, Santiago',
     format: '1v1 / 2v2',
-    prize: '$50 USD + Trophy',
-    status: 'open',
+    prize: '$50 USD + Trofeo',
+    status: 'open' as const,
+    href: '/crear?tag=breaking',
   },
   {
     id: 'b2',
@@ -84,7 +110,8 @@ const BATTLES = [
     location: 'Centro Cultural Recoleta, Buenos Aires',
     format: 'Crew vs Crew',
     prize: '$120 USD',
-    status: 'open',
+    status: 'open' as const,
+    href: '/crear?tag=breaking',
   },
   {
     id: 'b3',
@@ -92,37 +119,153 @@ const BATTLES = [
     date: 'Ene 20, 2027',
     location: 'Foro Indie Rocks, Ciudad de México',
     format: '1v1 Eliminatoria',
-    prize: '$300 USD + Travel Expenses',
-    status: 'upcoming',
+    prize: '$300 USD + Viaje',
+    status: 'upcoming' as const,
+    href: '/crear?tag=breaking',
   },
 ];
 
-const TIPS = [
-  { icon: '🎵', title: 'Musicalidad', desc: 'Estudia los breaks del vinilo. Tu cuerpo tiene que responder al snare, el kick y el sample.' },
-  { icon: '💪', title: 'Acondicionamiento', desc: 'Trabaja core, muñecas y cuello antes de intentar power moves. La prevención es clave.' },
-  { icon: '🎯', title: 'Practica el Cypher', desc: 'Entra al círculo aunque no estés listo. El cypher enseña más que cualquier espejo.' },
-  { icon: '📹', title: 'Filmate', desc: 'Graba tus sessions. El ojo externo revela errores que no ves desde adentro.' },
-];
+function normalize(value?: string): string {
+  return (value || '').toLowerCase();
+}
+
+function matchesBreaking(tags?: string[]): boolean {
+  return (tags || []).some((tag) => BREAKING_TAGS.includes(normalize(tag)));
+}
 
 export default function BreakingPage() {
-  const { changeStation, isRadioPlaying, toggleRadio } = useApp();
-  const [activeTab, setActiveTab] = useState<'crews' | 'moves' | 'battles' | 'tips'>('crews');
+  const {
+    posts,
+    events,
+    availableProfiles,
+    changeStation,
+    isRadioPlaying,
+    toggleRadio,
+    currentStation,
+  } = useApp();
+  const [activeTab, setActiveTab] = useState<'cypher' | 'crews' | 'moves' | 'battles' | 'tips'>('cypher');
+  const [progress, setProgress] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('larvaz_breaking_progress');
+      if (saved) setProgress(JSON.parse(saved));
+    } catch {
+      // sin progreso guardado
+    }
+  }, []);
+
+  const saveProgress = (next: Record<string, number>) => {
+    setProgress(next);
+    try {
+      localStorage.setItem('larvaz_breaking_progress', JSON.stringify(next));
+    } catch {
+      // almacenamiento no disponible
+    }
+  };
+
+  const trainMove = (name: string) => {
+    const current = progress[name] || 0;
+    saveProgress({ ...progress, [name]: Math.min(100, current + 20) });
+  };
+
+  const isBreakingStation = currentStation?.id === 'station-breaking-bboys';
+  const isBreakingPlaying = isRadioPlaying && isBreakingStation;
 
   const handlePlayBreaking = () => {
+    if (isBreakingPlaying) {
+      toggleRadio();
+      return;
+    }
     changeStation('station-breaking-bboys');
     if (!isRadioPlaying) toggleRadio();
   };
+
+  const breakingProfiles = availableProfiles.filter((profile) => {
+    const haystack = normalize(
+      `${profile.artistic_disciplines || ''} ${profile.bio || ''} ${profile.username || ''}`
+    );
+    return /break|bboy|bgirl|b-boy|b-girl|floor|cypher/.test(haystack);
+  });
+
+  const dynamicCrews = breakingProfiles.slice(0, 6).map((profile) => ({
+    id: profile.id,
+    name: profile.full_name || profile.username,
+    city: profile.location || 'Comunidad Larvaz',
+    members: 1,
+    style: profile.artistic_disciplines || 'Breaking / Cypher',
+    avatar:
+      profile.avatar_url ||
+      'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=100&h=100&fit=crop',
+    wins: 0,
+    username: profile.username,
+  }));
+
+  const crews = [
+    ...dynamicCrews,
+    ...STATIC_CREWS.filter(
+      (crew) =>
+        !dynamicCrews.some((dynamic) =>
+          normalize(dynamic.name).includes(normalize(crew.name).split(' ')[0])
+        )
+    ),
+  ].slice(0, 8);
+
+  const breakingPosts = posts.filter(
+    (post) =>
+      matchesBreaking(post.tags) ||
+      /breaking|b-boy|b-girl|bboy|bgirl|cypher/i.test(post.description || '')
+  );
+
+  const breakingEvents = events.filter(
+    (event) =>
+      matchesBreaking(event.tags) ||
+      /break|b-boy|b-girl|bboy|bgirl|battle|cypher/i.test(
+        `${event.title || ''} ${event.description || ''}`
+      )
+  );
+
+  const battles = [
+    ...breakingEvents.slice(0, 6).map((event) => {
+      const start = event.start_date ? new Date(event.start_date) : null;
+      const hasValidDate = Boolean(start && !isNaN(start.getTime()));
+      return {
+        id: event.id,
+        name: event.title,
+        date: hasValidDate
+          ? start!.toLocaleDateString('es-AR', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : 'Fecha por confirmar',
+        location: event.location || (event.is_online ? 'Online' : 'Por confirmar'),
+        format: event.tags?.some((tag) => normalize(tag).includes('crew'))
+          ? 'Crew vs Crew'
+          : '1v1 / Cypher',
+        prize: 'Premios de la comunidad',
+        status: 'open' as const,
+        href: `/eventos/${event.slug}`,
+      };
+    }),
+    ...STATIC_BATTLES,
+  ].slice(0, 8);
+
+  const totalBboys = Math.max(breakingProfiles.length, 0);
+  const activeBattles = battles.filter((battle) => battle.status !== 'upcoming').length;
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
       {/* Hero Header */}
       <div className="relative p-6 rounded-3xl overflow-hidden border border-magenta/40 bg-surface shadow-2xl">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,45,149,0.12),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(198,255,0,0.08),transparent_60%)] pointer-events-none" />
-        
+
         <div className="relative z-10 space-y-3">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-magenta animate-pulse" />
-            <span className="text-[11px] font-bold text-magenta tracking-widest uppercase">Cultura Hip-Hop</span>
+            <span className="text-[11px] font-bold text-magenta tracking-widest uppercase">
+              Cultura Hip-Hop · Elemento 3
+            </span>
           </div>
           <h1 className="font-display font-black text-4xl text-content-primary tracking-tight leading-none">
             B-BOYS<br /><span className="text-magenta">&</span> B-GIRLS
@@ -130,21 +273,28 @@ export default function BreakingPage() {
           <p className="text-xs text-content-secondary leading-relaxed max-w-sm">
             El breaking es el pilar atlético y artístico del hip-hop. Crews, cyphers, battles y el sonido del linóleo — todo en un lugar.
           </p>
-          
-          <div className="flex items-center gap-2 pt-1">
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <button
               onClick={handlePlayBreaking}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-magenta text-white font-bold text-xs hover:opacity-90 transition-all shadow-lg"
             >
-              <Radio className="w-3.5 h-3.5" />
-              <span>Radio B-Boy</span>
+              {isBreakingPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              <span>{isBreakingPlaying ? 'Pausar B-Boy Radio' : 'Radio B-Boy'}</span>
             </button>
             <Link
-              href="/eventos"
+              href="/eventos?tag=breaking"
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-elevated border border-surface-border text-xs font-bold text-content-primary hover:border-magenta/50 transition-all"
             >
               <Calendar className="w-3.5 h-3.5 text-magenta" />
               <span>Ver Battles</span>
+            </Link>
+            <Link
+              href="/crear?tag=breaking"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-acid/15 border border-acid/40 text-acid text-xs font-bold hover:bg-acid hover:text-background transition-all"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Subir mi Cypher</span>
             </Link>
           </div>
         </div>
@@ -152,15 +302,15 @@ export default function BreakingPage() {
         {/* Stats bar */}
         <div className="relative z-10 mt-5 pt-4 border-t border-surface-border/60 grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="font-display font-black text-xl text-magenta">48</p>
+            <p className="font-display font-black text-xl text-magenta">{totalBboys}</p>
             <p className="text-[10px] text-content-muted uppercase font-bold">B-Boys/Girls</p>
           </div>
           <div>
-            <p className="font-display font-black text-xl text-acid">4</p>
+            <p className="font-display font-black text-xl text-acid">{crews.length}</p>
             <p className="text-[10px] text-content-muted uppercase font-bold">Crews Activos</p>
           </div>
           <div>
-            <p className="font-display font-black text-xl text-cyan">3</p>
+            <p className="font-display font-black text-xl text-cyan">{activeBattles}</p>
             <p className="text-[10px] text-content-muted uppercase font-bold">Battles Próximas</p>
           </div>
         </div>
@@ -168,7 +318,15 @@ export default function BreakingPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1.5 border-b border-surface-border pb-2 overflow-x-auto">
-        {([['crews', 'Crews'], ['moves', 'Moves'], ['battles', 'Battles'], ['tips', 'Tips']] as const).map(([tab, label]) => (
+        {(
+          [
+            ['cypher', 'Cypher'],
+            ['crews', 'Crews'],
+            ['moves', 'Moves'],
+            ['battles', 'Battles'],
+            ['tips', 'Tips'],
+          ] as const
+        ).map(([tab, label]) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -183,6 +341,97 @@ export default function BreakingPage() {
         ))}
       </div>
 
+      {/* Tab: Cypher Feed */}
+      {activeTab === 'cypher' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display font-black text-sm text-content-primary uppercase tracking-wider flex items-center gap-2">
+              <Flame className="w-4 h-4 text-magenta" />
+              Cypher de la Comunidad
+            </h2>
+            <span className="text-[11px] text-content-muted">
+              {breakingPosts.length} publicaciones
+            </span>
+          </div>
+
+          {breakingPosts.length === 0 ? (
+            <div className="p-6 rounded-2xl bg-surface border border-surface-border text-center space-y-3">
+              <Mic2 className="w-8 h-8 text-magenta mx-auto" />
+              <p className="text-sm font-bold text-content-primary">
+                Todavía no hay videos de breaking en el cypher
+              </p>
+              <p className="text-[11px] text-content-secondary">
+                Subí tu session, battle o práctica con el tag <span className="text-acid font-bold">#breaking</span> y aparecé acá.
+              </p>
+              <Link
+                href="/crear?tag=breaking"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-magenta text-white text-xs font-bold hover:opacity-90 transition-all"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Publicar en el Cypher</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {breakingPosts.slice(0, 10).map((post) => {
+                const media = post.media || post.metadata?.media || [];
+                const cover =
+                  post.metadata?.thumbnail_url ||
+                  media.find((m) => m.type === 'image')?.url ||
+                  media.find((m) => m.poster)?.poster;
+                const audioCount = media.filter((m) => m.type === 'audio').length;
+                return (
+                  <Link
+                    key={post.id}
+                    href={`/publicacion/${post.id}`}
+                    className="block p-3 rounded-2xl bg-surface border border-surface-border hover:border-magenta/50 transition-all"
+                  >
+                    <div className="flex gap-3">
+                      {cover ? (
+                        <img
+                          src={cover}
+                          alt={post.author?.username || 'Cypher'}
+                          className="w-20 h-20 rounded-xl object-cover border border-surface-border flex-shrink-0"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-xl bg-magenta/15 border border-magenta/30 flex items-center justify-center flex-shrink-0">
+                          <Music className="w-7 h-7 text-magenta" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-content-primary truncate">
+                            {post.author?.full_name || 'Artista Larvaz'}
+                          </span>
+                          <span className="text-[10px] text-content-muted">
+                            @{post.author?.username}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-content-secondary line-clamp-2 mt-1 leading-relaxed">
+                          {post.description}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-content-muted">
+                          {post.tags?.slice(0, 3).map((tag) => (
+                            <span key={tag} className="text-acid">#{tag}</span>
+                          ))}
+                          {audioCount > 0 && (
+                            <span className="flex items-center gap-0.5 text-cyan">
+                              <Music className="w-3 h-3" />
+                              {audioCount} audio{audioCount > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tab: Crews */}
       {activeTab === 'crews' && (
         <div className="space-y-3">
@@ -191,45 +440,54 @@ export default function BreakingPage() {
               <Users className="w-4 h-4 text-magenta" />
               Crews Registrados en Larvaz
             </h2>
-            <span className="text-[11px] text-content-muted">{CREWS.length} crews activos</span>
+            <span className="text-[11px] text-content-muted">{crews.length} crews activos</span>
           </div>
           <div className="space-y-3">
-            {CREWS.map((crew, i) => (
-              <div key={crew.id} className="p-4 rounded-2xl bg-surface border border-surface-border hover:border-magenta/40 transition-all flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <img src={crew.avatar} alt={crew.name} className="w-12 h-12 rounded-xl object-cover border-2 border-magenta/30" />
-                  {i === 0 && (
-                    <span className="absolute -top-1 -right-1 bg-acid text-background text-[8px] font-black px-1 rounded-full">
-                      #1
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+            {crews.map((crew, i) => {
+              const card = (
+                <div className="p-4 rounded-2xl bg-surface border border-surface-border hover:border-magenta/40 transition-all flex items-center gap-4">
+                  <div className="relative flex-shrink-0">
+                    <img src={crew.avatar} alt={crew.name} className="w-12 h-12 rounded-xl object-cover border-2 border-magenta/30" />
+                    {i === 0 && (
+                      <span className="absolute -top-1 -right-1 bg-acid text-background text-[8px] font-black px-1 rounded-full">
+                        #1
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm text-content-primary truncate">{crew.name}</h3>
+                    <p className="text-[11px] text-content-secondary mt-0.5 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />{crew.city}
+                    </p>
+                    <p className="text-[11px] text-magenta font-bold mt-0.5 truncate">{crew.style}</p>
                   </div>
-                  <p className="text-[11px] text-content-secondary mt-0.5 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />{crew.city}
-                  </p>
-                  <p className="text-[11px] text-magenta font-bold mt-0.5">{crew.style}</p>
+                  <div className="text-right flex-shrink-0">
+                    <div className="flex items-center gap-1 text-[11px] text-content-secondary">
+                      <Users className="w-3 h-3" />
+                      <span>{crew.members}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-acid font-bold mt-1">
+                      <Trophy className="w-3 h-3" />
+                      <span>{crew.wins} wins</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="flex items-center gap-1 text-[11px] text-content-secondary">
-                    <Users className="w-3 h-3" />
-                    <span>{crew.members}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-[11px] text-acid font-bold mt-1">
-                    <Trophy className="w-3 h-3" />
-                    <span>{crew.wins} wins</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+              return crew.username ? (
+                <Link key={crew.id} href={`/artista/${crew.username}`} className="block">
+                  {card}
+                </Link>
+              ) : (
+                <div key={crew.id}>{card}</div>
+              );
+            })}
           </div>
           <div className="p-4 rounded-2xl bg-magenta/10 border border-magenta/30 text-center space-y-2">
             <p className="text-xs font-bold text-magenta">¿Tu crew no está listada?</p>
-            <p className="text-[11px] text-content-secondary">Publica en el muro con el tag <span className="text-acid font-bold">#breaking</span> o <span className="text-acid font-bold">#bboy</span> y tu crew aparecerá aquí.</p>
-            <Link href="/crear" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-magenta text-white text-xs font-bold hover:opacity-90 transition-all">
+            <p className="text-[11px] text-content-secondary">
+              Publica en el muro con el tag <span className="text-acid font-bold">#breaking</span> o <span className="text-acid font-bold">#bboy</span> y tu crew aparecerá aquí.
+            </p>
+            <Link href="/crear?tag=breaking" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-magenta text-white text-xs font-bold hover:opacity-90 transition-all">
               <Zap className="w-3.5 h-3.5" />
               Registrar mi Crew
             </Link>
@@ -242,27 +500,54 @@ export default function BreakingPage() {
         <div className="space-y-3">
           <h2 className="font-display font-black text-sm text-content-primary uppercase tracking-wider flex items-center gap-2">
             <Zap className="w-4 h-4 text-magenta" />
-            Diccionario de Moves
+            Diccionario de Moves & Progreso
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {MOVES.map((move) => (
-              <div key={move.name} className="p-4 rounded-2xl bg-surface border border-surface-border space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{move.emoji}</span>
-                    <span className="font-display font-black text-base text-content-primary">{move.name}</span>
+            {MOVES.map((move) => {
+              const value = progress[move.name] || 0;
+              return (
+                <div key={move.name} className="p-4 rounded-2xl bg-surface border border-surface-border space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-2xl">{move.emoji}</span>
+                      <span className="font-display font-black text-base text-content-primary truncate">{move.name}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0 ${
+                      move.level === 'Básico' ? 'bg-acid/20 text-acid' :
+                      move.level === 'Intermedio' ? 'bg-orange/20 text-orange' :
+                      'bg-magenta/20 text-magenta'
+                    }`}>
+                      {move.level}
+                    </span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                    move.level === 'Básico' ? 'bg-acid/20 text-acid' :
-                    move.level === 'Intermedio' ? 'bg-orange/20 text-orange' :
-                    'bg-magenta/20 text-magenta'
-                  }`}>
-                    {move.level}
-                  </span>
+                  <p className="text-xs text-content-secondary leading-relaxed">{move.desc}</p>
+
+                  <div className="pt-1 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-bold">
+                      <span className="text-content-muted">Tu progreso</span>
+                      <span className={value >= 100 ? 'text-acid' : 'text-content-secondary'}>
+                        {value}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-surface-elevated overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-magenta to-acid transition-all"
+                        style={{ width: `${value}%` }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => trainMove(move.name)}
+                      disabled={value >= 100}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-surface-elevated border border-surface-border text-[11px] font-bold text-content-secondary hover:text-acid hover:border-acid transition-colors disabled:opacity-50"
+                    >
+                      {value >= 100 ? <Check className="w-3.5 h-3.5" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                      <span>{value >= 100 ? 'Move dominado' : 'Registrar práctica (+20%)'}</span>
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-content-secondary leading-relaxed">{move.desc}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -275,7 +560,7 @@ export default function BreakingPage() {
             Próximas Battles & Cyphers
           </h2>
           <div className="space-y-3">
-            {BATTLES.map((battle) => (
+            {battles.map((battle) => (
               <div key={battle.id} className="p-4 rounded-2xl bg-surface border border-surface-border space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -290,7 +575,7 @@ export default function BreakingPage() {
                     {battle.status === 'open' ? 'Inscripciones' : 'Próximo'}
                   </span>
                 </div>
-                <div className="flex items-center gap-4 text-[11px]">
+                <div className="flex flex-wrap items-center gap-3 text-[11px]">
                   <span className="flex items-center gap-1 text-content-secondary">
                     <Calendar className="w-3 h-3 text-magenta" />
                     {battle.date}
@@ -305,9 +590,12 @@ export default function BreakingPage() {
                   </span>
                 </div>
                 {battle.status === 'open' && (
-                  <button className="w-full py-2 rounded-xl bg-magenta text-white font-bold text-xs hover:opacity-90 transition-all">
-                    Inscribirse a la Batalla
-                  </button>
+                  <Link
+                    href={battle.href}
+                    className="block w-full py-2 rounded-xl bg-magenta text-white text-center font-bold text-xs hover:opacity-90 transition-all"
+                  >
+                    Inscribirse / Ver detalles
+                  </Link>
                 )}
               </div>
             ))}
@@ -338,14 +626,16 @@ export default function BreakingPage() {
           <div className="p-4 rounded-2xl bg-surface border border-magenta/30 flex items-center justify-between gap-3">
             <div>
               <p className="font-bold text-sm text-content-primary">Activa la Radio B-Boy</p>
-              <p className="text-[11px] text-content-secondary mt-0.5">Breakbeats, funk y soul para tu sesión de piso</p>
+              <p className="text-[11px] text-content-secondary mt-0.5">
+                Breakbeats, funk y soul para tu sesión de piso
+              </p>
             </div>
             <button
               onClick={handlePlayBreaking}
               className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-magenta text-white font-bold text-xs hover:opacity-90 transition-all"
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              Play
+              {isBreakingPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              <span>{isBreakingPlaying ? 'Pausar' : 'Play'}</span>
             </button>
           </div>
         </div>

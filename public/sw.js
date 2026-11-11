@@ -1,13 +1,14 @@
 // LARVAZ HIPHOP Service Worker
-const CACHE_NAME = 'larvaz-hiphop-v1';
+const CACHE_NAME = 'larvaz-hiphop-v2';
 const OFFLINE_URL = '/offline.html';
 
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
   '/manifest.json',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg'
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/og-larvaz.jpg'
 ];
 
 self.addEventListener('install', (event) => {

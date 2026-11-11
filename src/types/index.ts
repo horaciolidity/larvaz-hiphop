@@ -68,6 +68,24 @@ export type ContentProvider =
 
 export type ContentType = 'music' | 'video' | 'visual_art' | 'link' | 'text';
 
+/** Plantillas visuales ("video plantilla") para la reproducción de audios */
+export type AudioTemplateId = 'vinyl' | 'boombap' | 'cassette' | 'neon' | 'graffiti' | 'waveform';
+
+export interface PostMedia {
+  id: string;
+  type: 'image' | 'audio' | 'video';
+  url: string;
+  name?: string;
+  size?: number;
+  originalSize?: number;
+  duration?: number;
+  poster?: string;
+  /** Plantilla visual elegida para audios */
+  template?: AudioTemplateId;
+  /** Indica que el archivo original estaba en IPFS */
+  ipfs?: boolean;
+}
+
 export interface PostMetadata {
   id?: string;
   post_id?: string;
@@ -77,6 +95,9 @@ export interface PostMetadata {
   description?: string;
   embed_url?: string;
   provider?: ContentProvider;
+  media_type?: 'image' | 'audio' | 'video' | 'web';
+  location?: string;
+  media?: PostMedia[];
   raw_metadata?: Record<string, any>;
 }
 
@@ -96,6 +117,8 @@ export interface Post {
   updated_at?: string;
   author: Profile;
   metadata?: PostMetadata;
+  /** Archivos subidos directamente a Larvaz (fotos / audios) */
+  media?: PostMedia[];
   user_has_liked?: boolean;
   user_has_bookmarked?: boolean;
   crypto_tips_total?: number;

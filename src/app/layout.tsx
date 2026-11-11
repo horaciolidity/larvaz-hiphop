@@ -16,8 +16,12 @@ export const metadata: Metadata = {
     'mobile-web-app-capable': 'yes',
   },
   icons: {
-    icon: '/icons/icon-192.svg',
-    apple: '/icons/icon-192.svg',
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/icon-180.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: ['/icons/icon-192.png'],
   },
   openGraph: {
     title: 'LARVAZ HIPHOP — Red Social y Muro Digital de Cultura Urbana',
@@ -29,7 +33,8 @@ export const metadata: Metadata = {
         url: '/og-larvaz.jpg',
         width: 1200,
         height: 630,
-        alt: 'Comunidad Urbana Larvaz Hip-Hop - Cypher y Encuentro de Cultura Callejera',
+        type: 'image/jpeg',
+        alt: 'LARVAZ HIP HOP — logotipo dorado con corona y micrófono sobre fondo negro',
       },
     ],
     locale: 'es_LA',
@@ -39,7 +44,14 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'LARVAZ HIPHOP — La Casa de la Cultura Urbana',
     description: 'Muro digital abierto para MCs, DJs, B-boys y Escritores de Graffiti. Radio 24/7 y comunidad activa.',
-    images: ['/og-larvaz.jpg'],
+    images: [
+      {
+        url: '/og-larvaz.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'LARVAZ HIP HOP — logotipo dorado con corona y micrófono',
+      },
+    ],
   },
 };
 

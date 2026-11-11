@@ -70,6 +70,45 @@ async function resolveDbUserId(params: {
   return finalUserId;
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id || !isUUID(id)) {
+      return NextResponse.json({ error: 'id UUID válido requerido' }, { status: 400 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('posts')
+      .select(
+        '*, profiles(*), post_metadata(*), comments(id, post_id, user_id, content, is_hidden, created_at, profiles(id, username, full_name, avatar_url, role))'
+      )
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!data) {
+      return NextResponse.json({ error: 'Publicación no encontrada' }, { status: 404 });
+    }
+
+    return NextResponse.json(
+      { post: data },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
+  } catch (err: any) {
+    return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

@@ -1,4 +1,5 @@
 import { validateExternalUrl } from './ssrf-validator';
+import { isIpfsReference, filenameFromUrl } from './media-utils';
 import { ContentProvider, PostMetadata, ContentType } from '@/types';
 
 const REQUEST_TIMEOUT_MS = 5000;
@@ -50,8 +51,66 @@ export async function fetchExternalMetadata(urlString: string): Promise<FetchMet
     return await handleVimeo(sanitizedUrl);
   }
 
-  // 5. Generic HTML / OpenGraph scraper with size limit & timeout
+  // 5. IPFS: detectá el tipo real (audio/imagen/video) aunque el CID no tenga extensión
+  if (provider === 'generic' && isIpfsReference(urlString)) {
+    const mediaType = await probeMediaType(sanitizedUrl);
+    if (mediaType) {
+      return {
+        success: true,
+        provider,
+        contentType:
+          mediaType === 'audio' ? 'music' : mediaType === 'video' ? 'video' : 'visual_art',
+        metadata: {
+          title: filenameFromUrl(sanitizedUrl) || 'Archivo en IPFS',
+          author_name: 'IPFS · Comunidad Larvaz',
+          provider,
+          media_type: mediaType,
+          thumbnail_url: mediaType === 'image' ? sanitizedUrl : undefined,
+        },
+      };
+    }
+  }
+
+  // 6. Generic HTML / OpenGraph scraper with size limit & timeout
   return await handleGenericOpenGraph(sanitizedUrl, provider, domain || 'web');
+}
+
+/**
+ * Pide solo los primeros bytes del archivo para leer su Content-Type.
+ * Es clave para reproducir audios de IPFS cuyo CID no termina en .mp3.
+ */
+async function probeMediaType(
+  url: string
+): Promise<'image' | 'audio' | 'video' | null> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Range: 'bytes=0-2047',
+        Accept: 'audio/*,video/*,image/*,*/*;q=0.8',
+        'User-Agent': 'LarvazHiphopBot/1.0 (+https://larvazhiphop.org/bot)',
+      },
+      signal: controller.signal,
+    });
+
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    try {
+      await res.body?.cancel();
+    } catch {
+      // el cuerpo no siempre es cancelable
+    }
+
+    if (contentType.startsWith('audio/')) return 'audio';
+    if (contentType.startsWith('video/')) return 'video';
+    if (contentType.startsWith('image/')) return 'image';
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 // ============================================================================

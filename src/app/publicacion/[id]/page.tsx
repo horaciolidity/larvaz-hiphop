@@ -1,10 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import type { Comment, Post } from '@/types';
+import { dataStore } from '@/lib/data-store';
+import { mapDbPostToPost } from '@/lib/post-mapper';
+import { normalizeMediaList } from '@/lib/media-utils';
 import { MediaEmbed } from '@/components/feed/MediaEmbed';
+import { PostMediaGallery } from '@/components/feed/PostMediaGallery';
+import { SharePostButton } from '@/components/feed/SharePostButton';
 import { ReportModal } from '@/components/common/ReportModal';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import {
@@ -12,32 +18,124 @@ import {
   Heart,
   MessageCircle,
   Bookmark,
-  Share2,
   Send,
   Trash2,
   Flag,
-  Check,
   Eye,
+  Loader2,
 } from 'lucide-react';
-import { dataStore } from '@/lib/data-store';
+
+function mapComment(raw: any, fallbackPostId: string): Comment {
+  return {
+    id: String(raw.id),
+    post_id: String(raw.post_id || fallbackPostId),
+    user_id: raw.user_id,
+    content: raw.content || '',
+    is_hidden: Boolean(raw.is_hidden),
+    created_at: raw.created_at,
+    author: raw.profiles || raw.author || {
+      id: raw.user_id,
+      username: 'artista',
+      full_name: 'Artista Larvaz',
+      avatar_url: '',
+      role: 'user',
+      is_banned: false,
+      created_at: raw.created_at,
+    },
+  };
+}
 
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const postId = params.id as string;
-  const { currentUser, toggleLike, toggleBookmark, addComment, deleteComment, incrementViews } = useApp();
+  const postId = String(params?.id || '');
+  const {
+    currentUser,
+    posts,
+    toggleLike,
+    toggleBookmark,
+    addComment,
+    deleteComment,
+    incrementViews,
+  } = useApp();
 
-  const post = dataStore.getPostById(postId);
+  const [post, setPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState(dataStore.getComments(postId));
-  const [isCopied, setIsCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Auto-increment and record post view
-  React.useEffect(() => {
-    if (postId) {
-      incrementViews(postId);
+  // Carga inicial: primero localStorage (rápida) y luego API (para visitantes nuevos)
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    const localPost = dataStore.getPostById(postId);
+    if (localPost) {
+      setPost(localPost);
+      setComments(dataStore.getComments(postId));
     }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
+    if (!isUuid) {
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    fetch(`/api/post?id=${encodeURIComponent(postId)}&t=${Date.now()}`, {
+      cache: 'no-store',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.post) return;
+        const mapped = mapDbPostToPost(data.post);
+        setPost(mapped);
+
+        const rawComments = Array.isArray(data.post.comments) ? data.post.comments : [];
+        const mappedComments = rawComments
+          .filter((c: any) => !c.is_hidden)
+          .map((c: any) => mapComment(c, mapped.id));
+
+        if (mappedComments.length > 0) {
+          dataStore.mergeComments(mappedComments);
+          setComments(mappedComments);
+        } else {
+          setComments(dataStore.getComments(postId));
+        }
+      })
+      .catch(() => {
+        // seguimos con el respaldo local
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [postId]);
+
+  // Mantener likes/bookmarks/vistas sincronizados con el contexto global
+  useEffect(() => {
+    const found = posts.find((p) => p.id === postId);
+    if (!found) return;
+    setPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            ...found,
+            media: found.media && found.media.length > 0 ? found.media : prev.media,
+            metadata: found.metadata || prev.metadata,
+          }
+        : found
+    );
+  }, [posts, postId]);
+
+  useEffect(() => {
+    if (postId) incrementViews(postId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   const formatTimeAgo = (dateStr: string) => {
@@ -62,6 +160,15 @@ export default function PostDetailPage() {
     }
   };
 
+  if (loading && !post) {
+    return (
+      <div className="p-8 flex items-center justify-center gap-2 text-xs text-content-secondary">
+        <Loader2 className="w-4 h-4 animate-spin text-acid" />
+        <span>Cargando publicación...</span>
+      </div>
+    );
+  }
+
   if (!post) {
     return (
       <div className="p-8 text-center space-y-4">
@@ -82,6 +189,11 @@ export default function PostDetailPage() {
     );
   }
 
+  const postMedia =
+    post.media && post.media.length > 0
+      ? post.media
+      : normalizeMediaList(post.metadata?.media);
+
   const handleSendComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -94,27 +206,6 @@ export default function PostDetailPage() {
   const handleDeleteComment = (commentId: string) => {
     deleteComment(commentId);
     setComments((prev) => prev.filter((c) => c.id !== commentId));
-  };
-
-  const handleShare = async () => {
-    const postUrl = typeof window !== 'undefined' ? window.location.href : '';
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Larvaz Hip-Hop: ${post.author.full_name}`,
-          text: post.description,
-          url: postUrl,
-        });
-        return;
-      } catch {
-        // fallback
-      }
-    }
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(postUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
   };
 
   return (
@@ -176,7 +267,7 @@ export default function PostDetailPage() {
             {post.tags.map((t) => (
               <Link
                 key={t}
-                href={`/explorar?tag=${t}`}
+                href={`/explorar?tag=${encodeURIComponent(t)}`}
                 className="text-xs font-bold text-acid hover:underline"
               >
                 #{t}
@@ -186,7 +277,10 @@ export default function PostDetailPage() {
         )}
       </div>
 
-      {/* Media Player / External Embed (only if URL present) */}
+      {/* Fotos y audios subidos a Larvaz */}
+      <PostMediaGallery media={postMedia} />
+
+      {/* Embed externo / IPFS */}
       {post.external_url && (
         <MediaEmbed
           metadata={post.metadata}
@@ -209,7 +303,7 @@ export default function PostDetailPage() {
 
         <div className="flex items-center gap-2 text-content-secondary">
           <MessageCircle className="w-5 h-5 text-cyan" />
-          <span>{comments.length} Comentarios</span>
+          <span>{Math.max(comments.length, post.comments_count || 0)} Comentarios</span>
         </div>
 
         <div className="flex items-center gap-1.5 text-content-muted">
@@ -231,26 +325,13 @@ export default function PostDetailPage() {
           <Bookmark className={`w-5 h-5 ${post.user_has_bookmarked ? 'fill-current' : ''}`} />
         </button>
 
-        <button
-          onClick={handleShare}
-          className="p-2 rounded-lg text-content-secondary hover:text-content-primary transition-colors"
-          aria-label="Compartir"
-        >
-          {isCopied ? (
-            <span className="flex items-center gap-1 text-acid font-bold text-xs">
-              <Check className="w-4 h-4" />
-              <span>Copiado</span>
-            </span>
-          ) : (
-            <Share2 className="w-5 h-5" />
-          )}
-        </button>
+        <SharePostButton post={post} variant="icon" />
       </div>
 
       {/* Comments Section */}
       <div className="space-y-4 pt-2">
         <h2 className="font-display font-black text-lg text-content-primary tracking-wide">
-          CONVERSACIÓN & RESPETO ({comments.length})
+          CONVERSACIÓN & RESPETO ({Math.max(comments.length, post.comments_count || 0)})
         </h2>
 
         {/* New comment input */}
@@ -274,39 +355,45 @@ export default function PostDetailPage() {
 
         {/* Comments stream */}
         <div className="space-y-3 pt-2">
-          {comments.map((c) => (
-            <div
-              key={c.id}
-              className="p-3.5 rounded-xl bg-surface border border-surface-border/70 flex items-start justify-between gap-3"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={`/artista/${c.author?.username}`}
-                    className="font-bold text-xs text-content-primary hover:text-acid"
-                  >
-                    {c.author?.full_name}
-                  </Link>
-                  <span className="text-[10px] text-content-muted">
-                    @{c.author?.username}
-                  </span>
+          {comments.length === 0 ? (
+            <p className="text-center text-xs text-content-secondary py-4">
+              Todavía no hay comentarios. Sé el primero en aportar al cypher.
+            </p>
+          ) : (
+            comments.map((c) => (
+              <div
+                key={c.id}
+                className="p-3.5 rounded-xl bg-surface border border-surface-border/70 flex items-start justify-between gap-3"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/artista/${c.author?.username}`}
+                      className="font-bold text-xs text-content-primary hover:text-acid"
+                    >
+                      {c.author?.full_name}
+                    </Link>
+                    <span className="text-[10px] text-content-muted">
+                      @{c.author?.username}
+                    </span>
+                  </div>
+                  <p className="text-xs text-content-secondary leading-relaxed">
+                    {c.content}
+                  </p>
                 </div>
-                <p className="text-xs text-content-secondary leading-relaxed">
-                  {c.content}
-                </p>
-              </div>
 
-              {(c.user_id === currentUser.id || currentUser.role === 'admin') && (
-                <button
-                  onClick={() => handleDeleteComment(c.id)}
-                  className="text-content-muted hover:text-magenta p-1 transition-colors"
-                  aria-label="Eliminar comentario propio"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ))}
+                {(c.user_id === currentUser.id || currentUser.role === 'admin') && (
+                  <button
+                    onClick={() => handleDeleteComment(c.id)}
+                    className="text-content-muted hover:text-magenta p-1 transition-colors"
+                    aria-label="Eliminar comentario propio"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
 

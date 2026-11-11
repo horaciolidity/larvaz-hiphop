@@ -12,9 +12,10 @@ import {
   Flame,
   Sliders,
 } from 'lucide-react';
-import { ContentType, PostMetadata } from '@/types';
+import { ContentType, PostMedia, PostMetadata } from '@/types';
 import { UserAvatar } from '@/components/common/UserAvatar';
-import { detectMediaInfo } from '@/lib/media-utils';
+import { detectMediaInfo, normalizeInputUrl } from '@/lib/media-utils';
+import { PostMediaComposer } from './PostMediaComposer';
 import { getLocationFlag } from '@/lib/country-utils';
 
 export const InlineFeedComposer: React.FC = () => {
@@ -25,6 +26,7 @@ export const InlineFeedComposer: React.FC = () => {
   const locationName = userLocation || currentUser.location || 'Mendoza, Argentina';
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [media, setMedia] = useState<PostMedia[]>([]);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>(['hiphop']);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,7 +50,8 @@ export const InlineFeedComposer: React.FC = () => {
   // Auto-fetch metadata when URL changes (debounced 800ms)
   useEffect(() => {
     if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current);
-    if (!url.trim() || url.length < 10) {
+    const normalized = normalizeInputUrl(url);
+    if (!normalized || normalized.length < 10) {
       setMetadata(null);
       return;
     }
@@ -59,21 +62,25 @@ export const InlineFeedComposer: React.FC = () => {
         const res = await fetch('/api/metadata', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: url.trim() }),
+          body: JSON.stringify({ url: normalized }),
         });
         const data = await res.json();
         if (res.ok && data.metadata) {
           setMetadata(data.metadata);
         } else {
-          // fallback: local media detection
-          const info = detectMediaInfo(url.trim());
+          // fallback: local media detection (incluye IPFS)
+          const info = detectMediaInfo(normalized);
           if (info) {
-            setMetadata({
-              title: new URL(url.trim()).hostname,
-              embed_url: info.embedUrl,
-              thumbnail_url: info.thumbnailUrl,
-              provider: 'generic' as any,
-            });
+            try {
+              setMetadata({
+                title: new URL(normalized).hostname,
+                embed_url: info.embedUrl,
+                thumbnail_url: info.thumbnailUrl,
+                provider: 'generic' as any,
+              });
+            } catch {
+              setMetadata({ title: normalized, provider: 'generic' as any });
+            }
           }
         }
       } catch {
@@ -89,11 +96,12 @@ export const InlineFeedComposer: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() && !url.trim()) return;
+    const hasContent = Boolean(description.trim() || url.trim() || media.length > 0);
+    if (!hasContent) return;
 
     setIsSubmitting(true);
     try {
-      const cleanUrl = url.trim();
+      const cleanUrl = normalizeInputUrl(url.trim());
 
       // Detect provider from url
       let detectedProvider: any = 'generic';
@@ -107,6 +115,14 @@ export const InlineFeedComposer: React.FC = () => {
           else if (info.type === 'audio') { detectedProvider = 'generic'; finalContentType = 'music'; }
           else if (info.type === 'video') { detectedProvider = 'generic'; finalContentType = 'video'; }
         }
+      }
+
+      if (!cleanUrl && media.length > 0) {
+        finalContentType = media.some((m) => m.type === 'audio')
+          ? 'music'
+          : media.some((m) => m.type === 'video')
+            ? 'video'
+            : 'visual_art';
       }
 
       let postMetadata = metadata;
@@ -124,18 +140,42 @@ export const InlineFeedComposer: React.FC = () => {
         }
       }
 
+      const finalMetadata: PostMetadata | undefined =
+        media.length > 0 || postMetadata
+          ? {
+              ...(postMetadata || {}),
+              ...(media.length > 0
+                ? {
+                    media,
+                    media_type: media[0].type,
+                    thumbnail_url:
+                      postMetadata?.thumbnail_url ||
+                      media.find((m) => m.type === 'image')?.url,
+                  }
+                : {}),
+            }
+          : undefined;
+
+      const fallbackDescription = cleanUrl
+        ? `Compartiendo: ${cleanUrl}`
+        : media.length > 0
+          ? 'Comparto fotos y audios con la comunidad Larvaz.'
+          : '';
+
       createPost({
-        description: description.trim() || (cleanUrl ? `Compartiendo: ${cleanUrl}` : ''),
+        description: description.trim() || fallbackDescription,
         externalUrl: cleanUrl || undefined,
         tags: selectedTags,
         contentType: finalContentType,
         provider: detectedProvider,
-        metadata: postMetadata,
+        metadata: finalMetadata,
+        media,
       });
 
       // Reset
       setDescription('');
       setUrl('');
+      setMedia([]);
       setMetadata(null);
       setShowUrlInput(false);
       setIsFocused(false);
@@ -243,10 +283,10 @@ export const InlineFeedComposer: React.FC = () => {
             <div className="mt-2 flex items-center gap-2 p-1.5 rounded-xl bg-surface-elevated border border-surface-border animate-fade-in">
               <LinkIcon className="w-4 h-4 text-acid flex-shrink-0 ml-1.5" />
               <input
-                type="url"
+                type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://youtube.com/..., soundcloud, spotify... (opcional)"
+                placeholder="https://youtube.com/..., ipfs://CID, Qm... (opcional)"
                 className="w-full bg-transparent text-xs text-content-primary placeholder:text-content-muted focus:outline-none"
               />
               {isFetchingMeta && <Loader2 className="w-3.5 h-3.5 text-acid animate-spin flex-shrink-0" />}
@@ -285,6 +325,15 @@ export const InlineFeedComposer: React.FC = () => {
           )}
         </div>
       </div>
+
+      {(isFocused || media.length > 0 || showUrlInput || description.length > 0) && (
+        <PostMediaComposer
+          value={media}
+          onChange={setMedia}
+          compact
+          disabled={isSubmitting}
+        />
+      )}
 
       {/* Bottom Toolbar: Multimedia, Mastering Studio & Submit */}
       <div className="pt-2 border-t border-surface-border/60 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -339,7 +388,7 @@ export const InlineFeedComposer: React.FC = () => {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting || (!description.trim() && !url.trim())}
+            disabled={isSubmitting || (!description.trim() && !url.trim() && media.length === 0)}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-acid text-background font-black text-xs shadow-acid-sm hover:bg-acid-hover active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (

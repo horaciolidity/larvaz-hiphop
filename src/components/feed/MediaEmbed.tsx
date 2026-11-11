@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import { PostMetadata, ContentProvider } from '@/types';
-import { detectMediaInfo } from '@/lib/media-utils';
+import { detectMediaInfo, isIpfsReference } from '@/lib/media-utils';
+import { AudioTemplatePlayer } from './AudioTemplatePlayer';
+import { IpfsImage } from './IpfsImage';
 import { ExternalLink, Play, Disc3, Volume2, Music, Globe } from 'lucide-react';
 
 interface MediaEmbedProps {
@@ -40,8 +42,14 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
     return null;
   }
 
-  // Use media detection for richer embed support
-  const mediaInfo = detectMediaInfo(externalUrl);
+  // Use media detection for richer embed support (incluye pistas de IPFS / Content-Type)
+  const mediaInfo = detectMediaInfo(externalUrl, {
+    mediaType:
+      metadata?.media_type && metadata.media_type !== 'web'
+        ? metadata.media_type
+        : undefined,
+    thumbnailUrl: metadata?.thumbnail_url,
+  });
 
   const title = metadata?.title || 'Contenido compartido';
   const author = metadata?.author_name || '';
@@ -54,6 +62,22 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
   const cleanUrl = mediaInfo?.cleanUrl || externalUrl;
 
   const providerColor = PROVIDER_COLORS[provider] || '#d4ff00';
+
+  // ─────────────────────────────────────────────
+  // AUDIO DIRECTO / IPFS: reproductor con plantilla visual
+  // ─────────────────────────────────────────────
+  if (detectedType === 'audio' && (mediaInfo?.embedUrl || externalUrl)) {
+    return (
+      <div className="mt-3">
+        <AudioTemplatePlayer
+          src={mediaInfo?.embedUrl || externalUrl}
+          title={title}
+          artist={author}
+          template={metadata?.media?.[0]?.template}
+        />
+      </div>
+    );
+  }
 
   // ─────────────────────────────────────────────
   // ACTIVE PLAYBACK MODES
@@ -156,8 +180,9 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
   if (detectedType === 'image' && thumbnail) {
     return (
       <div className="mt-3 rounded-xl overflow-hidden border border-surface-border bg-surface shadow-sm">
-        <img
+        <IpfsImage
           src={thumbnail}
+          ipfsHint={isIpfsReference(cleanUrl) || isIpfsReference(thumbnail)}
           alt={title || 'Imagen compartida'}
           className="w-full max-h-[480px] object-contain bg-black"
         />
@@ -199,8 +224,9 @@ export const MediaEmbed: React.FC<MediaEmbedProps> = ({ metadata, provider, exte
         {/* Thumbnail or Vinyl Art */}
         <div className="relative sm:w-48 h-40 sm:h-auto flex-shrink-0 bg-surface-elevated overflow-hidden flex items-center justify-center">
           {thumbnail ? (
-            <img
+            <IpfsImage
               src={thumbnail}
+              ipfsHint={isIpfsReference(cleanUrl) || isIpfsReference(thumbnail)}
               alt={title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
