@@ -243,7 +243,7 @@ export function normalizeMediaList(raw: any): PostMedia[] {
   const allowedTemplates = new Set(AUDIO_TEMPLATES.map((t) => t.id));
 
   const media: PostMedia[] = [];
-  raw.slice(0, 6).forEach((item, index) => {
+  raw.slice(0, 20).forEach((item, index) => {
     if (!item || typeof item !== 'object') return;
     const url = resolveIpfsUrl(item.url || item.src || '');
     if (!url) return;

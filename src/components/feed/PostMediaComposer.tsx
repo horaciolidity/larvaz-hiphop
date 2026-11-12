@@ -13,6 +13,7 @@ import {
   formatBytes,
 } from '@/lib/audio-compress';
 import { uploadMediaFile } from '@/lib/media-upload';
+import { useApp } from '@/context/AppContext';
 import { AudioTemplatePlayer } from './AudioTemplatePlayer';
 import {
   ImagePlus,
@@ -26,6 +27,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+/** Valores de referencia; el panel admin puede cambiarlos en caliente. */
 export const MAX_IMAGES = 3;
 export const MAX_AUDIOS = 3;
 
@@ -53,6 +55,14 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
   compact = false,
   disabled = false,
 }) => {
+  const { platformSettings } = useApp();
+  const mediaSettings = platformSettings.media;
+  const uploadsEnabled = platformSettings.features.uploadsEnabled;
+
+  const maxImages = mediaSettings.maxImagesPerPost;
+  const maxAudios = mediaSettings.maxAudiosPerPost;
+  const maxUploadBytes = mediaSettings.maxUploadMb * 1024 * 1024;
+
   const images = value.filter((m) => m.type === 'image');
   const audios = value.filter((m) => m.type === 'audio');
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -60,18 +70,44 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [audioQuality, setAudioQuality] = useState<number>(64);
+  const [audioQuality, setAudioQuality] = useState<number>(mediaSettings.audioBitrateKbps);
+  const [qualityTouched, setQualityTouched] = useState(false);
 
-  const maxAudioSeconds = Math.floor((3_800_000 * 8) / (audioQuality * 1000));
+  React.useEffect(() => {
+    if (!qualityTouched) {
+      setAudioQuality(mediaSettings.audioBitrateKbps);
+    }
+  }, [mediaSettings.audioBitrateKbps, qualityTouched]);
+
+  const maxAudioSeconds = Math.min(
+    mediaSettings.audioMaxDurationSec,
+    Math.floor((maxUploadBytes * 8) / (audioQuality * 1000))
+  );
+
+  const qualityOptions = AUDIO_QUALITY_OPTIONS.some((opt) => opt.kbps === audioQuality)
+    ? AUDIO_QUALITY_OPTIONS
+    : [
+        {
+          kbps: audioQuality,
+          label: `Admin · ${audioQuality} kbps`,
+          hint: 'Calidad definida por la administración',
+        },
+        ...AUDIO_QUALITY_OPTIONS,
+      ];
 
   const handleImageFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setError(null);
     setNotice(null);
 
-    const freeSlots = MAX_IMAGES - images.length;
+    if (!uploadsEnabled) {
+      setError('Las subidas de archivos están pausadas por la administración.');
+      return;
+    }
+
+    const freeSlots = maxImages - images.length;
     if (freeSlots <= 0) {
-      setError('Ya llegaste al límite de 3 fotos por publicación.');
+      setError(`Ya llegaste al límite de ${maxImages} fotos por publicación.`);
       return;
     }
 
@@ -86,15 +122,15 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
           warnings.push(`${file.name}: no es una imagen válida.`);
           continue;
         }
-        if (file.size > 20 * 1024 * 1024) {
-          warnings.push(`${file.name}: supera los 20 MB.`);
+        if (file.size > mediaSettings.maxImageMb * 1024 * 1024) {
+          warnings.push(`${file.name}: supera los ${mediaSettings.maxImageMb} MB.`);
           continue;
         }
         try {
           const compressed = await compressImageFile(file, {
-            maxWidth: 1600,
-            maxHeight: 1600,
-            quality: 0.82,
+            maxWidth: mediaSettings.imageMaxDimension,
+            maxHeight: mediaSettings.imageMaxDimension,
+            quality: mediaSettings.imageQuality,
           });
           const uploaded = await uploadMediaFile(compressed, 'image');
           added.push({
@@ -130,9 +166,14 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
     setError(null);
     setNotice(null);
 
-    const freeSlots = MAX_AUDIOS - audios.length;
+    if (!uploadsEnabled) {
+      setError('Las subidas de archivos están pausadas por la administración.');
+      return;
+    }
+
+    const freeSlots = maxAudios - audios.length;
     if (freeSlots <= 0) {
-      setError('Ya llegaste al límite de 3 audios por publicación.');
+      setError(`Ya llegaste al límite de ${maxAudios} audios por publicación.`);
       return;
     }
 
@@ -150,8 +191,8 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
           warnings.push(`${file.name}: no es un audio válido.`);
           continue;
         }
-        if (file.size > 30 * 1024 * 1024) {
-          warnings.push(`${file.name}: supera los 30 MB.`);
+        if (file.size > mediaSettings.maxAudioMb * 1024 * 1024) {
+          warnings.push(`${file.name}: supera los ${mediaSettings.maxAudioMb} MB.`);
           continue;
         }
 
@@ -160,28 +201,30 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
         let duration: number | undefined;
         let savedFromCompression = false;
 
-        try {
-          const compressed = await compressAudioFile(file, {
-            bitrateKbps: audioQuality,
-            maxDurationSec: maxAudioSeconds,
-          });
-          fileToUpload = compressed.file;
-          size = compressed.compressedSize;
-          duration = compressed.duration;
-          savedFromCompression = compressed.wasCompressed;
-        } catch (err: any) {
-          const message =
-            err instanceof MediaCompressionError
-              ? err.message
-              : 'No se pudo comprimir el audio.';
-          if (file.size > 4.2 * 1024 * 1024) {
-            warnings.push(`${file.name}: ${message} El archivo es muy grande para subirlo sin comprimir.`);
-            continue;
+        if (mediaSettings.audioCompressionEnabled) {
+          try {
+            const compressed = await compressAudioFile(file, {
+              bitrateKbps: audioQuality,
+              maxDurationSec: maxAudioSeconds,
+            });
+            fileToUpload = compressed.file;
+            size = compressed.compressedSize;
+            duration = compressed.duration;
+            savedFromCompression = compressed.wasCompressed;
+          } catch (err: any) {
+            const message =
+              err instanceof MediaCompressionError
+                ? err.message
+                : 'No se pudo comprimir el audio.';
+            if (file.size > maxUploadBytes) {
+              warnings.push(`${file.name}: ${message} El archivo es muy grande para subirlo sin comprimir.`);
+              continue;
+            }
+            warnings.push(`${file.name}: ${message} Se subirá el original.`);
           }
-          warnings.push(`${file.name}: ${message} Se subirá el original.`);
         }
 
-        if (fileToUpload.size > 4.2 * 1024 * 1024) {
+        if (fileToUpload.size > maxUploadBytes) {
           warnings.push(
             `${file.name}: el audio comprimido pesa ${formatBytes(
               fileToUpload.size
@@ -244,15 +287,16 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
             Fotos y audios de la publicación
           </p>
           <p className="text-[10px] text-content-muted mt-0.5">
-            Hasta 3 fotos y 3 audios. Los MP3 se recomprimen para ahorrar espacio.
+            Hasta {maxImages} fotos y {maxAudios} audios. Los MP3 se recomprimen a{' '}
+            {mediaSettings.audioBitrateKbps} kbps para ahorrar espacio.
           </p>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] font-bold">
           <span className="px-2 py-0.5 rounded-full bg-surface-elevated border border-surface-border text-content-secondary">
-            📷 {images.length}/{MAX_IMAGES}
+            📷 {images.length}/{maxImages}
           </span>
           <span className="px-2 py-0.5 rounded-full bg-surface-elevated border border-surface-border text-content-secondary">
-            🎵 {audios.length}/{MAX_AUDIOS}
+            🎵 {audios.length}/{maxAudios}
           </span>
         </div>
       </div>
@@ -260,7 +304,7 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
       <div className="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
-          disabled={disabled || Boolean(busy) || images.length >= MAX_IMAGES}
+          disabled={disabled || Boolean(busy) || !uploadsEnabled || images.length >= maxImages}
           onClick={() => imageInputRef.current?.click()}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-surface-elevated border border-surface-border text-content-secondary hover:text-acid hover:border-acid disabled:opacity-40 disabled:pointer-events-none transition-colors"
         >
@@ -270,7 +314,7 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
 
         <button
           type="button"
-          disabled={disabled || Boolean(busy) || audios.length >= MAX_AUDIOS}
+          disabled={disabled || Boolean(busy) || !uploadsEnabled || audios.length >= maxAudios}
           onClick={() => audioInputRef.current?.click()}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-surface-elevated border border-surface-border text-content-secondary hover:text-acid hover:border-acid disabled:opacity-40 disabled:pointer-events-none transition-colors"
         >
@@ -283,12 +327,15 @@ export const PostMediaComposer: React.FC<PostMediaComposerProps> = ({
           <span className="hidden sm:inline">Calidad audio:</span>
           <select
             value={audioQuality}
-            onChange={(e) => setAudioQuality(Number(e.target.value))}
+            onChange={(e) => {
+              setQualityTouched(true);
+              setAudioQuality(Number(e.target.value));
+            }}
             disabled={disabled || Boolean(busy)}
             className="bg-transparent text-[10px] font-bold text-content-primary focus:outline-none"
             title="Los próximos audios se comprimen con esta calidad"
           >
-            {AUDIO_QUALITY_OPTIONS.map((opt) => (
+            {qualityOptions.map((opt) => (
               <option key={opt.kbps} value={opt.kbps} className="bg-surface text-content-primary">
                 {opt.label}
               </option>

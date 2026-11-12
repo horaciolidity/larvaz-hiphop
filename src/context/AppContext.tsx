@@ -20,6 +20,12 @@ import {
 import { dataStore, GUEST_USER, INITIAL_PROFILES } from '@/lib/data-store';
 import { mapDbPostToPost } from '@/lib/post-mapper';
 import { isSupabaseConfigured, createClient } from '@/lib/supabase/client';
+import {
+  DEFAULT_PLATFORM_SETTINGS,
+  normalizePlatformSettings,
+  PlatformSettings,
+} from '@/lib/platform-settings';
+import { withEffectiveRole } from '@/lib/roles';
 
 interface AppContextType {
   currentUser: Profile;
@@ -81,6 +87,13 @@ interface AppContextType {
   toggleUserBan: (userId: string) => boolean;
   deletePost: (postId: string) => boolean;
 
+  // Platform settings (Panel Super Admin)
+  platformSettings: PlatformSettings;
+  refreshPlatformSettings: () => Promise<void>;
+  updatePlatformSettings: (
+    next: PlatformSettings
+  ) => Promise<{ success: boolean; error?: string }>;
+
   // Auth (Supabase + Local fallback)
   login: (usernameOrEmail: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: {
@@ -98,8 +111,8 @@ interface AppContextType {
   toggleBookmark: (postId: string) => boolean;
   toggleFollow: (profileId: string) => boolean;
   isFollowing: (profileId: string) => boolean;
-  addComment: (postId: string, content: string) => Comment;
-  deleteComment: (commentId: string) => boolean;
+  addComment: (postId: string, content: string) => Promise<Comment>;
+  deleteComment: (commentId: string) => Promise<boolean>;
   createPost: (data: {
     externalUrl?: string;
     description: string;
@@ -130,6 +143,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>(INITIAL_PROFILES);
   const [totalMembersCount, setTotalMembersCount] = useState<number>(INITIAL_PROFILES.length);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(
+    DEFAULT_PLATFORM_SETTINGS
+  );
   const isSupabaseConnected = isSupabaseConfigured();
 
   const syncProfilesState = useCallback(() => {
@@ -304,6 +320,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setWithdrawals(dataStore.getUserWithdrawals(userId));
   };
 
+  // ── Ajustes globales de la plataforma ────────────────────────────────────
+  const refreshPlatformSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/settings?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const payload = await res.json();
+      if (payload?.settings) {
+        setPlatformSettings(normalizePlatformSettings(payload.settings));
+      }
+    } catch {
+      // se mantienen los valores por defecto
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshPlatformSettings();
+  }, [refreshPlatformSettings]);
+
+  const updatePlatformSettings = async (
+    next: PlatformSettings
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!supabase) {
+        return { success: false, error: 'Supabase no está configurado.' };
+      }
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (!token) {
+        return { success: false, error: 'Necesitás iniciar sesión como administrador.' };
+      }
+
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ settings: next }),
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        return { success: false, error: payload?.error || 'No se pudo guardar la configuración.' };
+      }
+      if (payload?.settings) {
+        setPlatformSettings(normalizePlatformSettings(payload.settings));
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: String(err?.message || err) };
+    }
+  };
+
   const syncSupabaseProfile = async (authUser: any) => {
     if (!supabase) return;
     try {
@@ -314,9 +383,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (profile) {
-        dataStore.mergeProfiles([profile]);
+        if (profile.is_banned) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // cerramos la sesión local igualmente
+          }
+          dataStore.mergeProfiles([profile]);
+          dataStore.setCurrentUser(GUEST_USER);
+          syncProfilesState();
+          setCurrentUserState(GUEST_USER);
+          return;
+        }
+
+        const effectiveProfile = withEffectiveRole(profile);
+        dataStore.mergeProfiles([effectiveProfile]);
         syncProfilesState();
-        setCurrentUser(profile);
+        setCurrentUser(effectiveProfile);
       } else {
         const username =
           authUser.user_metadata?.username ||
@@ -866,6 +949,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     username: string;
     referralCode?: string;
   }): Promise<{ success: boolean; error?: string; message?: string }> => {
+    if (!platformSettings.features.registrationsEnabled) {
+      return {
+        success: false,
+        error: 'El registro está temporalmente cerrado. Volvé a intentarlo más tarde.',
+      };
+    }
+
     const cleanUsername = data.username.toLowerCase().replace(/[^a-z0-9_]/g, '');
 
     if (isSupabaseConnected && supabase && data.password) {
@@ -1135,30 +1225,71 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return dataStore.isFollowing(profileId);
   };
 
-  const addComment = (postId: string, content: string) => {
-    const comment = dataStore.addComment(postId, content);
-    refreshPosts();
+  const getAccessToken = async (): Promise<string> => {
+    if (!supabase) return '';
+    try {
+      const { data } = await supabase.auth.getSession();
+      return data?.session?.access_token || '';
+    } catch {
+      return '';
+    }
+  };
 
-    if (isSupabaseConnected) {
-      fetch('/api/post', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          post_id: postId,
-          action: 'comment',
-          user_id: currentUser.id,
-          username: currentUser.username,
-          author_name: currentUser.full_name,
-          author_avatar: currentUser.avatar_url,
-          content,
-        }),
-      }).catch(() => {});
+  const addComment = async (postId: string, content: string): Promise<Comment> => {
+    const clean = content.trim();
+    const token = await getAccessToken();
+    const isPersistable = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      postId
+    );
+
+    if (token && isPersistable && platformSettings.features.commentsEnabled) {
+      try {
+        const res = await fetch('/api/comments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ post_id: postId, content: clean }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (res.ok && payload?.comment) {
+          dataStore.mergeComments([payload.comment as Comment]);
+          dataStore.adjustPostCommentsCount(postId, 1);
+          refreshPosts();
+          return payload.comment as Comment;
+        }
+      } catch {
+        // si el servidor falla, se conserva el comentario localmente
+      }
     }
 
+    const comment = dataStore.addComment(postId, clean);
+    refreshPosts();
     return comment;
   };
 
-  const deleteComment = (commentId: string) => {
+  const deleteComment = async (commentId: string): Promise<boolean> => {
+    const token = await getAccessToken();
+    const isPersistable = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      commentId
+    );
+
+    if (token && isPersistable) {
+      try {
+        const res = await fetch(`/api/comments?id=${encodeURIComponent(commentId)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return false;
+        dataStore.removeComment(commentId);
+        refreshPosts();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     const res = dataStore.deleteComment(commentId, currentUser.id);
     if (res) refreshPosts();
     return res;
@@ -1473,6 +1604,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updateUserRole,
         toggleUserBan,
         deletePost,
+        platformSettings,
+        refreshPlatformSettings,
+        updatePlatformSettings,
         login,
         register,
         logout,

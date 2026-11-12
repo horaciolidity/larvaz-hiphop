@@ -14,5 +14,11 @@ export const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     persistSession: false,
     autoRefreshToken: false,
   },
+  global: {
+    // Evita que el Data Cache de Next sirva respuestas viejas de Supabase
+    // (settings, posts, comentarios) entre requests.
+    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, { ...init, cache: 'no-store' }),
+  },
 });
 

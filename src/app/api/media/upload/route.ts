@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { ensureMediaBucket, MEDIA_BUCKET, readPlatformSettings } from '@/lib/settings-store';
+import { MAX_SERVER_UPLOAD_MB } from '@/lib/platform-settings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const BUCKET = 'post-media';
-// Vercel limita el body del request a 4.5 MB: dejamos margen para el multipart.
-const MAX_FILE_BYTES = 4.2 * 1024 * 1024;
 const ALLOWED_KINDS = new Set(['image', 'audio', 'video']);
 
 function safeName(name: string): string {
@@ -17,30 +16,6 @@ function safeName(name: string): string {
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
   return clean.slice(0, 90) || 'archivo';
-}
-
-async function ensureBucket() {
-  try {
-    const { data: buckets } = await supabaseAdmin.storage.listBuckets();
-    const exists = (buckets || []).some((b) => b.name === BUCKET);
-    if (!exists) {
-      const { error } = await supabaseAdmin.storage.createBucket(BUCKET, {
-        public: true,
-        fileSizeLimit: MAX_FILE_BYTES,
-        allowedMimeTypes: [
-          'image/*',
-          'audio/*',
-          'video/*',
-          'application/octet-stream',
-        ],
-      });
-      if (error) {
-        console.warn('[API /media/upload] No se pudo crear el bucket:', error.message);
-      }
-    }
-  } catch (err) {
-    console.warn('[API /media/upload] Error verificando bucket:', err);
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -56,18 +31,30 @@ export async function POST(req: NextRequest) {
     if (file.size <= 0) {
       return NextResponse.json({ error: 'El archivo está vacío' }, { status: 400 });
     }
-    if (file.size > MAX_FILE_BYTES) {
+
+    const settings = await readPlatformSettings();
+    if (!settings.features.uploadsEnabled) {
+      return NextResponse.json(
+        { error: 'Las subidas están pausadas temporalmente por la administración.' },
+        { status: 403 }
+      );
+    }
+
+    const maxMb = Math.min(settings.media.maxUploadMb, MAX_SERVER_UPLOAD_MB);
+    const maxBytes = maxMb * 1024 * 1024;
+
+    if (file.size > maxBytes) {
       return NextResponse.json(
         {
           error: `El archivo pesa ${(file.size / (1024 * 1024)).toFixed(
             1
-          )} MB. El máximo por archivo es ${(MAX_FILE_BYTES / (1024 * 1024)).toFixed(1)} MB.`,
+          )} MB. El máximo por archivo es ${maxMb.toFixed(1)} MB.`,
         },
         { status: 413 }
       );
     }
 
-    await ensureBucket();
+    await ensureMediaBucket();
 
     const now = new Date();
     const folder = `${kind}/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -84,7 +71,7 @@ export async function POST(req: NextRequest) {
           : 'video/mp4');
 
     const { error } = await supabaseAdmin.storage
-      .from(BUCKET)
+      .from(MEDIA_BUCKET)
       .upload(path, Buffer.from(arrayBuffer), {
         contentType,
         upsert: false,
@@ -96,7 +83,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const { data: publicData } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
+    const { data: publicData } = supabaseAdmin.storage.from(MEDIA_BUCKET).getPublicUrl(path);
     if (!publicData?.publicUrl) {
       return NextResponse.json(
         { error: 'No se pudo obtener la URL pública del archivo' },

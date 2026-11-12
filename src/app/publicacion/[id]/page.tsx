@@ -194,18 +194,24 @@ export default function PostDetailPage() {
       ? post.media
       : normalizeMediaList(post.metadata?.media);
 
-  const handleSendComment = (e: React.FormEvent) => {
+  const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
 
-    const newComment = addComment(post.id, commentText);
-    setComments((prev) => [...prev, newComment]);
-    setCommentText('');
+    const newComment = await addComment(post.id, commentText);
+    if (newComment) {
+      setComments((prev) =>
+        prev.some((c) => c.id === newComment.id) ? prev : [...prev, newComment]
+      );
+      setCommentText('');
+    }
   };
 
-  const handleDeleteComment = (commentId: string) => {
-    deleteComment(commentId);
-    setComments((prev) => prev.filter((c) => c.id !== commentId));
+  const handleDeleteComment = async (commentId: string) => {
+    const ok = await deleteComment(commentId);
+    if (ok) {
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    }
   };
 
   return (

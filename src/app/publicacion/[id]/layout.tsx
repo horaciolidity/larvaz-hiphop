@@ -1,8 +1,5 @@
 import type { Metadata } from 'next';
-import { supabaseAdmin } from '@/lib/supabase/admin';
-import { INITIAL_POSTS } from '@/lib/data-store';
-import { mapDbPostToPost } from '@/lib/post-mapper';
-import { normalizeMediaList } from '@/lib/media-utils';
+import { loadPostForServer } from '@/lib/post-server';
 
 const FALLBACK_SITE = 'https://larvaz-hiphop.vercel.app';
 const FALLBACK_OG = '/og-larvaz.jpg';
@@ -13,33 +10,8 @@ function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE).replace(/\/+$/, '');
 }
 
-function isUUID(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
-
-function absoluteImage(url?: string): string {
-  if (!url) return FALLBACK_OG;
-  if (url.startsWith('data:')) return FALLBACK_OG;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${siteUrl()}${url.startsWith('/') ? '' : '/'}${url}`;
-}
-
 async function loadPost(id: string) {
-  if (isUUID(id)) {
-    try {
-      const { data } = await supabaseAdmin
-        .from('posts')
-        .select('*, profiles(*), post_metadata(*)')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (data) return mapDbPostToPost(data);
-    } catch {
-      // sigue con los datos locales
-    }
-  }
-
-  return INITIAL_POSTS.find((p) => p.id === id) || null;
+  return loadPostForServer(id);
 }
 
 export async function generateMetadata({
@@ -76,15 +48,9 @@ export async function generateMetadata({
   }
 
   const author = post.author?.full_name || post.author?.username || 'Artista Larvaz';
-  const media =
-    post.media && post.media.length > 0
-      ? post.media
-      : normalizeMediaList(post.metadata?.media);
-  const coverSource =
-    post.metadata?.thumbnail_url ||
-    media.find((m) => m.type === 'image')?.url ||
-    media.find((m) => m.poster)?.poster;
-  const cover = absoluteImage(coverSource);
+
+  // Imagen social generada al vuelo: portada de la publicación + logo Larvaz.
+  const shareImage = `${siteUrl()}/api/og?post=${encodeURIComponent(id)}`;
 
   const cleanDescription =
     (post.description || '').replace(/\s+/g, ' ').trim().slice(0, 180) ||
@@ -103,11 +69,11 @@ export async function generateMetadata({
       siteName: 'LARVAZ HIP-HOP',
       images: [
         {
-          url: cover,
+          url: shareImage,
           width: 1200,
           height: 630,
-          type: coverSource ? undefined : 'image/jpeg',
-          alt: coverSource ? `Publicación de ${author} en Larvaz` : FALLBACK_OG_ALT,
+          type: 'image/png',
+          alt: `Publicación de ${author} en LARVAZ HIP-HOP`,
         },
       ],
       locale: 'es_LA',
@@ -118,7 +84,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title,
       description: cleanDescription,
-      images: [cover],
+      images: [shareImage],
     },
   };
 }

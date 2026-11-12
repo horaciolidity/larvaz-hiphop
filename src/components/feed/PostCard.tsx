@@ -39,6 +39,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
     isAdmin,
     deletePost,
     incrementViews,
+    platformSettings,
   } = useApp();
 
   const [showComments, setShowComments] = useState(showCommentsDefault);
@@ -48,6 +49,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
   const [showTipModal, setShowTipModal] = useState(false);
   const [localComments, setLocalComments] = useState<any[]>([]);
   const [hasLoadedComments, setHasLoadedComments] = useState(false);
+  const [isSendingComment, setIsSendingComment] = useState(false);
 
   // Auto-record post view once per browser session
   React.useEffect(() => {
@@ -99,37 +101,70 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
     return true;
   };
 
+  const loadComments = React.useCallback(async () => {
+    const { dataStore } = require('@/lib/data-store');
+    setLocalComments(dataStore.getComments(post.id));
+    setHasLoadedComments(true);
+
+    // Trae los comentarios reales de Supabase para que la conversación
+    // se mantenga aunque el post no esté en el feed cargado.
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id)) {
+      try {
+        const res = await fetch(`/api/comments?post_id=${encodeURIComponent(post.id)}`, {
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const payload = await res.json();
+          const incoming = Array.isArray(payload?.comments) ? payload.comments : [];
+          if (incoming.length > 0) {
+            dataStore.mergeComments(incoming);
+          }
+          setLocalComments(dataStore.getComments(post.id));
+        }
+      } catch {
+        // se mantienen los comentarios locales
+      }
+    }
+  }, [post.id]);
+
   React.useEffect(() => {
     if (showComments) {
-      const { dataStore } = require('@/lib/data-store');
-      setLocalComments(dataStore.getComments(post.id));
-      setHasLoadedComments(true);
+      loadComments();
     }
-  }, [showComments, post.id, post.comments_count]);
+  }, [showComments, post.id, post.comments_count, loadComments]);
 
   const handleOpenComments = () => {
     if (!showComments && !hasLoadedComments) {
-      // Lazy load from dataStore
-      const { dataStore } = require('@/lib/data-store');
-      setLocalComments(dataStore.getComments(post.id));
-      setHasLoadedComments(true);
+      loadComments();
     }
     setShowComments(!showComments);
   };
 
-  const handleSendComment = (e: React.FormEvent) => {
+  const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requireAuth('Iniciá sesión para dejar tu comentario en el muro.')) return;
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || isSendingComment) return;
+    if (!platformSettings.features.commentsEnabled) return;
 
-    const newComment = addComment(post.id, commentText);
-    setLocalComments((prev) => [...prev, newComment]);
-    setCommentText('');
+    setIsSendingComment(true);
+    try {
+      const newComment = await addComment(post.id, commentText);
+      if (newComment) {
+        setLocalComments((prev) =>
+          prev.some((c) => c.id === newComment.id) ? prev : [...prev, newComment]
+        );
+        setCommentText('');
+      }
+    } finally {
+      setIsSendingComment(false);
+    }
   };
 
-  const handleDeleteComment = (commentId: string) => {
-    deleteComment(commentId);
-    setLocalComments((prev) => prev.filter((c) => c.id !== commentId));
+  const handleDeleteComment = async (commentId: string) => {
+    const ok = await deleteComment(commentId);
+    if (ok) {
+      setLocalComments((prev) => prev.filter((c) => c.id !== commentId));
+    }
   };
 
   return (
@@ -313,23 +348,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
         </button>
 
         {/* Crypto Tip / Micro-mecenazgo */}
-        <button
-          onClick={() => {
-            if (!requireAuth('Iniciá sesión para enviar propinas cripto al artista.')) return;
-            setShowTipModal(true);
-          }}
-          className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-all group ${(post.crypto_tips_count || 0) > 0
-              ? 'text-acid bg-acid/10 border border-acid/30 font-bold'
-              : 'hover:text-acid hover:bg-acid/10'
-            }`}
-          title="Propina cripto directa al artista"
-          aria-label="Propina Cripto"
-        >
-          <Coins className="w-4 h-4 transition-transform group-hover:scale-125 text-acid" />
-          <span className="font-mono text-xs text-acid">
-            {(post.crypto_tips_total || 0) > 0 ? `$${post.crypto_tips_total}` : 'Tip'}
-          </span>
-        </button>
+        {platformSettings.features.tipsEnabled && (
+          <button
+            onClick={() => {
+              if (!requireAuth('Iniciá sesión para enviar propinas cripto al artista.')) return;
+              setShowTipModal(true);
+            }}
+            className={`flex items-center gap-1.5 py-1 px-2 rounded-lg transition-all group ${(post.crypto_tips_count || 0) > 0
+                ? 'text-acid bg-acid/10 border border-acid/30 font-bold'
+                : 'hover:text-acid hover:bg-acid/10'
+              }`}
+            title="Propina cripto directa al artista"
+            aria-label="Propina Cripto"
+          >
+            <Coins className="w-4 h-4 transition-transform group-hover:scale-125 text-acid" />
+            <span className="font-mono text-xs text-acid">
+              {(post.crypto_tips_total || 0) > 0 ? `$${post.crypto_tips_total}` : 'Tip'}
+            </span>
+          </button>
+        )}
 
         {/* Bookmark */}
         <button
@@ -370,23 +407,29 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
       {showComments && (
         <div className="mt-4 pt-3 border-t border-surface-border/80 space-y-3 bg-surface/40 p-3 rounded-xl animate-fade-in">
           {/* New comment input */}
-          <form onSubmit={handleSendComment} className="flex gap-2">
-            <input
-              type="text"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Deja tu comentario o respeto cultural..."
-              className="flex-1 bg-surface-elevated border border-surface-border rounded-xl px-3 py-2 text-xs text-content-primary focus:border-acid focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={!commentText.trim()}
-              className="p-2 rounded-xl bg-acid text-background font-bold hover:bg-acid-hover disabled:opacity-40 disabled:pointer-events-none transition-colors"
-              aria-label="Enviar comentario"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
+          {platformSettings.features.commentsEnabled ? (
+            <form onSubmit={handleSendComment} className="flex gap-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Deja tu comentario o respeto cultural..."
+                className="flex-1 bg-surface-elevated border border-surface-border rounded-xl px-3 py-2 text-xs text-content-primary focus:border-acid focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!commentText.trim() || isSendingComment}
+                className="p-2 rounded-xl bg-acid text-background font-bold hover:bg-acid-hover disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                aria-label="Enviar comentario"
+              >
+                <Send className={`w-4 h-4 ${isSendingComment ? 'animate-pulse' : ''}`} />
+              </button>
+            </form>
+          ) : (
+            <p className="text-[11px] text-content-muted bg-surface-elevated border border-surface-border rounded-xl px-3 py-2">
+              Los comentarios están pausados temporalmente por la administración.
+            </p>
+          )}
 
           {/* Comments List */}
           <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
@@ -426,7 +469,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
                     </p>
                   </div>
 
-                  {(c.user_id === currentUser.id || currentUser.role === 'admin') && (
+                  {(c.user_id === currentUser.id ||
+                    currentUser.role === 'admin' ||
+                    currentUser.role === 'super_admin') && (
                     <button
                       onClick={() => handleDeleteComment(c.id)}
                       className="text-content-muted hover:text-magenta p-1 transition-colors flex-shrink-0"

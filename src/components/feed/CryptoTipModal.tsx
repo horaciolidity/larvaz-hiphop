@@ -38,7 +38,7 @@ export const CryptoTipModal: React.FC<CryptoTipModalProps> = ({
   onClose,
   onTipSuccess,
 }) => {
-  const { sendCryptoTip, currentUser } = useApp();
+  const { sendCryptoTip, currentUser, platformSettings } = useApp();
   const [currency, setCurrency] = useState<CryptoCurrency>('USDT');
   const [usdAmount, setUsdAmount] = useState<number>(5);
   const [customAmount, setCustomAmount] = useState<string>('5');
@@ -50,16 +50,18 @@ export const CryptoTipModal: React.FC<CryptoTipModalProps> = ({
   if (!isOpen) return null;
 
   const artist = post.author;
+  const platformWallets = platformSettings.wallets;
   const wallets = artist.wallet_addresses || {
-    usdt: '0x32A489F2f1eC855B68A78351B2DbA2718E70441E',
-    sol: '7nY2kroNosSolanaGraffitiCrewAddress9999999999',
-    btc: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-    eth: '0x88C45a279B6C3F2d6d1d4f997C2245b1E1719B5E',
+    usdt: platformWallets.usdt || '0x32A489F2f1eC855B68A78351B2DbA2718E70441E',
+    sol: platformWallets.sol || '7nY2kroNosSolanaGraffitiCrewAddress9999999999',
+    btc: platformWallets.btc || 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+    eth: platformWallets.eth || '0x88C45a279B6C3F2d6d1d4f997C2245b1E1719B5E',
   };
 
   const currentAddress =
     wallets[currency.toLowerCase() as keyof typeof wallets] ||
     wallets.usdt ||
+    platformWallets.usdt ||
     '0x32A489F2f1eC855B68A78351B2DbA2718E70441E';
 
   const cryptoAmount = Number((usdAmount / RATES[currency]).toFixed(6));

@@ -15,6 +15,7 @@ import {
   PostMedia,
 } from '@/types';
 import { normalizeMediaList, resolveIpfsUrl } from './media-utils';
+import { withEffectiveRole } from './roles';
 
 
 
@@ -1596,7 +1597,7 @@ class LarvazDataStore {
   }
 
   addProfile(profile: Profile): boolean {
-    const profileWithFlag = { ...profile, is_custom: true };
+    const profileWithFlag = { ...withEffectiveRole(profile), is_custom: true };
     const exists = this.profiles.some((p) => p.id === profile.id || p.username.toLowerCase() === profile.username.toLowerCase());
     if (exists) {
       const idx = this.profiles.findIndex((p) => p.id === profile.id || p.username.toLowerCase() === profile.username.toLowerCase());
@@ -1619,7 +1620,10 @@ class LarvazDataStore {
     let changed = false;
     for (const p of incomingProfiles) {
       const isCustom = !initialIds.has(p.id);
-      const profileToAdd = { ...p, is_custom: isCustom ? true : (p.is_custom || false) };
+      const profileToAdd = {
+        ...withEffectiveRole(p),
+        is_custom: isCustom ? true : (p.is_custom || false),
+      };
       if (!map.has(p.id)) {
         map.set(p.id, profileToAdd);
         changed = true;
@@ -1706,13 +1710,34 @@ class LarvazDataStore {
     const index = this.comments.findIndex((c) => c.id === commentId);
     if (index === -1) return false;
     const comment = this.comments[index];
-    if (comment.user_id !== userId && this.currentUser.role !== 'admin') return false;
+    const canModerate =
+      this.currentUser.role === 'admin' || this.currentUser.role === 'super_admin';
+    if (comment.user_id !== userId && !canModerate) return false;
 
     const post = this.posts.find((p) => p.id === comment.post_id);
     if (post) post.comments_count = Math.max(0, post.comments_count - 1);
     this.comments.splice(index, 1);
     this.saveToStorage();
     return true;
+  }
+
+  /** Elimina un comentario ya borrado en el servidor y ajusta el contador. */
+  removeComment(commentId: string): Comment | null {
+    const index = this.comments.findIndex((c) => c.id === commentId);
+    if (index === -1) return null;
+    const [comment] = this.comments.splice(index, 1);
+    const post = this.posts.find((p) => p.id === comment.post_id);
+    if (post) post.comments_count = Math.max(0, post.comments_count - 1);
+    this.saveToStorage();
+    return comment;
+  }
+
+  /** Ajusta el contador local sin tocar los comentarios (sincronización optimista). */
+  adjustPostCommentsCount(postId: string, delta: number): void {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post) return;
+    post.comments_count = Math.max(0, post.comments_count + delta);
+    this.saveToStorage();
   }
 
   // --- Events ---
