@@ -1179,6 +1179,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, views_count: views } : p))
     );
+
+    // Persistimos la vista para que el contador sea real entre dispositivos.
+    if (isSupabaseConnected && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId)) {
+      fetch('/api/post', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: postId, action: 'view' }),
+      }).catch(() => {});
+    }
+
     return views;
   };
 

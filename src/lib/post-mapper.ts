@@ -100,6 +100,8 @@ export function mapDbPostToPost(p: any): Post {
     media,
     user_has_liked: false,
     user_has_bookmarked: false,
-    views_count: p?.views_count || 1,
+    views_count: Number(p?.views_count ?? rawMeta?.views_count ?? 1) || 1,
+    shares_count: Number(rawMeta?.shares_count || 0),
+    bookmarks_count: Number(rawMeta?.bookmarks_count || 0),
   };
 }

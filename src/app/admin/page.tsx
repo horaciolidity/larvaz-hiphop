@@ -14,6 +14,12 @@ import {
 import { UserRole } from '@/types';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import {
+  getSuggestedComments,
+  randomSeed,
+  TEST_COMMENT_TONES,
+  TestCommentTone,
+} from '@/lib/test-comments';
+import {
   ShieldAlert,
   Flag,
   EyeOff,
@@ -40,6 +46,12 @@ import {
   AlertCircle,
   FileAudio,
   Image as ImageIcon,
+  FlaskConical,
+  Heart,
+  Eye,
+  Bookmark,
+  Share2,
+  Sparkles,
 } from 'lucide-react';
 
 type AdminTab =
@@ -49,7 +61,8 @@ type AdminTab =
   | 'radio'
   | 'medios'
   | 'wallets'
-  | 'funciones';
+  | 'funciones'
+  | 'pruebas';
 
 interface OverviewData {
   counts: {
@@ -61,6 +74,45 @@ interface OverviewData {
   };
   storage: { files: number; bytes: number };
   generatedAt: string;
+}
+
+interface TestPostRow {
+  id: string;
+  description: string;
+  likes_count?: number;
+  comments_count?: number;
+  post_metadata?: any;
+  profiles?: any;
+}
+
+interface TestReactionResult {
+  applied: {
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+    views: number;
+    tone: TestCommentTone;
+  };
+  counters: {
+    likes_count: number;
+    comments_count: number;
+    views_count: number;
+    shares_count: number;
+    bookmarks_count: number;
+  };
+  comments: Array<{
+    id: string;
+    content: string;
+    author_name: string;
+    username: string;
+  }>;
+}
+
+function rawMetadataOf(post: any): Record<string, any> {
+  const meta = Array.isArray(post?.post_metadata) ? post.post_metadata[0] : post?.post_metadata;
+  const raw = meta?.raw_metadata;
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
 }
 
 function isUUID(value: string): boolean {
@@ -145,6 +197,7 @@ export default function SuperAdminPage() {
     refreshPlatformSettings,
     toggleUserBan,
     deletePost,
+    refreshPosts,
     isRadioPlaying,
     toggleRadio,
     changeStation,
@@ -163,6 +216,23 @@ export default function SuperAdminPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
   const [usersMessage, setUsersMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+
+  // Estado del modo de pruebas (solo Super Admin)
+  const [testPosts, setTestPosts] = useState<TestPostRow[]>([]);
+  const [testPostId, setTestPostId] = useState('');
+  const [testCounts, setTestCounts] = useState({
+    likes: 10,
+    comments: 5,
+    shares: 3,
+    saves: 2,
+    views: 50,
+  });
+  const [testTone, setTestTone] = useState<TestCommentTone>('mixed');
+  const [testPreviewSeed, setTestPreviewSeed] = useState(1);
+  const [testPreview, setTestPreview] = useState<string[]>([]);
+  const [testBusy, setTestBusy] = useState(false);
+  const [testMessage, setTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+  const [testResult, setTestResult] = useState<TestReactionResult | null>(null);
 
   const getToken = useCallback(async (): Promise<string> => {
     if (!supabase) return '';
@@ -216,6 +286,27 @@ export default function SuperAdminPage() {
       refreshPlatformSettings();
     }
   }, [isSuperAdmin, loadOverview, refreshPlatformSettings]);
+
+  const loadTestPosts = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/feed?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const payload = await res.json().catch(() => ({}));
+      const rows = Array.isArray(payload?.posts) ? payload.posts : [];
+      setTestPosts(rows.filter((post: any) => isUUID(String(post?.id))));
+    } catch {
+      // la lista se puede reintentar con el botón de recargar
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isSuperAdmin) loadTestPosts();
+  }, [isSuperAdmin, loadTestPosts]);
+
+  useEffect(() => {
+    const previewCount = Math.max(3, Math.min(testCounts.comments || 3, 8));
+    setTestPreview(getSuggestedComments(previewCount, testTone, testPreviewSeed));
+  }, [testTone, testPreviewSeed, testCounts.comments]);
 
   const handleResolveReport = (id: string, action: 'hide' | 'dismiss') => {
     dataStore.resolveReport(id, action);
@@ -292,6 +383,65 @@ export default function SuperAdminPage() {
   const updateDraftFeature = (patch: Partial<PlatformFeatureSettings>) =>
     setDraft((prev) => ({ ...prev, features: { ...prev.features, ...patch } }));
 
+  const handleTestReactions = async () => {
+    setTestMessage(null);
+
+    if (!testPostId) {
+      setTestMessage({ type: 'error', text: 'Elegí una publicación para la prueba.' });
+      return;
+    }
+
+    const total =
+      testCounts.likes + testCounts.comments + testCounts.shares + testCounts.saves + testCounts.views;
+    if (total <= 0) {
+      setTestMessage({ type: 'error', text: 'Indicá al menos una cantidad mayor a cero.' });
+      return;
+    }
+
+    setTestBusy(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        setTestMessage({ type: 'error', text: 'Sesión de administrador requerida.' });
+        return;
+      }
+
+      const res = await fetch('/api/admin/test-reactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          post_id: testPostId,
+          ...testCounts,
+          tone: testTone,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setTestMessage({
+          type: 'error',
+          text: payload?.error || 'No se pudo aplicar la prueba.',
+        });
+        return;
+      }
+
+      setTestResult(payload as TestReactionResult);
+      setTestMessage({
+        type: 'ok',
+        text: 'Prueba aplicada. Los contadores ya se ven en la plataforma.',
+      });
+      await loadTestPosts();
+      refreshPosts();
+    } catch (err: any) {
+      setTestMessage({ type: 'error', text: String(err?.message || err) });
+    } finally {
+      setTestBusy(false);
+    }
+  };
+
   if (!isSuperAdmin) {
     return (
       <div className="p-8 text-center space-y-4 max-w-sm mx-auto">
@@ -317,6 +467,7 @@ export default function SuperAdminPage() {
   const quotaMb = draft.media.storageQuotaMb || DEFAULT_PLATFORM_SETTINGS.media.storageQuotaMb;
   const storagePercent = Math.min(100, Math.round((usedMb / quotaMb) * 100));
   const isSettingsTab = activeTab === 'medios' || activeTab === 'wallets' || activeTab === 'funciones';
+  const selectedTestPost = testPosts.find((post) => post.id === testPostId) || null;
 
   const tabs: Array<{ id: AdminTab; label: string; icon: React.ReactNode }> = [
     { id: 'resumen', label: 'Resumen', icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
@@ -326,6 +477,7 @@ export default function SuperAdminPage() {
     { id: 'medios', label: 'Medios y almacenamiento', icon: <HardDrive className="w-3.5 h-3.5" /> },
     { id: 'wallets', label: 'Wallets', icon: <Wallet className="w-3.5 h-3.5" /> },
     { id: 'funciones', label: 'Funciones', icon: <SlidersHorizontal className="w-3.5 h-3.5" /> },
+    { id: 'pruebas', label: 'Pruebas', icon: <FlaskConical className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -1000,6 +1152,275 @@ export default function SuperAdminPage() {
             />
             <p className="text-[10px] text-content-muted text-right">{draft.announcement.length}/240</p>
           </div>
+        </div>
+      )}
+
+      {/* ── PRUEBAS (solo Super Admin) ──────────────────────────────────── */}
+      {activeTab === 'pruebas' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-orange/10 border border-orange/30 flex items-start gap-3">
+            <FlaskConical className="w-5 h-5 text-orange shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-xs font-black text-content-primary uppercase tracking-wider">
+                Modo de pruebas de interacciones
+              </h3>
+              <p className="text-[11px] text-content-secondary leading-relaxed">
+                Inyectá likes, comentarios, compartidos, guardados y vistas en una publicación.
+                Poné 0 en lo que quieras saltear. Los comentarios se firman con perfiles anónimos
+                técnicos, sin registro público.
+              </p>
+            </div>
+          </div>
+
+          {/* Publicación objetivo */}
+          <div className="p-4 rounded-2xl bg-surface border border-surface-border space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-acid" />
+                <h3 className="text-xs font-bold text-content-primary uppercase tracking-wider">
+                  Publicación objetivo
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={loadTestPosts}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated border border-surface-border text-[11px] font-bold text-content-secondary hover:text-acid"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Recargar
+              </button>
+            </div>
+
+            <select
+              value={testPostId}
+              onChange={(e) => {
+                setTestPostId(e.target.value);
+                setTestResult(null);
+                setTestMessage(null);
+              }}
+              className="w-full px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border text-xs text-content-primary focus:border-acid focus:outline-none"
+            >
+              <option value="">Elegí una publicación…</option>
+              {testPosts.map((post) => (
+                <option key={post.id} value={post.id}>
+                  {`@${post.profiles?.username || 'artista'} · ${String(post.description || '')
+                    .replace(/\s+/g, ' ')
+                    .slice(0, 70)}`}
+                </option>
+              ))}
+            </select>
+
+            {selectedTestPost && (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                {[
+                  { label: 'Likes', value: Number(selectedTestPost.likes_count || 0), icon: <Heart className="w-3.5 h-3.5" /> },
+                  { label: 'Comentarios', value: Number(selectedTestPost.comments_count || 0), icon: <MessageSquare className="w-3.5 h-3.5" /> },
+                  { label: 'Vistas', value: Number(rawMetadataOf(selectedTestPost).views_count || 0), icon: <Eye className="w-3.5 h-3.5" /> },
+                  { label: 'Compartidos', value: Number(rawMetadataOf(selectedTestPost).shares_count || 0), icon: <Share2 className="w-3.5 h-3.5" /> },
+                  { label: 'Guardados', value: Number(rawMetadataOf(selectedTestPost).bookmarks_count || 0), icon: <Bookmark className="w-3.5 h-3.5" /> },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="p-2 rounded-xl bg-surface-elevated border border-surface-border"
+                  >
+                    <div className="flex items-center justify-center gap-1 text-content-muted">
+                      {item.icon}
+                      <span className="text-[9px] font-bold uppercase tracking-wider">
+                        {item.label}
+                      </span>
+                    </div>
+                    <p className="text-sm font-display font-black text-content-primary">
+                      {item.value.toLocaleString('es-AR')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Cantidades */}
+          <div className="p-4 rounded-2xl bg-surface border border-surface-border space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-acid" />
+              <h3 className="text-xs font-bold text-content-primary uppercase tracking-wider">
+                Cantidad por reacción
+              </h3>
+            </div>
+            <p className="text-[10px] text-content-muted">
+              Cada reacción aplica solo si su cantidad es mayor a cero. Se suman a lo que ya
+              tiene la publicación.
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { key: 'likes' as const, label: 'Likes', icon: <Heart className="w-3.5 h-3.5 text-magenta" />, max: 5000 },
+                { key: 'comments' as const, label: 'Comentarios', icon: <MessageSquare className="w-3.5 h-3.5 text-acid" />, max: 60 },
+                { key: 'shares' as const, label: 'Compartidos', icon: <Share2 className="w-3.5 h-3.5 text-orange" />, max: 5000 },
+                { key: 'saves' as const, label: 'Guardados', icon: <Bookmark className="w-3.5 h-3.5 text-cyan" />, max: 5000 },
+                { key: 'views' as const, label: 'Vistas', icon: <Eye className="w-3.5 h-3.5 text-content-secondary" />, max: 100000 },
+              ].map((field) => (
+                <label key={field.key} className="block space-y-1">
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-content-secondary">
+                    {field.icon}
+                    {field.label}
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={field.max}
+                    step={1}
+                    value={testCounts[field.key]}
+                    onChange={(e) => {
+                      const raw = Number(e.target.value);
+                      const next = Number.isFinite(raw)
+                        ? Math.max(0, Math.min(field.max, Math.floor(raw)))
+                        : 0;
+                      setTestCounts((prev) => ({ ...prev, [field.key]: next }));
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border text-xs font-mono text-content-primary focus:border-acid focus:outline-none"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Tono y sugerencias */}
+          <div className="p-4 rounded-2xl bg-surface border border-surface-border space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-acid" />
+                <h3 className="text-xs font-bold text-content-primary uppercase tracking-wider">
+                  Tanda de comentarios sugerida
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTestPreviewSeed(randomSeed())}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated border border-surface-border text-[11px] font-bold text-content-secondary hover:text-acid"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Otra tanda
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {TEST_COMMENT_TONES.map((tone) => (
+                <button
+                  key={tone.id}
+                  type="button"
+                  onClick={() => setTestTone(tone.id)}
+                  className={`p-2 rounded-xl border text-left transition-all ${
+                    testTone === tone.id
+                      ? 'bg-acid/15 border-acid text-content-primary'
+                      : 'bg-surface-elevated border-surface-border text-content-secondary hover:border-acid/50'
+                  }`}
+                >
+                  <p className="text-[11px] font-black">{tone.label}</p>
+                  <p className="text-[9px] text-content-muted">{tone.hint}</p>
+                </button>
+              ))}
+            </div>
+
+            <ul className="space-y-1.5">
+              {testPreview.map((comment, index) => (
+                <li
+                  key={`${testPreviewSeed}-${index}`}
+                  className="p-2.5 rounded-xl bg-surface-elevated border border-surface-border text-[11px] text-content-secondary flex items-start gap-2"
+                >
+                  <span className="text-[9px] font-black text-acid mt-0.5">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="leading-relaxed">{comment}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-content-muted">
+              La previa es orientativa: al aplicar se genera una tanda nueva con el mismo tono.
+            </p>
+          </div>
+
+          {testMessage && (
+            <div
+              className={`p-3 rounded-xl border text-[11px] flex items-center gap-2 ${
+                testMessage.type === 'ok'
+                  ? 'bg-acid/10 border-acid/30 text-acid'
+                  : 'bg-magenta/10 border-magenta/30 text-magenta'
+              }`}
+            >
+              {testMessage.type === 'ok' ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <AlertCircle className="w-4 h-4" />
+              )}
+              {testMessage.text}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleTestReactions}
+            disabled={testBusy || !testPostId}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-acid text-background font-display font-black text-xs uppercase tracking-wider shadow-acid-glow hover:bg-acid-hover disabled:opacity-50 transition-colors"
+          >
+            <FlaskConical className="w-4 h-4" />
+            {testBusy ? 'Aplicando prueba…' : 'Aplicar prueba de reacciones'}
+          </button>
+
+          {testResult && (
+            <div className="p-4 rounded-2xl bg-surface border border-acid/30 space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-acid" />
+                <h3 className="text-xs font-bold text-content-primary uppercase tracking-wider">
+                  Resultado aplicado
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                {[
+                  { label: 'Likes', value: testResult.counters.likes_count, icon: <Heart className="w-3.5 h-3.5" /> },
+                  { label: 'Comentarios', value: testResult.counters.comments_count, icon: <MessageSquare className="w-3.5 h-3.5" /> },
+                  { label: 'Vistas', value: testResult.counters.views_count, icon: <Eye className="w-3.5 h-3.5" /> },
+                  { label: 'Compartidos', value: testResult.counters.shares_count, icon: <Share2 className="w-3.5 h-3.5" /> },
+                  { label: 'Guardados', value: testResult.counters.bookmarks_count, icon: <Bookmark className="w-3.5 h-3.5" /> },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="p-2 rounded-xl bg-surface-elevated border border-surface-border"
+                  >
+                    <div className="flex items-center justify-center gap-1 text-content-muted">
+                      {item.icon}
+                      <span className="text-[9px] font-bold uppercase tracking-wider">
+                        {item.label}
+                      </span>
+                    </div>
+                    <p className="text-sm font-display font-black text-acid">
+                      {item.value.toLocaleString('es-AR')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {testResult.comments.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-bold text-content-muted uppercase tracking-wider">
+                    Comentarios anónimos insertados ({testResult.comments.length})
+                  </p>
+                  {testResult.comments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="p-2.5 rounded-xl bg-surface-elevated border border-surface-border text-[11px] text-content-secondary"
+                    >
+                      <span className="font-black text-content-primary">
+                        {comment.author_name}
+                      </span>{' '}
+                      <span className="text-content-muted">@{comment.username}</span>
+                      <p className="mt-0.5 leading-relaxed">{comment.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

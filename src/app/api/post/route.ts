@@ -10,6 +10,48 @@ function isUUID(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
+/**
+ * Incrementa un contador guardado en post_metadata.raw_metadata.
+ * La tabla posts no tiene columnas de vistas/compartidos/guardados.
+ */
+async function bumpRawMetadataCounter(
+  postId: string,
+  key: 'views_count' | 'shares_count' | 'bookmarks_count',
+  amount = 1
+): Promise<{ value: number } | { error: string; status: number }> {
+  const { data: row, error } = await supabaseAdmin
+    .from('posts')
+    .select('id, post_metadata(*)')
+    .eq('id', postId)
+    .maybeSingle();
+
+  if (error) return { error: error.message, status: 500 };
+  if (!row) return { error: 'La publicación no existe.', status: 404 };
+
+  const meta = Array.isArray((row as any).post_metadata)
+    ? (row as any).post_metadata[0]
+    : (row as any).post_metadata;
+  const raw =
+    meta?.raw_metadata && typeof meta.raw_metadata === 'object' ? meta.raw_metadata : {};
+  const value = Math.max(0, Number(raw[key] || 0) + amount);
+  const nextRawMetadata = { ...raw, [key]: value };
+
+  if (meta?.id) {
+    const { error: updateError } = await supabaseAdmin
+      .from('post_metadata')
+      .update({ raw_metadata: nextRawMetadata })
+      .eq('id', meta.id);
+    if (updateError) return { error: updateError.message, status: 500 };
+  } else {
+    const { error: insertError } = await supabaseAdmin
+      .from('post_metadata')
+      .insert({ post_id: postId, raw_metadata: nextRawMetadata });
+    if (insertError) return { error: insertError.message, status: 500 };
+  }
+
+  return { value };
+}
+
 async function resolveDbUserId(params: {
   user_id?: string;
   username?: string;
@@ -249,6 +291,19 @@ export async function PATCH(req: NextRequest) {
 
     if (!post_id || !isUUID(post_id)) {
       return NextResponse.json({ error: 'post_id UUID válido es requerido' }, { status: 400 });
+    }
+
+    if (action === 'view' || action === 'share') {
+      const key = action === 'view' ? 'views_count' : 'shares_count';
+      const result = await bumpRawMetadataCounter(post_id, key, 1);
+      if ('error' in result) {
+        return NextResponse.json({ error: result.error }, { status: result.status });
+      }
+      return NextResponse.json(
+        action === 'view'
+          ? { success: true, views_count: result.value }
+          : { success: true, shares_count: result.value }
+      );
     }
 
     if (action === 'like' || action === 'unlike') {

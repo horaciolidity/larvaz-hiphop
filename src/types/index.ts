@@ -124,6 +124,8 @@ export interface Post {
   crypto_tips_total?: number;
   crypto_tips_count?: number;
   views_count?: number;
+  shares_count?: number;
+  bookmarks_count?: number;
 }
 
 export interface Comment {
