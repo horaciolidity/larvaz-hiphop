@@ -202,34 +202,37 @@ export const AppTutorial: React.FC = () => {
     return () => window.removeEventListener(START_TUTORIAL_EVENT, handler);
   }, []);
 
+  // Busca la primera copia visible del objetivo: en escritorio vive en el menú
+  // lateral y en móvil en la barra inferior, así que puede haber duplicados.
+  const resolveTarget = useCallback((key?: string) => {
+    if (!key) return null;
+    const elements = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-tour="${key}"]`)
+    );
+    for (const element of elements) {
+      const rect = element.getBoundingClientRect();
+      const visible =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.top < window.innerHeight &&
+        rect.right > 0 &&
+        rect.left < window.innerWidth;
+      if (visible) return element;
+    }
+    return null;
+  }, []);
+
   // Resaltado del elemento correspondiente al paso.
   const updateTargetRect = useCallback(() => {
-    if (!step?.target) {
-      setTargetRect(null);
-      return;
-    }
-    const element = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
-    if (!element) {
-      setTargetRect(null);
-      return;
-    }
-    const rect = element.getBoundingClientRect();
-    const visible =
-      rect.width > 0 &&
-      rect.height > 0 &&
-      rect.bottom > 0 &&
-      rect.top < window.innerHeight &&
-      rect.right > 0 &&
-      rect.left < window.innerWidth;
-    setTargetRect(visible ? rect : null);
-  }, [step?.target]);
+    const element = resolveTarget(step?.target);
+    setTargetRect(element ? element.getBoundingClientRect() : null);
+  }, [resolveTarget, step?.target]);
 
   useLayoutEffect(() => {
     if (!open) return;
 
-    const element = step?.target
-      ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`)
-      : null;
+    const element = resolveTarget(step?.target);
     element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 
     updateTargetRect();
@@ -305,10 +308,7 @@ export const AppTutorial: React.FC = () => {
   return (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Tutorial de uso">
       {/* Capa que bloquea la interacción con el fondo */}
-      <div
-        className={`fixed inset-0 z-[80] ${highlight ? 'bg-transparent' : 'bg-black/80'}`}
-        onClick={() => undefined}
-      />
+      <div className={`fixed inset-0 z-[80] ${highlight ? 'bg-transparent' : 'bg-black/80'}`} />
 
       {/* Foco sobre el elemento del paso */}
       {highlight && (
@@ -318,23 +318,28 @@ export const AppTutorial: React.FC = () => {
         />
       )}
 
-      {/* Tarjeta del tutorial */}
-      <div className="fixed z-[82] left-1/2 -translate-x-1/2 bottom-5 w-[min(94vw,430px)] animate-fade-in">
-        <div className="rounded-2xl bg-surface border border-acid/40 shadow-2xl overflow-hidden">
-          <div className="h-1 w-full bg-surface-elevated">
-            <div
-              className="h-full bg-acid transition-all duration-300"
-              style={{ width: `${((stepIndex + 1) / TOUR_STEPS.length) * 100}%` }}
-            />
-          </div>
+      {/*
+        Tarjeta del tutorial.
+        Se centra con flex (no con -translate-x-1/2) porque la animación de
+        entrada también usa transform y pisaba el centrado: en móvil la tarjeta
+        quedaba corrida a la derecha y los botones fuera de pantalla.
+      */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-[82] flex justify-center px-3 md:bottom-5 md:px-0">
+        <div className="pointer-events-auto w-full max-w-[430px] animate-fade-in">
+          <div className="flex max-h-[calc(100dvh-11rem)] flex-col overflow-hidden rounded-2xl bg-surface border border-acid/40 shadow-2xl md:max-h-[calc(100dvh-2.5rem)]">
+            <div className="h-1 w-full flex-shrink-0 bg-surface-elevated">
+              <div
+                className="h-full bg-acid transition-all duration-300"
+                style={{ width: `${((stepIndex + 1) / TOUR_STEPS.length) * 100}%` }}
+              />
+            </div>
 
-          <div className="p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-shrink-0 items-start justify-between gap-3 px-4 pt-3">
+              <div className="flex min-w-0 items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-acid/15 border border-acid/40 text-acid flex items-center justify-center flex-shrink-0">
                   {step.icon}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-[9px] font-black uppercase tracking-[0.18em] text-content-muted">
                     Paso {stepIndex + 1} de {TOUR_STEPS.length}
                   </p>
@@ -346,42 +351,52 @@ export const AppTutorial: React.FC = () => {
               <button
                 type="button"
                 onClick={() => close()}
-                className="p-1.5 rounded-lg text-content-muted hover:text-content-primary hover:bg-surface-elevated transition-colors"
+                className="-m-1 flex-shrink-0 p-2.5 rounded-lg text-content-muted hover:text-content-primary hover:bg-surface-elevated active:bg-surface-elevated transition-colors"
                 aria-label="Cerrar tutorial"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-content-secondary leading-relaxed">{step.description}</p>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2 pt-2 space-y-3">
+              <p className="text-xs text-content-secondary leading-relaxed">{step.description}</p>
 
-            {step.tip && (
-              <div className="p-2.5 rounded-xl bg-acid/10 border border-acid/25 text-[11px] text-acid leading-relaxed flex items-start gap-2">
-                <Sparkles className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                <span>{step.tip}</span>
-              </div>
-            )}
+              {step.tip && (
+                <div className="p-2.5 rounded-xl bg-acid/10 border border-acid/25 text-[11px] text-acid leading-relaxed flex items-start gap-2">
+                  <Sparkles className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span>{step.tip}</span>
+                </div>
+              )}
+            </div>
 
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <div className="flex items-center gap-1">
-                {TOUR_STEPS.map((tourStep, index) => (
-                  <button
-                    key={tourStep.id}
-                    type="button"
-                    onClick={() => setStepIndex(index)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      index === stepIndex
-                        ? 'w-5 bg-acid'
-                        : index < stepIndex
-                          ? 'w-1.5 bg-acid/50'
-                          : 'w-1.5 bg-surface-border'
-                    }`}
-                    aria-label={`Ir al paso ${index + 1}`}
-                  />
-                ))}
-              </div>
+            <div className="flex flex-shrink-0 items-center justify-between gap-2 border-t border-surface-border/60 px-4 py-2.5">
+              <button
+                type="button"
+                onClick={() => close()}
+                className="px-1 py-1 text-[10px] font-bold uppercase tracking-wider text-content-muted hover:text-content-primary transition-colors"
+              >
+                Saltar
+              </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="hidden items-center gap-1 sm:flex">
+                  {TOUR_STEPS.map((tourStep, index) => (
+                    <button
+                      key={tourStep.id}
+                      type="button"
+                      onClick={() => setStepIndex(index)}
+                      className={`h-1.5 rounded-full transition-all ${
+                        index === stepIndex
+                          ? 'w-5 bg-acid'
+                          : index < stepIndex
+                            ? 'w-1.5 bg-acid/50'
+                            : 'w-1.5 bg-surface-border'
+                      }`}
+                      aria-label={`Ir al paso ${index + 1}`}
+                    />
+                  ))}
+                </div>
+
                 {stepIndex > 0 && (
                   <button
                     type="button"
@@ -396,7 +411,7 @@ export const AppTutorial: React.FC = () => {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-acid text-background text-[11px] font-display font-black uppercase tracking-wider shadow-acid-glow hover:bg-acid-hover transition-colors"
+                  className="flex flex-shrink-0 items-center gap-1.5 px-3.5 py-2 rounded-xl bg-acid text-background text-[11px] font-display font-black uppercase tracking-wider shadow-acid-glow hover:bg-acid-hover transition-colors"
                 >
                   {isLast ? (
                     <>
@@ -413,7 +428,7 @@ export const AppTutorial: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-[9px] text-content-muted text-right">
+            <p className="hidden flex-shrink-0 px-4 pb-2 text-right text-[9px] text-content-muted md:block">
               Usá las flechas del teclado · Esc para salir
             </p>
           </div>

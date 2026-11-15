@@ -23,7 +23,7 @@ export default function HomePage() {
       {/* Featured Larvaz Mastering Studio Banner */}
       <div className="px-4 pt-3.5 pb-1 bg-surface/30">
         <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan/15 via-surface-elevated to-acid/15 border border-cyan/30 hover:border-cyan/60 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-lg">
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 w-full sm:w-auto">
             <div className="w-9 h-9 rounded-xl bg-cyan/20 border border-cyan/40 flex items-center justify-center text-cyan flex-shrink-0 shadow-sm">
               <Sliders className="w-4 h-4" />
             </div>

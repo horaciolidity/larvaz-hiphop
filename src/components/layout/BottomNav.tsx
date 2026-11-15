@@ -11,11 +11,11 @@ export const BottomNav: React.FC = () => {
   const { currentUser, isRadioPlaying } = useApp();
 
   const navItems = [
-    { label: 'Inicio', href: '/', icon: Home },
-    { label: 'Explorar', href: '/explorar', icon: Compass },
-    { label: 'Publicar', href: '/crear', icon: PlusCircle, isAction: true },
-    { label: 'Radio', href: '/radio', icon: Radio, hasBadge: isRadioPlaying },
-    { label: 'Mi Panel', href: '/panel', icon: UserCheck },
+    { label: 'Inicio', href: '/', icon: Home, tour: 'inicio' },
+    { label: 'Explorar', href: '/explorar', icon: Compass, tour: 'explorar' },
+    { label: 'Publicar', href: '/crear', icon: PlusCircle, isAction: true, tour: 'publicar' },
+    { label: 'Radio', href: '/radio', icon: Radio, tour: 'radio', hasBadge: isRadioPlaying },
+    { label: 'Mi Panel', href: '/panel', icon: UserCheck, tour: 'panel' },
   ];
 
   return (
@@ -30,6 +30,7 @@ export const BottomNav: React.FC = () => {
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour={item.tour}
                 className="flex flex-col items-center justify-center -mt-5 group"
               >
                 <div className="w-13 h-13 p-3 rounded-full bg-acid text-background font-bold flex items-center justify-center shadow-acid-glow group-hover:scale-105 active:scale-95 transition-transform">
@@ -46,6 +47,7 @@ export const BottomNav: React.FC = () => {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={item.tour}
               className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
                 isActive
                   ? 'text-acid font-bold'

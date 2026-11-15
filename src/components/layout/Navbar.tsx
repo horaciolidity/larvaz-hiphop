@@ -18,14 +18,18 @@ export const Navbar: React.FC = () => {
   const flag = getLocationFlag(userLocation || currentUser.location);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-background/90 backdrop-blur-md border-b border-surface-border md:hidden px-3 py-2.5 flex items-center justify-between">
-      <Logo size="sm" />
+    <header className="sticky top-0 z-40 w-full bg-background/90 backdrop-blur-md border-b border-surface-border md:hidden px-3 py-2.5 flex items-center justify-between gap-2">
+      <div className="shrink-0">
+        <Logo size="sm" />
+      </div>
 
-      <div className="flex items-center gap-1.5">
+      {/* En pantallas muy angostas la fila se desplaza dentro de la cabecera,
+          sin empujar el ancho de toda la página. */}
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Radio Quick Link */}
         <Link
           href="/radio"
-          className={`p-2 rounded-xl border transition-all flex items-center gap-1 ${isRadioPlaying
+          className={`shrink-0 p-1.5 rounded-xl border transition-all flex items-center gap-1 ${isRadioPlaying
             ? 'bg-acid/10 border-acid text-acid shadow-acid-glow'
             : 'bg-surface border-surface-border text-content-secondary hover:text-acid'
             }`}
@@ -38,7 +42,7 @@ export const Navbar: React.FC = () => {
         {/* Mastering Studio Quick Link */}
         <Link
           href="/estudio"
-          className="p-2 rounded-xl bg-cyan/10 border border-cyan/30 text-cyan hover:bg-cyan hover:text-background transition-all flex items-center gap-1"
+          className="shrink-0 p-1.5 rounded-xl bg-cyan/10 border border-cyan/30 text-cyan hover:bg-cyan hover:text-background transition-all flex items-center gap-1"
           title="Estudio de Masterización de Audio"
           aria-label="Estudio de Masterización"
         >
@@ -48,7 +52,7 @@ export const Navbar: React.FC = () => {
         {/* Search */}
         <Link
           href="/explorar"
-          className="p-2 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
+          className="shrink-0 p-1.5 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
           aria-label="Buscar"
         >
           <Search className="w-4 h-4" />
@@ -57,7 +61,7 @@ export const Navbar: React.FC = () => {
         {/* Messages with unread alert badge */}
         <Link
           href="/mensajes"
-          className="relative p-2 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
+          className="shrink-0 relative p-1.5 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
           aria-label="Mensajes"
         >
           <MessageCircle className="w-4 h-4" />
@@ -72,7 +76,7 @@ export const Navbar: React.FC = () => {
         <button
           type="button"
           onClick={startAppTutorial}
-          className="p-2 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
+          className="shrink-0 p-1.5 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
           aria-label="Tutorial de uso"
           title="Tutorial de uso"
         >
@@ -83,7 +87,7 @@ export const Navbar: React.FC = () => {
         <Link
           href="/notificaciones"
           data-tour="notificaciones"
-          className={`relative p-2 rounded-xl bg-surface border transition-colors ${
+          className={`shrink-0 relative p-1.5 rounded-xl bg-surface border transition-colors ${
             eventFlash
               ? 'border-orange text-orange'
               : 'border-surface-border text-content-secondary hover:text-acid hover:border-acid'
@@ -103,16 +107,16 @@ export const Navbar: React.FC = () => {
 
         {/* User Panel or Login Link */}
         {!mounted ? (
-          <div className="ml-1 w-16 h-8 rounded-xl bg-surface-elevated animate-pulse" />
+          <div className="ml-1 w-16 h-8 rounded-xl bg-surface-elevated animate-pulse shrink-0" />
         ) : currentUser.is_guest ? (
           <Link
             href="/login"
-            className="ml-1 px-3 py-1.5 rounded-xl bg-acid text-background text-xs font-black uppercase tracking-wider shadow-acid-sm"
+            className="shrink-0 ml-1 px-3 py-1.5 rounded-xl bg-acid text-background text-xs font-black uppercase tracking-wider shadow-acid-sm"
           >
             Entrar
           </Link>
         ) : (
-          <div className="flex items-center gap-1 ml-0.5">
+          <div className="flex items-center gap-1 ml-0.5 shrink-0">
             <Link
               href="/panel"
               className="relative p-0.5 rounded-xl border border-surface-border hover:border-acid transition-colors"
@@ -135,7 +139,7 @@ export const Navbar: React.FC = () => {
             </Link>
             <button
               onClick={() => logout()}
-              className="p-2 rounded-xl bg-surface border border-surface-border text-content-muted hover:text-magenta hover:border-magenta/50 transition-colors"
+              className="p-1.5 rounded-xl bg-surface border border-surface-border text-content-muted hover:text-magenta hover:border-magenta/50 transition-colors"
               title="Cerrar Sesión"
               aria-label="Cerrar Sesión"
             >
