@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { NPC_PERSONAS, type NpcPersona } from '@/lib/npc-personas';
 
 /**
  * Identidades anónimas para las pruebas de interacción.
@@ -7,39 +8,22 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
  * referencia auth.users. Por eso el modo de pruebas crea (una sola vez)
  * estas cuentas técnicas sin acceso real: no se publican credenciales y
  * se usan únicamente para firmar comentarios anónimos.
+ *
+ * Cada cuenta tiene una personalidad propia (ver npc-personas.ts).
  */
-const ANONYMOUS_IDENTITIES = [
-  {
-    username: 'anonimo_muro',
-    fullName: 'Anónimo',
-    email: 'anonimo.muro@larvaz.local',
-    location: 'Comunidad Larvaz',
-  },
-  {
-    username: 'anonima_muro',
-    fullName: 'Anónima',
-    email: 'anonima.muro@larvaz.local',
-    location: 'Comunidad Larvaz',
-  },
-  {
-    username: 'oyente_anonimo',
-    fullName: 'Oyente anónimo',
-    email: 'oyente.anonimo@larvaz.local',
-    location: 'Comunidad Larvaz',
-  },
-  {
-    username: 'barras_anonimas',
-    fullName: 'Barras anónimas',
-    email: 'barras.anonimas@larvaz.local',
-    location: 'Comunidad Larvaz',
-  },
-];
-
 export interface AnonymousProfile {
   id: string;
   username: string;
   full_name: string;
+  persona_id: string;
+  persona_label: string;
 }
+
+const IDENTITIES = NPC_PERSONAS.map((persona) => ({
+  persona,
+  email: persona.email,
+  location: persona.location,
+}));
 
 let cache: AnonymousProfile[] | null = null;
 
@@ -47,14 +31,24 @@ function isMissingTableError(message?: string): boolean {
   return Boolean(message && /does not exist|schema cache/i.test(message));
 }
 
+function toAnonymousProfile(profile: any, persona: NpcPersona): AnonymousProfile {
+  return {
+    id: String(profile.id),
+    username: String(profile.username),
+    full_name: String(profile.full_name || persona.fullName),
+    persona_id: persona.id,
+    persona_label: persona.label,
+  };
+}
+
 /**
- * Garantiza que existan los perfiles anónimos y los devuelve.
- * Si Supabase no está disponible devuelve una lista vacía.
+ * Garantiza que existan los perfiles anónimos, sincroniza su personalidad
+ * visible y los devuelve. Si Supabase no está disponible devuelve [].
  */
 export async function ensureAnonymousProfiles(): Promise<AnonymousProfile[]> {
   if (cache && cache.length > 0) return cache;
 
-  const usernames = ANONYMOUS_IDENTITIES.map((identity) => identity.username);
+  const usernames = NPC_PERSONAS.map((persona) => persona.username);
   const { data: existing, error } = await supabaseAdmin
     .from('profiles')
     .select('id, username, full_name')
@@ -64,19 +58,15 @@ export async function ensureAnonymousProfiles(): Promise<AnonymousProfile[]> {
     console.warn('[anonymous-users] No se pudieron leer los perfiles:', error.message);
   }
 
-  const found = new Map<string, AnonymousProfile>(
+  const found = new Map<string, any>(
     (existing || []).map((profile: any) => [
       String(profile.username).toLowerCase(),
-      {
-        id: String(profile.id),
-        username: String(profile.username),
-        full_name: String(profile.full_name),
-      },
+      profile,
     ])
   );
 
-  const missing = ANONYMOUS_IDENTITIES.filter(
-    (identity) => !found.has(identity.username.toLowerCase())
+  const missing = IDENTITIES.filter(
+    (identity) => !found.has(identity.persona.username.toLowerCase())
   );
 
   if (missing.length > 0) {
@@ -97,15 +87,16 @@ export async function ensureAnonymousProfiles(): Promise<AnonymousProfile[]> {
           password: `${crypto.randomUUID()}${crypto.randomUUID()}`,
           email_confirm: true,
           user_metadata: {
-            username: identity.username,
-            full_name: identity.fullName,
+            username: identity.persona.username,
+            full_name: identity.persona.fullName,
             anonymous_test: true,
+            npc_persona: identity.persona.id,
           },
         });
 
         if (createError || !created.user) {
           console.warn(
-            `[anonymous-users] No se pudo crear ${identity.username}:`,
+            `[anonymous-users] No se pudo crear ${identity.persona.username}:`,
             createError?.message
           );
           continue;
@@ -113,41 +104,51 @@ export async function ensureAnonymousProfiles(): Promise<AnonymousProfile[]> {
         authUser = created.user;
       }
 
-      const { data: profile, error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .upsert(
-          {
-            id: authUser.id,
-            username: identity.username,
-            full_name: identity.fullName,
-            bio: 'Comentario anónimo de prueba. Sin registro público.',
-            avatar_url: '',
-            location: identity.location,
-            artistic_disciplines: 'Cultura Hip-Hop',
-            role: 'user',
-            is_banned: false,
-          },
-          { onConflict: 'id' }
-        )
-        .select('id, username, full_name')
-        .single();
-
-      if (profileError || !profile) {
-        console.warn(
-          `[anonymous-users] No se pudo guardar el perfil ${identity.username}:`,
-          profileError?.message
-        );
-        continue;
-      }
-
-      found.set(identity.username.toLowerCase(), {
-        id: String(profile.id),
-        username: String(profile.username),
-        full_name: String(profile.full_name),
+      found.set(identity.persona.username.toLowerCase(), {
+        id: authUser.id,
+        username: identity.persona.username,
+        full_name: identity.persona.fullName,
       });
     }
   }
 
-  cache = Array.from(found.values());
+  // Sincronizamos nombre, bio y personalidad de todos los perfiles técnicos.
+  const profiles: AnonymousProfile[] = [];
+  for (const identity of IDENTITIES) {
+    const persona = identity.persona;
+    const profile = found.get(persona.username.toLowerCase());
+    if (!profile?.id) continue;
+
+    const { data: saved, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert(
+        {
+          id: profile.id,
+          username: persona.username,
+          full_name: persona.fullName,
+          bio: persona.description,
+          avatar_url: '',
+          location: identity.location,
+          artistic_disciplines: 'Cultura Hip-Hop',
+          role: 'user',
+          is_banned: false,
+        },
+        { onConflict: 'id' }
+      )
+      .select('id, username, full_name')
+      .single();
+
+    if (profileError || !saved) {
+      console.warn(
+        `[anonymous-users] No se pudo guardar el perfil ${persona.username}:`,
+        profileError?.message
+      );
+      continue;
+    }
+
+    profiles.push(toAnonymousProfile(saved, persona));
+  }
+
+  cache = profiles;
   return cache;
 }

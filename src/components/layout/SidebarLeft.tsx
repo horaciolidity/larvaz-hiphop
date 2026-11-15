@@ -29,9 +29,12 @@ import {
   Sparkles,
   Share2,
   Sliders,
+  HelpCircle,
 } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
+import { useEventAlertFlash } from '@/components/events/useEventAlertFlash';
+import { startAppTutorial } from '@/components/onboarding/AppTutorial';
 
 export const SidebarLeft: React.FC = () => {
   const pathname = usePathname();
@@ -51,14 +54,16 @@ export const SidebarLeft: React.FC = () => {
   const [copiedRef, setCopiedRef] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+  const eventFlash = useEventAlertFlash();
 
   const mainLinks = [
-    { label: 'Inicio', href: '/', icon: Home },
-    { label: 'Explorar', href: '/explorar', icon: Compass },
+    { label: 'Inicio', href: '/', icon: Home, tour: 'inicio' },
+    { label: 'Explorar', href: '/explorar', icon: Compass, tour: 'explorar' },
     {
       label: 'Radio 24/7',
       href: '/radio',
       icon: Radio,
+      tour: 'radio',
       badge: isRadioPlaying ? 'VIVO' : undefined,
       badgeColor: 'bg-acid text-background',
     },
@@ -66,6 +71,7 @@ export const SidebarLeft: React.FC = () => {
       label: 'Estudio Mastering',
       href: '/estudio',
       icon: Sliders,
+      tour: 'estudio',
       badge: 'STUDIO',
       badgeColor: 'bg-cyan text-background',
     },
@@ -74,18 +80,25 @@ export const SidebarLeft: React.FC = () => {
       label: 'Mensajes',
       href: '/mensajes',
       icon: MessageCircle,
+      tour: 'mensajes',
       badge: unreadMessagesCount > 0 ? unreadMessagesCount.toString() : undefined,
       badgeColor: 'bg-acid text-background',
     },
-    { label: 'Eventos', href: '/eventos', icon: Calendar },
-    { label: 'Mi Panel', href: '/panel', icon: UserCheck },
-    { label: 'Guardados', href: '/guardados', icon: Bookmark },
+    { label: 'Eventos', href: '/eventos', icon: Calendar, tour: 'eventos' },
+    { label: 'Mi Panel', href: '/panel', icon: UserCheck, tour: 'panel' },
+    { label: 'Guardados', href: '/guardados', icon: Bookmark, tour: 'guardados' },
     {
       label: 'Notificaciones',
       href: '/notificaciones',
       icon: Bell,
-      badge: unreadNotifsCount > 0 ? unreadNotifsCount.toString() : undefined,
-      badgeColor: 'bg-magenta text-content-primary',
+      tour: 'notificaciones',
+      badge:
+        unreadNotifsCount > 0
+          ? unreadNotifsCount.toString()
+          : eventFlash
+            ? 'EVENTO'
+            : undefined,
+      badgeColor: eventFlash ? 'bg-orange text-background' : 'bg-magenta text-content-primary',
     },
     { label: 'Apoyar Larvaz', href: '/apoyar-larvaz', icon: HeartHandshake },
     { label: 'Configuración', href: '/configuracion', icon: Settings },
@@ -111,6 +124,7 @@ export const SidebarLeft: React.FC = () => {
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour={item.tour}
                 className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all group ${
                   isActive
                     ? 'bg-surface text-acid border border-surface-border shadow-acid-sm'
@@ -118,7 +132,15 @@ export const SidebarLeft: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-acid' : ''}`} />
+                  <Icon
+                    className={`w-5 h-5 transition-transform group-hover:scale-110 ${
+                      isActive ? 'text-acid' : ''
+                    } ${
+                      item.href === '/notificaciones' && eventFlash
+                        ? 'text-orange animate-bell-ring'
+                        : ''
+                    }`}
+                  />
                   <span>{item.label}</span>
                 </div>
                 {item.badge && (
@@ -154,11 +176,22 @@ export const SidebarLeft: React.FC = () => {
         {/* Primary CTA: Publicar */}
         <Link
           href="/crear"
+          data-tour="publicar"
           className="flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-xl bg-acid text-background font-display font-black tracking-wider text-lg uppercase shadow-acid-glow hover:bg-acid-hover active:scale-98 transition-all"
         >
           <Plus className="w-5 h-5 stroke-[3]" />
           <span>Publicar en el Muro</span>
         </Link>
+
+        {/* Tutorial de uso paso a paso */}
+        <button
+          type="button"
+          onClick={startAppTutorial}
+          className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid/50 text-xs font-bold transition-all"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span>Tutorial de uso</span>
+        </button>
       </div>
 
       {/* Bottom User Area: Real Session or Login/Register */}

@@ -74,6 +74,77 @@ body {
   animation: fade-in 0.22s ease-out forwards;
 }
 
+/* ─── Avisos de eventos y tutorial ─── */
+@keyframes bell-ring {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(16deg);
+  }
+  30% {
+    transform: rotate(-14deg);
+  }
+  45% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+}
+
+.animate-bell-ring {
+  animation: bell-ring 0.9s ease-in-out 3;
+  transform-origin: top center;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes event-flash {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-event-flash {
+  animation: event-flash 0.28s ease-out both;
+}
+
+@keyframes event-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-event-progress {
+  animation: event-progress 12s linear forwards;
+}
+
 /* ─── Plantillas visuales para audios (reproductor Larvaz) ─── */
 @keyframes eq-bounce {
   0% {

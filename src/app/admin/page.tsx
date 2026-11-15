@@ -14,8 +14,9 @@ import {
 import { UserRole } from '@/types';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import {
-  getSuggestedComments,
+  getSuggestedNpcComments,
   randomSeed,
+  SuggestedNpcComment,
   TEST_COMMENT_TONES,
   TestCommentTone,
 } from '@/lib/test-comments';
@@ -106,6 +107,8 @@ interface TestReactionResult {
     content: string;
     author_name: string;
     username: string;
+    persona_id: string;
+    persona_label: string;
   }>;
 }
 
@@ -229,7 +232,7 @@ export default function SuperAdminPage() {
   });
   const [testTone, setTestTone] = useState<TestCommentTone>('mixed');
   const [testPreviewSeed, setTestPreviewSeed] = useState(1);
-  const [testPreview, setTestPreview] = useState<string[]>([]);
+  const [testPreview, setTestPreview] = useState<SuggestedNpcComment[]>([]);
   const [testBusy, setTestBusy] = useState(false);
   const [testMessage, setTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
   const [testResult, setTestResult] = useState<TestReactionResult | null>(null);
@@ -305,7 +308,7 @@ export default function SuperAdminPage() {
 
   useEffect(() => {
     const previewCount = Math.max(3, Math.min(testCounts.comments || 3, 8));
-    setTestPreview(getSuggestedComments(previewCount, testTone, testPreviewSeed));
+    setTestPreview(getSuggestedNpcComments(previewCount, testTone, testPreviewSeed));
   }, [testTone, testPreviewSeed, testCounts.comments]);
 
   const handleResolveReport = (id: string, action: 'hide' | 'dismiss') => {
@@ -1325,17 +1328,24 @@ export default function SuperAdminPage() {
               {testPreview.map((comment, index) => (
                 <li
                   key={`${testPreviewSeed}-${index}`}
-                  className="p-2.5 rounded-xl bg-surface-elevated border border-surface-border text-[11px] text-content-secondary flex items-start gap-2"
+                  className="p-2.5 rounded-xl bg-surface-elevated border border-surface-border text-[11px] text-content-secondary space-y-1"
                 >
-                  <span className="text-[9px] font-black text-acid mt-0.5">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="leading-relaxed">{comment}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[9px] font-black text-content-muted">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-acid/15 text-acid border border-acid/30 text-[9px] font-black uppercase tracking-wider">
+                      {comment.persona_label}
+                    </span>
+                    <span className="text-[9px] text-content-muted">@{comment.username}</span>
+                  </div>
+                  <p className="leading-relaxed">{comment.text}</p>
                 </li>
               ))}
             </ul>
             <p className="text-[10px] text-content-muted">
-              La previa es orientativa: al aplicar se genera una tanda nueva con el mismo tono.
+              Cada bot comenta con su propia voz: callejero, vieja escuela, bardero, buena onda
+              y oyente coloquial. Al aplicar se genera una tanda nueva con el mismo tono.
             </p>
           </div>
 
@@ -1408,13 +1418,18 @@ export default function SuperAdminPage() {
                   {testResult.comments.map((comment) => (
                     <div
                       key={comment.id}
-                      className="p-2.5 rounded-xl bg-surface-elevated border border-surface-border text-[11px] text-content-secondary"
+                      className="p-2.5 rounded-xl bg-surface-elevated border border-surface-border text-[11px] text-content-secondary space-y-1"
                     >
-                      <span className="font-black text-content-primary">
-                        {comment.author_name}
-                      </span>{' '}
-                      <span className="text-content-muted">@{comment.username}</span>
-                      <p className="mt-0.5 leading-relaxed">{comment.content}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black text-content-primary">
+                          {comment.author_name}
+                        </span>
+                        <span className="text-content-muted">@{comment.username}</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-acid/15 text-acid border border-acid/30 text-[9px] font-black uppercase tracking-wider">
+                          {comment.persona_label}
+                        </span>
+                      </div>
+                      <p className="leading-relaxed">{comment.content}</p>
                     </div>
                   ))}
                 </div>

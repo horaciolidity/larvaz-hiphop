@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { ensureAnonymousProfiles } from '@/lib/anonymous-users';
 import {
-  getSuggestedComments,
+  getSuggestedNpcComments,
   randomSeed,
   TestCommentTone,
 } from '@/lib/test-comments';
@@ -98,6 +98,8 @@ export async function POST(req: NextRequest) {
       content: string;
       author_name: string;
       username: string;
+      persona_id: string;
+      persona_label: string;
     }> = [];
     let commentsCount = Number(post.comments_count || 0);
 
@@ -110,12 +112,19 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const texts = getSuggestedComments(comments, tone, randomSeed());
-      const rows = texts.map((content, index) => ({
-        post_id: postId,
-        user_id: anonymous[index % anonymous.length].id,
-        content,
-      }));
+      const suggestions = getSuggestedNpcComments(comments, tone, randomSeed());
+      const byPersona = new Map(anonymous.map((profile) => [profile.persona_id, profile]));
+      const byId = new Map(anonymous.map((profile) => [profile.id, profile]));
+
+      const rows = suggestions.map((suggestion, index) => {
+        const author =
+          byPersona.get(suggestion.persona_id) || anonymous[index % anonymous.length];
+        return {
+          post_id: postId,
+          user_id: author.id,
+          content: suggestion.text,
+        };
+      });
 
       for (let i = 0; i < rows.length; i += 25) {
         const chunk = rows.slice(i, i + 25);
@@ -132,12 +141,14 @@ export async function POST(req: NextRequest) {
         }
 
         for (const inserted of data || []) {
-          const author = anonymous.find((a) => a.id === inserted.user_id);
+          const author = byId.get(String(inserted.user_id));
           insertedComments.push({
             id: String(inserted.id),
             content: String(inserted.content),
             author_name: author?.full_name || 'Anónimo',
             username: author?.username || 'anonimo_muro',
+            persona_id: author?.persona_id || 'callejero',
+            persona_label: author?.persona_label || 'Callejero',
           });
         }
       }

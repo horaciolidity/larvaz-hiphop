@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2, Smile, LogOut } from 'lucide-react';
+import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2, Smile, LogOut, HelpCircle } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import AvatarPicker from '@/components/profile/AvatarPicker';
 import { resolveIpfsUrl } from '@/lib/media-utils';
+import { startAppTutorial } from '@/components/onboarding/AppTutorial';
 
 
 export default function ConfiguracionPage() {
@@ -311,6 +312,18 @@ export default function ConfiguracionPage() {
           </div>
         )}
       </form>
+
+      {/* Tutorial de uso */}
+      <div className="pt-2 border-t border-surface-border">
+        <button
+          type="button"
+          onClick={startAppTutorial}
+          className="w-full py-3 rounded-xl bg-surface-elevated hover:bg-acid/10 border border-surface-border hover:border-acid/40 text-content-secondary hover:text-acid font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span>Repetir tutorial de la app</span>
+        </button>
+      </div>
 
       {/* Avatar Picker Modal */}
       {showAvatarPicker && (

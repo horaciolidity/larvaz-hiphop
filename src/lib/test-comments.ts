@@ -1,91 +1,43 @@
+import {
+  NPC_COMMENT_POOLS,
+  NPC_PERSONAS,
+  type NpcPersona,
+  type TestCommentTone,
+} from './npc-personas';
+
+export type { TestCommentTone } from './npc-personas';
+
 /**
  * Comentarios de prueba para el modo de generación del Super Admin.
  *
- * Son textos variados y respetuosos: positivos, de interés real por el
- * contenido y de refutación constructiva. Se usan tanto para la vista
- * previa del panel como para insertar la tanda en Supabase.
+ * Cada sugerencia incluye la personalidad del bot que la va a firmar:
+ * callejero, vieja escuela, bardero, buena onda o coloquial.
  */
-
-export type TestCommentTone = 'mixed' | 'positive' | 'interest' | 'refutation';
 
 export const TEST_COMMENT_TONES: Array<{
   id: TestCommentTone;
   label: string;
   hint: string;
 }> = [
-  { id: 'mixed', label: 'Mezcla variada', hint: 'Combina las tres energías' },
+  { id: 'mixed', label: 'Mezcla variada', hint: 'Combina tonos y voces' },
   { id: 'positive', label: 'Positivos', hint: 'Apoyo y buena onda' },
   { id: 'interest', label: 'De interés', hint: 'Preguntas y ganas de más' },
   { id: 'refutation', label: 'Refutación', hint: 'Crítica respetuosa' },
 ];
 
-const POSITIVE_COMMENTS = [
-  'Esto es fuego puro 🔥 La comunidad necesitaba algo así.',
-  'Tremendo aporte, se nota el amor por la cultura.',
-  'Barras limpias y respeto. Grande por compartir.',
-  'Me voló la cabeza, gracias por subirlo al muro.',
-  'Nivel underground de verdad, aplausos.',
-  'Qué grande ver esto acá. Sigan así.',
-  'Un lujo para el oído, felicitaciones.',
-  'La energía de esta pieza es otra cosa. 👏',
-  'Groso total. Esto representa al barrio.',
-  'Gracias por mantener viva la esencia del hip-hop.',
-  'Un aporte de oro para la escena.',
-  'Muy bueno, engancha desde el primer segundo.',
-  'Esto se comparte con toda la manada. 🔥',
-  'Respeto absoluto, hermano. Seguí así.',
-  'Calidad y humildad, la combinación perfecta.',
-  'Temón. Se siente la dedicación en cada detalle.',
-  'Esto merece más vistas, de verdad.',
-  'La rompieron con este material. 💯',
-  'Aplausos de pie para el equipo.',
-  'Nada que reprochar: puro nivel.',
-];
+export interface SuggestedNpcComment {
+  text: string;
+  tone: Exclude<TestCommentTone, 'mixed'>;
+  persona_id: string;
+  persona_label: string;
+  username: string;
+  full_name: string;
+}
 
-const INTEREST_COMMENTS = [
-  '¿De dónde es la grabación? Me interesa conocer más de la escena.',
-  '¿Hay fecha de algún show o estreno? Quiero seguir esto.',
-  'Qué interesante el estilo, ¿alguna referencia para escuchar más?',
-  'Me gustaría saber quién produjo el beat.',
-  '¿Esto tiene una versión extendida? Quedé con ganas de más.',
-  'Buen material. ¿Se puede encontrar en alguna plataforma?',
-  'Me interesa el proceso creativo: ¿cómo llegaron a este sonido?',
-  '¿Hay más temas del mismo proyecto?',
-  'Anotado para escuchar con auriculares. ¿Algún orden recomendado?',
-  '¿Hacen fechas en vivo? Me gustaría ir con la banda.',
-  'Buenísimo, ¿hay algún sello o colectivo detrás?',
-  '¿Se puede usar este tema para una sesión de freestyle?',
-  'Me interesa colaborar, ¿cómo se contacta al artista?',
-  '¿Este estilo tiene nombre? Quiero buscar más de eso.',
-  'Pregunta seria: ¿cómo se logra ese nivel de detalle en la mezcla?',
-  '¿Tienen redes o algún lugar donde suban más material?',
-  'Me gustaría leer la letra completa, ¿está publicada?',
-  '¿Qué equipos usaron para grabar? Suena muy prolijo.',
-  '¿Esto forma parte de un disco o es un single suelto?',
-  '¿Habrá remixes o versiones con otros artistas?',
-];
-
-const REFUTATION_COMMENTS = [
-  'Está bien, pero siento que el mix podría sonar más limpio.',
-  'No me termina de cerrar la mezcla, la voz queda un poco atrás.',
-  'Respeto el trabajo, aunque el beat se me hace repetitivo.',
-  'No coincido con la letra, pero banco que se exprese.',
-  'Interesante propuesta, aunque esperaba otro desenvolvimiento.',
-  'El material está bien, pero el final me sonó apurado.',
-  'Hay ideas buenas; para mí le falta trabajo en la base.',
-  'No es mi estilo, pero se nota que hay dedicación.',
-  'Siento que la grabación no le hace justicia a la letra.',
-  'Lo escuché dos veces y todavía le falta claridad al mix.',
-  'No todo me convence, pero reconozco el esfuerzo.',
-  'Me gustaría una versión con menos efectos para escuchar la voz.',
-  'Está bueno, aunque el título promete más de lo que entrega.',
-  'No comparto el enfoque, pero respeto la propuesta.',
-  'Le pondría más atención al master; hay partes que saturan.',
-  'La idea es fuerte, la ejecución me deja a mitad de camino.',
-  'Me hubiera gustado otro cierre, se siente cortado.',
-  'Buen intento, aunque el ritmo se estira un poco de más.',
-  'Correcto, sin llegar a sorprenderme. Igual se agradece el aporte.',
-  'Hay potencial, pero necesita pulirse antes de compartirlo.',
+const TONE_CYCLE: Array<Exclude<TestCommentTone, 'mixed'>> = [
+  'positive',
+  'interest',
+  'refutation',
 ];
 
 function mulberry32(seed: number): () => number {
@@ -109,37 +61,96 @@ function shuffled<T>(items: T[], seed: number): T[] {
   return result;
 }
 
-function interleave(groups: string[][]): string[] {
-  const result: string[] = [];
-  const max = Math.max(...groups.map((g) => g.length));
-  for (let i = 0; i < max; i++) {
-    for (const group of groups) {
-      if (group[i]) result.push(group[i]);
-    }
+function seedFor(base: number, key: string): number {
+  let hash = base || 1;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
-  return result;
+  return hash || 1;
 }
 
 /**
- * Devuelve `count` sugerencias deterministas para una semilla.
- * Con `mixed` alterna positivos, interés y refutación.
+ * Devuelve `count` comentarios deterministas para una semilla, cada uno con
+ * su personalidad. En `mixed` alterna bots y tonos para que la tanda se lea
+ * como una conversación real.
+ */
+export function getSuggestedNpcComments(
+  count: number,
+  tone: TestCommentTone = 'mixed',
+  seed = 1
+): SuggestedNpcComment[] {
+  const safeCount = Math.max(0, Math.min(100, Math.floor(count || 0)));
+  if (safeCount === 0) return [];
+
+  const personaOrder = shuffled(NPC_PERSONAS, seed);
+  const personaPools = new Map<string, string[]>();
+
+  for (const persona of NPC_PERSONAS) {
+    const tones =
+      tone === 'mixed' ? TONE_CYCLE : [tone as Exclude<TestCommentTone, 'mixed'>];
+    for (const singleTone of tones) {
+      const key = `${persona.id}:${singleTone}`;
+      const pool = NPC_COMMENT_POOLS[persona.id]?.[singleTone] || [];
+      personaPools.set(key, shuffled(pool, seedFor(seed, key)));
+    }
+  }
+
+  const counters = new Map<string, number>();
+  const usedTexts = new Set<string>();
+  const results: SuggestedNpcComment[] = [];
+
+  for (let index = 0; index < safeCount; index++) {
+    const persona = personaOrder[index % personaOrder.length];
+    const commentTone =
+      tone === 'mixed'
+        ? TONE_CYCLE[index % TONE_CYCLE.length]
+        : (tone as Exclude<TestCommentTone, 'mixed'>);
+
+    const key = `${persona.id}:${commentTone}`;
+    const pool = personaPools.get(key) || [];
+    if (pool.length === 0) continue;
+
+    let cursor = counters.get(key) || 0;
+    let text = pool[cursor % pool.length];
+    let attempts = 0;
+    while (usedTexts.has(text) && attempts < pool.length) {
+      cursor++;
+      text = pool[cursor % pool.length];
+      attempts++;
+    }
+    counters.set(key, cursor + 1);
+    usedTexts.add(text);
+
+    results.push(buildSuggestion(persona, commentTone, text));
+  }
+
+  return results;
+}
+
+function buildSuggestion(
+  persona: NpcPersona,
+  tone: Exclude<TestCommentTone, 'mixed'>,
+  text: string
+): SuggestedNpcComment {
+  return {
+    text,
+    tone,
+    persona_id: persona.id,
+    persona_label: persona.label,
+    username: persona.username,
+    full_name: persona.fullName,
+  };
+}
+
+/**
+ * Variante simple para vistas previas que solo necesitan el texto.
  */
 export function getSuggestedComments(
   count: number,
   tone: TestCommentTone = 'mixed',
   seed = 1
 ): string[] {
-  const safeCount = Math.max(0, Math.min(100, Math.floor(count || 0)));
-  if (safeCount === 0) return [];
-
-  let pool: string[];
-  if (tone === 'positive') pool = POSITIVE_COMMENTS;
-  else if (tone === 'interest') pool = INTEREST_COMMENTS;
-  else if (tone === 'refutation') pool = REFUTATION_COMMENTS;
-  else pool = interleave([POSITIVE_COMMENTS, INTEREST_COMMENTS, REFUTATION_COMMENTS]);
-
-  const ordered = shuffled(pool, seed);
-  return Array.from({ length: safeCount }, (_, index) => ordered[index % ordered.length]);
+  return getSuggestedNpcComments(count, tone, seed).map((comment) => comment.text);
 }
 
 /** Semilla nueva por tanda (servidor y cliente). */

@@ -11,6 +11,8 @@ import { TopLocationBar } from './TopLocationBar';
 import { BottomNav } from './BottomNav';
 import { RadioMiniPlayer } from '@/components/radio/RadioMiniPlayer';
 import { GuestWall } from '@/components/common/GuestWall';
+import { EventHeaderFlash, EventSpotlight } from '@/components/events/EventSpotlight';
+import { AppTutorial } from '@/components/onboarding/AppTutorial';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -36,6 +38,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       {/* 2. Central Feed & Content Area */}
       <div className="flex-1 max-w-2xl min-h-screen border-x border-surface-border/50 flex flex-col">
         <TopLocationBar />
+        <EventHeaderFlash />
         <Navbar />
         {showAnnouncement && (
           <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl border border-orange/40 bg-orange/10 px-3 py-2 text-[11px] text-orange">
@@ -65,6 +68,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* 6. Guest Wall — se muestra a visitantes no registrados tras 60 segundos */}
       <GuestWall />
+
+      {/* 7. Aviso efímero de próximo evento (abajo a la izquierda) */}
+      <EventSpotlight />
+
+      {/* 8. Tutorial de uso paso a paso */}
+      <AppTutorial />
     </div>
   );
 };

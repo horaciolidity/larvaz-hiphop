@@ -4,14 +4,17 @@ import React from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
-import { Bell, Search, Radio, UserCheck, MessageCircle, LogOut, Sliders } from 'lucide-react';
+import { Bell, Search, Radio, UserCheck, MessageCircle, LogOut, Sliders, HelpCircle } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
+import { useEventAlertFlash } from '@/components/events/useEventAlertFlash';
+import { startAppTutorial } from '@/components/onboarding/AppTutorial';
 
 export const Navbar: React.FC = () => {
   const { unreadNotifsCount, unreadMessagesCount, currentUser, isRadioPlaying, userLocation, logout } = useApp();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => { setMounted(true); }, []);
+  const eventFlash = useEventAlertFlash();
   const flag = getLocationFlag(userLocation || currentUser.location);
 
   return (
@@ -65,18 +68,37 @@ export const Navbar: React.FC = () => {
           )}
         </Link>
 
+        {/* Tutorial */}
+        <button
+          type="button"
+          onClick={startAppTutorial}
+          className="p-2 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
+          aria-label="Tutorial de uso"
+          title="Tutorial de uso"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+
         {/* Notifications */}
         <Link
           href="/notificaciones"
-          className="relative p-2 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
+          data-tour="notificaciones"
+          className={`relative p-2 rounded-xl bg-surface border transition-colors ${
+            eventFlash
+              ? 'border-orange text-orange'
+              : 'border-surface-border text-content-secondary hover:text-acid hover:border-acid'
+          }`}
           aria-label="Notificaciones"
+          title={eventFlash ? `Próximo evento: ${eventFlash.title}` : 'Notificaciones'}
         >
-          <Bell className="w-4 h-4" />
-          {unreadNotifsCount > 0 && (
+          <Bell className={`w-4 h-4 ${eventFlash ? 'animate-bell-ring' : ''}`} />
+          {unreadNotifsCount > 0 ? (
             <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-magenta text-content-primary text-[9px] font-black flex items-center justify-center animate-pulse">
               {unreadNotifsCount}
             </span>
-          )}
+          ) : eventFlash ? (
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange animate-ping" />
+          ) : null}
         </Link>
 
         {/* User Panel or Login Link */}

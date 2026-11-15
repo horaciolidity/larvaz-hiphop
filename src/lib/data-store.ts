@@ -16,6 +16,7 @@ import {
 } from '@/types';
 import { normalizeMediaList, resolveIpfsUrl } from './media-utils';
 import { withEffectiveRole } from './roles';
+import { isTestBotUsername } from './npc-personas';
 
 
 
@@ -1047,7 +1048,8 @@ class LarvazDataStore {
   }
 
   getAllProfiles(): Profile[] {
-    return this.profiles;
+    // Los perfiles técnicos del modo de pruebas no son artistas de la comunidad.
+    return this.profiles.filter((p) => !isTestBotUsername(p.username));
   }
 
   // --- Follows ---
