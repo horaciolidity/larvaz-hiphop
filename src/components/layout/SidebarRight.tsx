@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
-import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle, Search, X, Sliders } from 'lucide-react';
+import { Users, Calendar, Flame, ExternalLink, HeartHandshake, Radio, Play, Pause, MessageCircle, Search, X, Sliders, Film } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 
 export const SidebarRight: React.FC = () => {
@@ -196,15 +196,31 @@ export const SidebarRight: React.FC = () => {
           >
             Abrir en Larvaz
           </Link>
-          <a
-            href="https://app-master-audio.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-xl bg-surface-elevated border border-surface-border hover:border-cyan text-content-secondary hover:text-cyan transition-colors"
-            title="Ir a https://app-master-audio.vercel.app/"
+        </div>
+      </div>
+
+      {/* 2.6 EDITOR DE VIDEO INTEGRADO */}
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-surface-elevated via-surface to-background border border-magenta/40 relative overflow-hidden space-y-2.5 shadow-lg">
+        <div className="absolute -top-8 -right-8 w-24 h-24 bg-magenta/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-magenta font-display font-black text-sm tracking-wide">
+            <Film className="w-4 h-4 text-magenta" />
+            <span>🎬 EDITOR DE VIDEO</span>
+          </div>
+          <span className="px-2 py-0.5 rounded-full bg-acid text-background text-[9px] font-mono font-bold uppercase border border-acid/30">
+            GRATIS
+          </span>
+        </div>
+        <p className="text-xs text-content-secondary leading-relaxed">
+          Editá los videoclips de tus temas con línea de tiempo e IA, sin salir de Larvaz.
+        </p>
+        <div className="flex items-center gap-2 pt-1">
+          <Link
+            href="/editor"
+            className="flex-1 py-2 px-3 rounded-xl bg-magenta text-content-primary font-black text-xs text-center hover:opacity-90 transition-all shadow-sm"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+            Abrir en Larvaz
+          </Link>
         </div>
       </div>
 

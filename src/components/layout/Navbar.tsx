@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
-import { Bell, Search, Radio, UserCheck, MessageCircle, LogOut, Sliders, HelpCircle } from 'lucide-react';
+import { Bell, Film, Radio, UserCheck, MessageCircle, LogOut, Sliders, HelpCircle } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
 import { useEventAlertFlash } from '@/components/events/useEventAlertFlash';
@@ -49,13 +49,15 @@ export const Navbar: React.FC = () => {
           <Sliders className="w-4 h-4" />
         </Link>
 
-        {/* Search */}
+        {/* Video Editor */}
         <Link
-          href="/explorar"
-          className="shrink-0 p-1.5 rounded-xl bg-surface border border-surface-border text-content-secondary hover:text-acid hover:border-acid transition-colors"
-          aria-label="Buscar"
+          href="/editor"
+          data-tour="editor"
+          className="shrink-0 p-1.5 rounded-xl bg-magenta/10 border border-magenta/30 text-magenta hover:bg-magenta hover:text-content-primary transition-colors"
+          title="Editor de Video (integrado, gratis)"
+          aria-label="Editor de Video"
         >
-          <Search className="w-4 h-4" />
+          <Film className="w-4 h-4" />
         </Link>
 
         {/* Messages with unread alert badge */}

@@ -30,6 +30,7 @@ import {
   Share2,
   Sliders,
   HelpCircle,
+  Film,
 } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
@@ -74,6 +75,14 @@ export const SidebarLeft: React.FC = () => {
       tour: 'estudio',
       badge: 'STUDIO',
       badgeColor: 'bg-cyan text-background',
+    },
+    {
+      label: 'Editor de Video',
+      href: '/editor',
+      icon: Film,
+      tour: 'editor',
+      badge: 'GRATIS',
+      badgeColor: 'bg-magenta text-content-primary',
     },
     { label: 'B-Boys & Breaking', href: '/breaking', icon: Zap },
     {

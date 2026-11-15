@@ -16,6 +16,7 @@ import {
   Check,
   Lock,
   Sliders,
+  Film,
 } from 'lucide-react';
 import { ContentType, PostMedia, PostMetadata } from '@/types';
 import { getLocationFlag } from '@/lib/country-utils';
@@ -249,6 +250,13 @@ export default function CrearPublicacionPage() {
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>🎚️ Masterizar mi Audio antes de subir</span>
+          </Link>
+          <Link
+            href="/editor"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-magenta/15 border border-magenta/40 text-magenta hover:bg-magenta hover:text-content-primary text-[11px] font-bold transition-colors"
+          >
+            <Film className="w-3.5 h-3.5" />
+            <span>🎬 Editar mi Video antes de subir</span>
           </Link>
         </div>
       </div>

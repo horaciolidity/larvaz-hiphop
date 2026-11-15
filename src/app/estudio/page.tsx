@@ -8,19 +8,25 @@ import {
   Maximize2,
   Minimize2,
   RotateCcw,
-  ExternalLink,
   Radio,
-  Sparkles,
   Volume2,
   Headphones,
   CheckCircle2,
-  Flame,
-  PlusCircle,
   Lock,
   Disc3,
+  Film,
 } from 'lucide-react';
 
 const MASTERING_APP_URL = 'https://app-master-audio.vercel.app/';
+
+/**
+ * El mastering se usa únicamente dentro de Larvaz.
+ *
+ * Sin `allow-popups` ni `allow-top-navigation` el iframe no puede abrir
+ * pestañas ni redirigir la app hacia el sitio externo.
+ */
+const EMBED_SANDBOX =
+  'allow-scripts allow-same-origin allow-forms allow-downloads allow-modals allow-orientation-lock allow-presentation';
 
 export default function EstudioMasteringPage() {
   const { currentUser } = useApp();
@@ -112,16 +118,10 @@ export default function EstudioMasteringPage() {
               <span>Pantalla Completa</span>
             </button>
 
-            <a
-              href={MASTERING_APP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border hover:border-cyan text-content-primary hover:text-cyan text-xs font-bold transition-all"
-              title="Abrir App Master Audio en nueva pestaña"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-cyan" />
-              <span>Abrir Web Externa</span>
-            </a>
+            <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border text-content-secondary text-xs font-bold">
+              <Lock className="w-3.5 h-3.5 text-cyan" />
+              <span>Solo dentro de Larvaz</span>
+            </span>
           </div>
         </div>
       </div>
@@ -145,7 +145,7 @@ export default function EstudioMasteringPage() {
             </span>
             <span className="text-content-muted text-xs hidden sm:inline">|</span>
             <span className="text-xs text-content-secondary truncate hidden sm:inline font-mono">
-              Motor DSP: app-master-audio.vercel.app (Embebido en Larvaz)
+              Motor DSP embebido en Larvaz · sin enlaces externos
             </span>
           </div>
 
@@ -158,17 +158,6 @@ export default function EstudioMasteringPage() {
               <RotateCcw className="w-3 h-3" />
               <span className="hidden sm:inline">Reiniciar</span>
             </button>
-
-            <a
-              href={MASTERING_APP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-surface-border hover:border-cyan text-content-secondary hover:text-cyan text-[11px] font-semibold transition-colors"
-              title="Vínculo directo a https://app-master-audio.vercel.app/"
-            >
-              <ExternalLink className="w-3 h-3" />
-              <span className="hidden md:inline">Enlace Directo</span>
-            </a>
 
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
@@ -212,7 +201,9 @@ export default function EstudioMasteringPage() {
           className={`w-full border-0 bg-[#09090b] ${
             isFullscreen ? 'flex-1 h-full' : 'h-[680px] sm:h-[760px]'
           }`}
+          sandbox={EMBED_SANDBOX}
           allow="microphone; autoplay; clipboard-read; clipboard-write; encrypted-media; fullscreen"
+          referrerPolicy="no-referrer"
           onLoad={() => setIsLoading(false)}
         />
       </div>
@@ -266,31 +257,22 @@ export default function EstudioMasteringPage() {
         </div>
       </div>
 
-      {/* Explicit Hyperlink Reference Card */}
+      {/* Sello de herramienta integrada */}
       <div className="p-3.5 rounded-2xl bg-surface/60 border border-surface-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2 text-content-secondary">
-          <Sparkles className="w-4 h-4 text-cyan flex-shrink-0" />
+          <CheckCircle2 className="w-4 h-4 text-acid flex-shrink-0" />
           <span>
-            Herramienta web aliada integrada en Larvaz:{' '}
-            <a
-              href={MASTERING_APP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-cyan font-mono underline hover:text-acid transition-colors"
-            >
-              https://app-master-audio.vercel.app/
-            </a>
+            Herramienta <strong className="text-content-primary">gratuita y oficial</strong> de Larvaz: se usa
+            únicamente dentro de la app, sin enlaces ni pestañas externas.
           </span>
         </div>
-        <a
-          href={MASTERING_APP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[11px] font-bold text-acid hover:underline flex items-center gap-1"
+        <Link
+          href="/editor"
+          className="text-[11px] font-bold text-magenta hover:underline flex items-center gap-1 flex-shrink-0"
         >
-          <span>Abrir vínculo directo</span>
-          <ExternalLink className="w-3 h-3" />
-        </a>
+          <Film className="w-3.5 h-3.5" />
+          <span>Editar el video de mi tema</span>
+        </Link>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   Calendar,
   Check,
   Compass,
+  Film,
   Home,
   MessageCircle,
   Plus,
@@ -85,6 +86,15 @@ const TOUR_STEPS: TourStep[] = [
       'Mejorá el sonido de tus audios antes de subirlos al muro o mandarlos a la radio, directo desde el navegador.',
     target: 'estudio',
     icon: <Sliders className="w-5 h-5" />,
+  },
+  {
+    id: 'editor',
+    title: 'Editor de video con IA',
+    description:
+      'Editá los videoclips de tus canciones: cortá, pegá, sumá efectos, texto y música, y exportá el video sin salir de Larvaz.',
+    target: 'editor',
+    tip: 'Es 100% gratis y se usa dentro de la app: no te manda a ningún sitio externo.',
+    icon: <Film className="w-5 h-5" />,
   },
   {
     id: 'eventos',
@@ -313,7 +323,7 @@ export const AppTutorial: React.FC = () => {
       {/* Foco sobre el elemento del paso */}
       {highlight && (
         <div
-          className="fixed z-[81] rounded-xl border-2 border-acid pointer-events-none transition-all duration-300"
+          className="fixed z-[81] rounded-xl border-2 border-acid pointer-events-none"
           style={{ ...highlight, boxShadow: '0 0 0 9999px rgba(0,0,0,0.72)' }}
         />
       )}

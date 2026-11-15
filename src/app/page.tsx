@@ -7,7 +7,7 @@ import { ConnectedUsersBar } from '@/components/layout/ConnectedUsersBar';
 import { FeedFilters } from '@/components/feed/FeedFilters';
 import { PostCard } from '@/components/feed/PostCard';
 import { InlineFeedComposer } from '@/components/feed/InlineFeedComposer';
-import { PlusCircle, Disc3, Sliders, ExternalLink, Sparkles } from 'lucide-react';
+import { PlusCircle, Disc3, Sliders, Sparkles, Film } from 'lucide-react';
 
 export default function HomePage() {
   const { posts } = useApp();
@@ -20,8 +20,8 @@ export default function HomePage() {
       {/* Feed Filters Header (Sticky) */}
       <FeedFilters />
 
-      {/* Featured Larvaz Mastering Studio Banner */}
-      <div className="px-4 pt-3.5 pb-1 bg-surface/30">
+      {/* Featured Larvaz Studio Tools (mastering + video) */}
+      <div className="px-4 pt-3.5 pb-1 bg-surface/30 space-y-2">
         <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan/15 via-surface-elevated to-acid/15 border border-cyan/30 hover:border-cyan/60 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-lg">
           <div className="flex items-center gap-2.5 min-w-0 w-full sm:w-auto">
             <div className="w-9 h-9 rounded-xl bg-cyan/20 border border-cyan/40 flex items-center justify-center text-cyan flex-shrink-0 shadow-sm">
@@ -49,15 +49,39 @@ export default function HomePage() {
             >
               Usar en Larvaz
             </Link>
-            <a
-              href="https://app-master-audio.vercel.app/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-xl bg-surface border border-surface-border hover:border-cyan text-content-secondary hover:text-cyan transition-colors"
-              title="Abrir App Master Audio en ventana nueva (https://app-master-audio.vercel.app/)"
+          </div>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-magenta/15 via-surface-elevated to-acid/15 border border-magenta/30 hover:border-magenta/60 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-lg">
+          <div className="flex items-center gap-2.5 min-w-0 w-full sm:w-auto">
+            <div className="w-9 h-9 rounded-xl bg-magenta/20 border border-magenta/40 flex items-center justify-center text-magenta flex-shrink-0 shadow-sm">
+              <Film className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-display font-black tracking-wider text-content-primary uppercase">
+                  🎬 LARVAZ VIDEO EDITOR
+                </span>
+                <span className="px-1.5 py-0.2 rounded-full bg-acid text-background text-[9px] font-black uppercase">
+                  GRATIS
+                </span>
+                <span className="px-1.5 py-0.2 rounded-full bg-magenta/20 text-magenta border border-magenta/30 text-[9px] font-black uppercase">
+                  INTEGRADO
+                </span>
+              </div>
+              <p className="text-[11px] text-content-secondary truncate">
+                Editá los videoclips de tus temas con IA sin salir de Larvaz.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 w-full sm:w-auto flex-shrink-0">
+            <Link
+              href="/editor"
+              className="flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-xl bg-magenta text-content-primary font-black text-[11px] hover:opacity-90 transition-all shadow-sm"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+              Abrir editor
+            </Link>
           </div>
         </div>
       </div>
