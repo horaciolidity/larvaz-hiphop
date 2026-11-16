@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { BrandPreloader } from '@/components/common/BrandPreloader';
 import {
   Sliders,
   Maximize2,
@@ -34,6 +35,7 @@ export default function EstudioMasteringPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -44,17 +46,30 @@ export default function EstudioMasteringPage() {
     setIframeKey((prev) => prev + 1);
   };
 
+  // Precargado de marca: logotipo circular girando 2 segundos antes del estudio.
+  const preloader = booting ? (
+    <BrandPreloader
+      message="Entrando al estudio..."
+      hint="Preparando la consola de mastering"
+      onDone={() => setBooting(false)}
+    />
+  ) : null;
+
   if (!mounted) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-4">
-        <div className="h-24 rounded-2xl bg-surface animate-pulse" />
-        <div className="h-[600px] rounded-2xl bg-surface animate-pulse" />
-      </div>
+      <>
+        {preloader}
+        <div className="p-6 max-w-4xl mx-auto space-y-4">
+          <div className="h-24 rounded-2xl bg-surface animate-pulse" />
+          <div className="h-[600px] rounded-2xl bg-surface animate-pulse" />
+        </div>
+      </>
     );
   }
 
   return (
     <div className="flex flex-col min-h-full p-3 sm:p-5 space-y-5">
+      {preloader}
       {/* Guest Notice Banner if not logged in */}
       {currentUser.is_guest && (
         <div className="p-3.5 rounded-2xl bg-gradient-to-r from-acid/15 via-surface-elevated to-cyan/15 border border-acid/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-acid-sm">

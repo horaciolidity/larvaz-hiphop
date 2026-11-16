@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Logo } from '@/components/common/Logo';
+import { BrandPreloader } from '@/components/common/BrandPreloader';
 import {
   Lock,
   User,
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [entering, setEntering] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,9 +35,8 @@ export default function LoginPage() {
       const res = await login(usernameOrEmail, password);
       if (res.success) {
         setSuccess(true);
-        setTimeout(() => {
-          router.push('/panel');
-        }, 500);
+        // Precargado de marca al entrar a la plataforma desde el login.
+        setEntering(true);
       } else {
         setError(res.error || 'No se pudo iniciar sesión. Verifica los datos ingresados.');
       }
@@ -48,6 +49,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 py-8 relative">
+      {entering && (
+        <BrandPreloader
+          message="Entrando al muro..."
+          hint="Abriendo tu cuenta de Larvaz Hip-Hop"
+          onDone={() => router.push('/panel')}
+        />
+      )}
+
       {/* Background glow texture */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(198,255,0,0.06),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(255,45,149,0.05),transparent_60%)] pointer-events-none" />
 

@@ -203,3 +203,81 @@ body {
 .text-street-stroke {
   -webkit-text-stroke: 1px #C6FF00;
 }
+
+/* ─── Logotipo de marca ─── */
+
+/* Latido de corazón: un pulso doble al inicio de cada minuto (60s) */
+@keyframes logo-heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  1.2% {
+    transform: scale(1.16);
+  }
+  2.4% {
+    transform: scale(0.97);
+  }
+  3.6% {
+    transform: scale(1.11);
+  }
+  5.2% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-logo-heartbeat {
+  animation: logo-heartbeat 60s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* Giro del logotipo circular del precargado */
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-logo-spin {
+  animation: logo-spin 1s linear infinite;
+  transform-origin: center;
+}
+
+/* Aro que respira alrededor del logotipo */
+@keyframes preloader-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.9;
+  }
+}
+
+.animate-preloader-pulse {
+  animation: preloader-pulse 1.6s ease-in-out infinite;
+}
+
+/* Barra de progreso del precargado */
+@keyframes preloader-bar {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-preloader-bar {
+  animation-name: preloader-bar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}

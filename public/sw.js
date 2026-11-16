@@ -1,5 +1,5 @@
 // LARVAZ HIPHOP Service Worker
-const CACHE_NAME = 'larvaz-hiphop-v2';
+const CACHE_NAME = 'larvaz-hiphop-v3';
 const OFFLINE_URL = '/offline.html';
 
 const STATIC_ASSETS = [
@@ -8,6 +8,7 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/brand/larvaz-logo.jpg',
   '/og-larvaz.jpg'
 ];
 

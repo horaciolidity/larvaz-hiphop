@@ -118,7 +118,7 @@ export const SidebarLeft: React.FC = () => {
       {/* Top Brand & Links */}
       <div className="space-y-6">
         <div className="px-2">
-          <Logo size="md" showTagline={true} />
+          <Logo size="md" showTagline={true} beat />
         </div>
 
 

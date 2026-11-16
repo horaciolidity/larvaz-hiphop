@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { BrandPreloader } from '@/components/common/BrandPreloader';
 import {
   Film,
   Maximize2,
@@ -36,6 +37,7 @@ export default function EditorVideoPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -46,17 +48,30 @@ export default function EditorVideoPage() {
     setIframeKey((prev) => prev + 1);
   };
 
+  // Precargado de marca: logotipo circular girando 2 segundos antes del editor.
+  const preloader = booting ? (
+    <BrandPreloader
+      message="Entrando al editor..."
+      hint="Preparando la línea de tiempo de tus videoclips"
+      onDone={() => setBooting(false)}
+    />
+  ) : null;
+
   if (!mounted) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-4">
-        <div className="h-24 rounded-2xl bg-surface animate-pulse" />
-        <div className="h-[600px] rounded-2xl bg-surface animate-pulse" />
-      </div>
+      <>
+        {preloader}
+        <div className="p-6 max-w-4xl mx-auto space-y-4">
+          <div className="h-24 rounded-2xl bg-surface animate-pulse" />
+          <div className="h-[600px] rounded-2xl bg-surface animate-pulse" />
+        </div>
+      </>
     );
   }
 
   return (
     <div className="flex flex-col min-h-full p-3 sm:p-5 space-y-5">
+      {preloader}
       {/* Aviso para invitados */}
       {currentUser.is_guest && (
         <div className="p-3.5 rounded-2xl bg-gradient-to-r from-magenta/15 via-surface-elevated to-acid/15 border border-magenta/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">

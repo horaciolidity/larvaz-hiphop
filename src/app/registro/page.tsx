@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Logo } from '@/components/common/Logo';
+import { BrandPreloader } from '@/components/common/BrandPreloader';
 import { Lock, Mail, User, AtSign, Eye, EyeOff, AlertCircle, Check, Gift } from 'lucide-react';
 
 function RegistroContent() {
@@ -21,6 +22,7 @@ function RegistroContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [entering, setEntering] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -55,9 +57,8 @@ function RegistroContent() {
       if (res.success) {
         setSuccess(true);
         if (res.message) setMessage(res.message);
-        setTimeout(() => {
-          router.push('/panel');
-        }, 800);
+        // Precargado de marca al entrar a la plataforma por primera vez.
+        setEntering(true);
       } else {
         setError(res.error || 'No se pudo crear la cuenta.');
       }
@@ -70,6 +71,14 @@ function RegistroContent() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 py-8 relative">
+      {entering && (
+        <BrandPreloader
+          message="Creando tu cuenta..."
+          hint="Entrando al muro de Larvaz Hip-Hop"
+          onDone={() => router.push('/panel')}
+        />
+      )}
+
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(198,255,0,0.06),transparent_60%),radial-gradient(ellipse_at_bottom_right,rgba(0,217,255,0.05),transparent_60%)] pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10 space-y-6">

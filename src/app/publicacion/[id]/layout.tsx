@@ -4,7 +4,7 @@ import { loadPostForServer } from '@/lib/post-server';
 const FALLBACK_SITE = 'https://larvaz-hiphop.vercel.app';
 const FALLBACK_OG = '/og-larvaz.jpg';
 const FALLBACK_OG_ALT =
-  'LARVAZ HIP HOP — logotipo dorado con corona y micrófono sobre fondo negro';
+  'LARVAZ HIP HOP — logotipo graffiti con corona, zapatilla, micrófono y tornamesa sobre fondo negro';
 
 function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE).replace(/\/+$/, '');
