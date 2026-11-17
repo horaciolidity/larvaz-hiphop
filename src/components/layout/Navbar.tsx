@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/common/Logo';
 import { useApp } from '@/context/AppContext';
-import { Bell, Film, Radio, UserCheck, MessageCircle, LogOut, Sliders, HelpCircle } from 'lucide-react';
+import { Bell, Film, Radio, UserCheck, MessageCircle, LogOut, Sliders, HelpCircle, Crown } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
 import { useEventAlertFlash } from '@/components/events/useEventAlertFlash';
@@ -26,6 +26,17 @@ export const Navbar: React.FC = () => {
       {/* En pantallas muy angostas la fila se desplaza dentro de la cabecera,
           sin empujar el ancho de toda la página. */}
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Sponsors Quick Link */}
+        <Link
+          href="/sponsors"
+          data-tour="sponsors"
+          className="shrink-0 p-1.5 rounded-xl bg-acid/10 border border-acid/40 text-acid hover:bg-acid hover:text-background transition-all flex items-center gap-1"
+          title="LARVAZ Sponsors"
+          aria-label="LARVAZ Sponsors"
+        >
+          <Crown className="w-4 h-4" />
+        </Link>
+
         {/* Radio Quick Link */}
         <Link
           href="/radio"

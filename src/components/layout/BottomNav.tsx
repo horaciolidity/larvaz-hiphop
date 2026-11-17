@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { Home, Compass, PlusCircle, Radio, UserCheck } from 'lucide-react';
+import { Home, Compass, PlusCircle, Radio, UserCheck, Crown } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
@@ -13,6 +13,7 @@ export const BottomNav: React.FC = () => {
   const navItems = [
     { label: 'Inicio', href: '/', icon: Home, tour: 'inicio' },
     { label: 'Explorar', href: '/explorar', icon: Compass, tour: 'explorar' },
+    { label: 'Sponsors', href: '/sponsors', icon: Crown, tour: 'sponsors' },
     { label: 'Publicar', href: '/crear', icon: PlusCircle, isAction: true, tour: 'publicar' },
     { label: 'Radio', href: '/radio', icon: Radio, tour: 'radio', hasBadge: isRadioPlaying },
     { label: 'Mi Panel', href: '/panel', icon: UserCheck, tour: 'panel' },
@@ -23,7 +24,8 @@ export const BottomNav: React.FC = () => {
       <div className="flex items-center justify-around max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive =
+            item.href === '/sponsors' ? pathname.startsWith('/sponsors') : pathname === item.href;
 
           if (item.isAction) {
             return (
@@ -48,7 +50,7 @@ export const BottomNav: React.FC = () => {
               key={item.href}
               href={item.href}
               data-tour={item.tour}
-              className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+              className={`relative flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all ${
                 isActive
                   ? 'text-acid font-bold'
                   : 'text-content-secondary hover:text-content-primary'

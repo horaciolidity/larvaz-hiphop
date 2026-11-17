@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
+import { SponsorsProvider } from '@/context/SponsorsContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 
 export const metadata: Metadata = {
@@ -71,7 +72,9 @@ export default function RootLayout({
     <html lang="es" className="dark" suppressHydrationWarning>
       <body className="bg-background text-content-primary antialiased min-h-screen" suppressHydrationWarning>
         <AppProvider>
-          <AppLayout>{children}</AppLayout>
+          <SponsorsProvider>
+            <AppLayout>{children}</AppLayout>
+          </SponsorsProvider>
         </AppProvider>
 
         {/* PWA Service Worker Registration */}

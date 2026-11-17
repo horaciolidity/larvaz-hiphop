@@ -7,10 +7,47 @@ import { ConnectedUsersBar } from '@/components/layout/ConnectedUsersBar';
 import { FeedFilters } from '@/components/feed/FeedFilters';
 import { PostCard } from '@/components/feed/PostCard';
 import { InlineFeedComposer } from '@/components/feed/InlineFeedComposer';
-import { PlusCircle, Disc3, Sliders, Sparkles, Film } from 'lucide-react';
+import { SponsorPostCard } from '@/components/sponsors/cards';
+import { useSponsors } from '@/context/SponsorsContext';
+import { PlusCircle, Disc3, Sliders, Sparkles, Film, Crown } from 'lucide-react';
 
 export default function HomePage() {
   const { posts } = useApp();
+  const { state: sponsorState } = useSponsors();
+
+  // Los posts de marcas se intercalan en el feed principal (uno cada 3 publicaciones,
+  // máximo 3 por vista) conservando su etiqueta SPONSOR y sus acciones propias.
+  const MAX_SPONSOR_IN_FEED = 3;
+  const sponsorPosts = sponsorState.posts.slice(0, MAX_SPONSOR_IN_FEED);
+  const feedItems: Array<{ id: string; node: React.ReactNode }> = [];
+  let sponsorIndex = 0;
+  posts.forEach((post, index) => {
+    feedItems.push({ id: post.id, node: <PostCard key={post.id} post={post} /> });
+    if ((index + 1) % 3 === 0 && sponsorIndex < sponsorPosts.length) {
+      const sponsorPost = sponsorPosts[sponsorIndex];
+      sponsorIndex += 1;
+      feedItems.push({
+        id: sponsorPost.id,
+        node: (
+          <div key={sponsorPost.id} className="px-2 py-2">
+            <SponsorPostCard post={sponsorPost} />
+          </div>
+        ),
+      });
+    }
+  });
+  if (sponsorIndex < sponsorPosts.length && posts.length > 0) {
+    const sponsorPost = sponsorPosts[sponsorIndex];
+    feedItems.push({
+      id: sponsorPost.id,
+      node: (
+        <div key={sponsorPost.id} className="px-2 py-2">
+          <SponsorPostCard post={sponsorPost} />
+        </div>
+      ),
+    });
+    sponsorIndex += 1;
+  }
 
   return (
     <div className="flex flex-col min-h-full">
@@ -86,6 +123,30 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* LARVAZ SPONSORS — acceso directo */}
+      <div className="px-4 pt-3">
+        <Link
+          href="/sponsors"
+          className="flex items-center gap-2.5 rounded-2xl border border-acid/25 bg-gradient-to-r from-acid/10 via-surface-elevated to-magenta/10 p-3 transition-colors hover:border-acid/50"
+        >
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-acid text-background">
+            <Crown className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 font-display text-sm font-black tracking-wider text-content-primary">
+              LARVAZ SPONSORS
+              <span className="rounded-full bg-acid px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-background">
+                Nuevo
+              </span>
+            </p>
+            <p className="truncate text-[11px] text-content-secondary">
+              Patrocinios, sorteos, premios, desafíos y proyectos para la cultura.
+            </p>
+          </div>
+          <span className="shrink-0 text-[10px] font-black uppercase tracking-wide text-acid">Explorar →</span>
+        </Link>
+      </div>
+
       {/* Interactive Inline Feed Composer */}
       <div className="p-4 border-b border-surface-border bg-surface/40">
         <InlineFeedComposer />
@@ -113,7 +174,7 @@ export default function HomePage() {
             </Link>
           </div>
         ) : (
-          posts.map((post) => <PostCard key={post.id} post={post} />)
+          feedItems.map((item) => item.node)
         )}
       </div>
     </div>

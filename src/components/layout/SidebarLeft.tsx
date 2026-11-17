@@ -31,6 +31,7 @@ import {
   Sliders,
   HelpCircle,
   Film,
+  Crown,
 } from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
@@ -60,6 +61,14 @@ export const SidebarLeft: React.FC = () => {
   const mainLinks = [
     { label: 'Inicio', href: '/', icon: Home, tour: 'inicio' },
     { label: 'Explorar', href: '/explorar', icon: Compass, tour: 'explorar' },
+    {
+      label: 'Sponsors',
+      href: '/sponsors',
+      icon: Crown,
+      tour: 'sponsors',
+      badge: 'NUEVO',
+      badgeColor: 'bg-acid text-background',
+    },
     {
       label: 'Radio 24/7',
       href: '/radio',
@@ -127,7 +136,8 @@ export const SidebarLeft: React.FC = () => {
         <nav className="space-y-1">
           {mainLinks.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive =
+              item.href === '/sponsors' ? pathname.startsWith('/sponsors') : pathname === item.href;
 
             return (
               <Link

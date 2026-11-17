@@ -19,6 +19,8 @@ import {
   Layers,
   Check,
   MessageCircle,
+  Crown,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function ArtistProfilePage() {
@@ -154,6 +156,25 @@ export default function ArtistProfilePage() {
             )}
           </div>
         </div>
+
+        {/* CTA Sponsors */}
+        <Link
+          href="/sponsors/marca/nueva"
+          className="mb-4 flex items-center gap-3 rounded-2xl border border-acid/30 bg-gradient-to-r from-acid/15 via-surface to-magenta/10 p-3 transition-colors hover:border-acid/60"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-acid text-background">
+            <Crown className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-base font-black leading-none tracking-wide text-content-primary">
+              CONVIÉRTETE EN PATROCINADOR
+            </p>
+            <p className="mt-1 text-[10px] leading-snug text-content-secondary">
+              Sumá tu marca, lanzá convocatorias, sorteos y desafíos. O encontrá patrocinio para tu arte.
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-acid" />
+        </Link>
 
         {/* 3. Bio & Details */}
         <div className="space-y-3">
