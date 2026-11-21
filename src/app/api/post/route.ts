@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { isUUID, resolveDbUserId } from '@/lib/profile-server';
 
 export const dynamic = 'force-dynamic';
 
 const PLACEHOLDER_URL = 'https://larvaz-hiphop.vercel.app';
-const FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000001';
-
-function isUUID(str: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-}
 
 /**
  * Incrementa un contador guardado en post_metadata.raw_metadata.
@@ -50,66 +46,6 @@ async function bumpRawMetadataCounter(
   }
 
   return { value };
-}
-
-async function resolveDbUserId(params: {
-  user_id?: string;
-  username?: string;
-  author_name?: string;
-  author_avatar?: string;
-  author_location?: string;
-  author_disciplines?: string;
-}): Promise<string> {
-  const cleanUsername = (params.username || '').toLowerCase().trim();
-  let finalUserId: string | null = null;
-
-  if (params.user_id && isUUID(params.user_id)) {
-    finalUserId = params.user_id;
-  }
-
-  if (!finalUserId && cleanUsername) {
-    const { data: prof } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .ilike('username', cleanUsername)
-      .maybeSingle();
-
-    if (prof?.id) {
-      finalUserId = prof.id;
-    }
-  }
-
-  if (finalUserId && finalUserId !== FALLBACK_USER_ID) {
-    const { data: existingProf } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('id', finalUserId)
-      .maybeSingle();
-
-    if (!existingProf) {
-      const autoName = params.author_name || cleanUsername || 'Artista Larvaz';
-      const autoUser = cleanUsername || 'user_' + finalUserId.substring(0, 6);
-      const { error: profErr } = await supabaseAdmin.from('profiles').upsert({
-        id: finalUserId,
-        username: autoUser,
-        full_name: autoName,
-        avatar_url: params.author_avatar || '',
-        location: params.author_location || 'Mendoza, Argentina',
-        artistic_disciplines: params.author_disciplines || 'Cultura Hip-Hop',
-        role: 'user',
-        is_banned: false,
-        created_at: new Date().toISOString(),
-      });
-      if (profErr) {
-        console.warn('[API /post] Auto-creación de perfil falló, usando fallback UUID:', profErr.message);
-        finalUserId = FALLBACK_USER_ID;
-      }
-    }
-  } else if (!finalUserId) {
-    finalUserId = FALLBACK_USER_ID;
-  }
-
-  return finalUserId;
 }
 
 export async function GET(req: NextRequest) {
@@ -163,6 +99,7 @@ export async function POST(req: NextRequest) {
       author_avatar,
       author_location,
       author_disciplines,
+      disciplines,
       description,
       content_type,
       tags,
@@ -232,6 +169,7 @@ export async function POST(req: NextRequest) {
       real_content_type: realContentType,
       has_external_url: hasRealExternalUrl,
       location: author_location || metadata?.location || 'Mendoza, Argentina',
+      disciplines: Array.isArray(disciplines) ? disciplines : undefined,
       author: {
         id: user_id || finalUserId,
         username: cleanUsername || inserted?.profiles?.username || 'artista',
@@ -239,6 +177,9 @@ export async function POST(req: NextRequest) {
         avatar_url: author_avatar || inserted?.profiles?.avatar_url || '',
         location: author_location || inserted?.profiles?.location || metadata?.location || 'Mendoza, Argentina',
         artistic_disciplines: author_disciplines || inserted?.profiles?.artistic_disciplines || '',
+        disciplines: Array.isArray(disciplines)
+          ? disciplines
+          : inserted?.profiles?.disciplines || undefined,
         role: inserted?.profiles?.role || 'user',
       },
     };

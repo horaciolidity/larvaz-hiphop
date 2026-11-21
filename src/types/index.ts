@@ -40,6 +40,16 @@ export interface Profile {
   website?: string;
   portfolio_url?: string;
   artistic_disciplines?: string;
+  /** Ramas del hip-hop elegidas explícitamente (MC, DJ, graffiti, breaking...). */
+  disciplines?: HipHopDiscipline[];
+  /** Perfil de patrocinio: disponibilidad y datos para marcas. */
+  sponsorship_available?: boolean;
+  sponsorship_terms_accepted_at?: string;
+  sponsorship_experience?: string;
+  sponsorship_modalities?: string[];
+  sponsorship_travel?: boolean;
+  sponsorship_contact_email?: string;
+  sponsorship_portfolio_url?: string;
   role: UserRole;
   is_banned: boolean;
   verified_artist?: boolean;
@@ -110,6 +120,8 @@ export interface Post {
   content_type: ContentType;
   description: string;
   tags: string[];
+  /** Ramas del hip-hop a las que pertenece la publicación. */
+  disciplines?: HipHopDiscipline[];
   likes_count: number;
   comments_count: number;
   is_hidden: boolean;

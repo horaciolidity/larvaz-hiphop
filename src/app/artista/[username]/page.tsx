@@ -21,7 +21,13 @@ import {
   MessageCircle,
   Crown,
   ArrowRight,
+  BadgeDollarSign,
 } from 'lucide-react';
+import {
+  CORE_DISCIPLINES,
+  disciplineLabel,
+  resolveDisciplines,
+} from '@/lib/disciplines';
 
 export default function ArtistProfilePage() {
   const params = useParams();
@@ -56,6 +62,10 @@ export default function ArtistProfilePage() {
 
   const isOwner = currentUser.id === profile.id;
   const following = isFollowing(profile.id);
+  const profileDisciplines = resolveDisciplines({
+    disciplines: profile.disciplines,
+    artistic_disciplines: profile.artistic_disciplines,
+  });
 
   // Fetch artist posts: combina todos los posts del dataStore (incluye Supabase sincronizado) sin verse afectado por filtros del home
   const allAvailablePosts = dataStore.getPosts();
@@ -193,12 +203,43 @@ export default function ArtistProfilePage() {
             </p>
           )}
 
-          {/* Artistic Disciplines tag */}
-          {profile.artistic_disciplines && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-acid/10 border border-acid/20 text-acid text-xs font-semibold">
-              <Layers className="w-3.5 h-3.5" />
-              <span>{profile.artistic_disciplines}</span>
+          {/* Ramas del hip-hop: un solo perfil, todos los elementos */}
+          {(profileDisciplines.length > 0 || profile.artistic_disciplines) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-content-muted">
+                <Layers className="w-3.5 h-3.5 text-acid" />
+                Ramas
+              </span>
+              {profileDisciplines.length > 0 ? (
+                profileDisciplines.map((discipline) => {
+                  const option = CORE_DISCIPLINES.find((item) => item.id === discipline);
+                  return (
+                    <span
+                      key={discipline}
+                      className="inline-flex items-center gap-1 rounded-full border border-acid/25 bg-acid/10 px-2.5 py-1 text-[11px] font-bold text-acid"
+                    >
+                      <span aria-hidden="true">{option?.emoji || '🎧'}</span>
+                      {disciplineLabel(discipline)}
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="rounded-full border border-acid/20 bg-acid/10 px-3 py-1 text-xs font-semibold text-acid">
+                  {profile.artistic_disciplines}
+                </span>
+              )}
             </div>
+          )}
+
+          {/* Disponibilidad para patrocinios */}
+          {profile.sponsorship_available && (
+            <Link
+              href={isOwner ? '/configuracion' : '/sponsors/explorar'}
+              className="inline-flex items-center gap-1.5 rounded-full border border-cyan/40 bg-cyan/10 px-3 py-1 text-[11px] font-bold text-cyan hover:bg-cyan hover:text-background transition-colors"
+            >
+              <BadgeDollarSign className="h-3.5 w-3.5" />
+              Disponible para patrocinios
+            </Link>
           )}
 
           {/* Location & External Links */}

@@ -4,9 +4,17 @@ import React from 'react';
 import { useApp } from '@/context/AppContext';
 import { FeedFilter, ContentType } from '@/types';
 import { Sparkles, Clock, Flame, Disc3, Video, Palette, Globe, MessageSquare } from 'lucide-react';
+import { CORE_DISCIPLINES } from '@/lib/disciplines';
 
 export const FeedFilters: React.FC = () => {
-  const { feedFilter, setFeedFilter, contentTypeFilter, setContentTypeFilter } = useApp();
+  const {
+    feedFilter,
+    setFeedFilter,
+    contentTypeFilter,
+    setContentTypeFilter,
+    disciplineFilter,
+    setDisciplineFilter,
+  } = useApp();
 
   const mainTabs: { key: FeedFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { key: 'para_ti', label: 'Para Ti', icon: Sparkles },
@@ -66,6 +74,39 @@ export const FeedFilters: React.FC = () => {
             >
               {Icon && <Icon className="w-3 h-3 text-acid" />}
               <span>{cf.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Los 4 elementos: un mismo muro, filtros que no separan la cultura */}
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+        <button
+          onClick={() => setDisciplineFilter('all')}
+          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap transition-colors ${
+            disciplineFilter === 'all'
+              ? 'border-acid bg-acid text-background'
+              : 'border-surface-border bg-surface text-content-secondary hover:text-content-primary'
+          }`}
+        >
+          Los 4 elementos
+        </button>
+        {CORE_DISCIPLINES.map((discipline) => {
+          const active = disciplineFilter === discipline.id;
+          return (
+            <button
+              key={discipline.id}
+              onClick={() => setDisciplineFilter(discipline.id)}
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap transition-colors ${
+                active
+                  ? discipline.accent
+                  : 'border-surface-border bg-surface text-content-secondary hover:text-content-primary'
+              }`}
+            >
+              <span className="mr-1" aria-hidden="true">
+                {discipline.emoji}
+              </span>
+              {discipline.shortLabel}
             </button>
           );
         })}

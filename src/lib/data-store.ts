@@ -13,8 +13,10 @@ import {
   UserRole,
   WithdrawalRequest,
   PostMedia,
+  HipHopDiscipline,
 } from '@/types';
 import { normalizeMediaList, resolveIpfsUrl } from './media-utils';
+import { normalizeDisciplines, resolveDisciplines } from './disciplines';
 import { withEffectiveRole } from './roles';
 import { isTestBotUsername } from './npc-personas';
 
@@ -570,7 +572,7 @@ export const INITIAL_RADIO_STATIONS: RadioStation[] = [
   },
   {
     id: 'station-breaking-bboys',
-    name: 'B-BOYS & B-GIRLS RADIO',
+    name: 'BREAKBEAT & CYPHER RADIO',
     dial: 'BREAKBEAT FM',
     region: '🌎 Cyphers & Battles (Global)',
     tagline: 'Breakbeats, funk, soul y clásicos para entrar al cypher y entrenar tus moves',
@@ -578,7 +580,7 @@ export const INITIAL_RADIO_STATIONS: RadioStation[] = [
     genre: 'Breaking / Breakbeat / Funk & Soul',
     current_track: {
       title: 'Cypher Breakbeats & Funk Essentials',
-      artist: 'Larvaz B-Boy Radio',
+      artist: 'Larvaz Breaking Radio',
       album_art: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=300&h=300&fit=crop',
     },
     listeners_count: 430,
@@ -1093,6 +1095,7 @@ class LarvazDataStore {
     authorId?: string;
     bookmarkedOnly?: boolean;
     contentType?: ContentType;
+    discipline?: HipHopDiscipline | 'all';
   }): Post[] {
     const duplicateDbSeedIds = new Set([
       '10000000-0000-0000-0000-000000000001',
@@ -1122,6 +1125,17 @@ class LarvazDataStore {
 
     if (options?.contentType && options.contentType !== ('all' as any)) {
       result = result.filter((p) => p.content_type === options.contentType);
+    }
+
+    if (options?.discipline && options.discipline !== 'all') {
+      result = result.filter((p) => {
+        const effective = resolveDisciplines({
+          disciplines: p.disciplines,
+          artistic_disciplines: p.author?.artistic_disciplines,
+          tags: p.tags,
+        });
+        return effective.includes(options.discipline as HipHopDiscipline);
+      });
     }
 
     if (options?.search) {
@@ -1317,6 +1331,7 @@ class LarvazDataStore {
     provider?: any;
     metadata?: any;
     media?: PostMedia[];
+    disciplines?: HipHopDiscipline[];
   }): Post {
     const media = normalizeMediaList(
       Array.isArray(data.media) ? data.media : data.metadata?.media
@@ -1353,6 +1368,21 @@ class LarvazDataStore {
         ? crypto.randomUUID()
         : 'post-' + Date.now();
 
+    // Las ramas elegidas se guardan como campo propio y también como tags
+    // para que cualquier filtro/búsqueda existente las encuentre.
+    const postDisciplines = normalizeDisciplines(
+      data.disciplines && data.disciplines.length > 0
+        ? data.disciplines
+        : resolveDisciplines({
+            disciplines: this.currentUser.disciplines,
+            artistic_disciplines: this.currentUser.artistic_disciplines,
+          })
+    );
+    const baseTags = data.tags || [];
+    const tagsWithDisciplines = Array.from(
+      new Set([...baseTags, ...postDisciplines.map((d) => String(d))])
+    );
+
     const newPost: Post = {
       id: newPostId,
       user_id: this.currentUser.id,
@@ -1369,7 +1399,8 @@ class LarvazDataStore {
               ? 'visual_art'
               : 'text'),
       description: data.description,
-      tags: data.tags || [],
+      tags: tagsWithDisciplines,
+      disciplines: postDisciplines,
       likes_count: 0,
       comments_count: 0,
       is_hidden: false,
@@ -1587,8 +1618,21 @@ class LarvazDataStore {
     for (const c of this.comments) map.set(c.id, c);
     let changed = false;
     for (const c of incomingComments) {
-      if (!map.has(c.id)) {
+      const previous = map.get(c.id);
+      if (!previous) {
         map.set(c.id, c);
+        changed = true;
+        continue;
+      }
+      // Los avatares y nombres pueden cambiar: actualizamos el snapshot
+      // existente sin duplicar el comentario.
+      const merged: Comment = {
+        ...previous,
+        ...c,
+        author: { ...(previous.author || {}), ...(c.author || {}) } as Comment['author'],
+      };
+      if (JSON.stringify(merged) !== JSON.stringify(previous)) {
+        map.set(c.id, merged);
         changed = true;
       }
     }
@@ -1732,6 +1776,17 @@ class LarvazDataStore {
     if (post) post.comments_count = Math.max(0, post.comments_count - 1);
     this.saveToStorage();
     return comment;
+  }
+
+  /** Fija el contador real de comentarios que devuelve el servidor. */
+  setPostCommentsCount(postId: string, count: number): boolean {
+    const post = this.posts.find((p) => p.id === postId);
+    if (!post) return false;
+    const next = Math.max(0, Math.floor(count) || 0);
+    if (post.comments_count === next) return false;
+    post.comments_count = next;
+    this.saveToStorage();
+    return true;
   }
 
   /** Ajusta el contador local sin tocar los comentarios (sincronización optimista). */

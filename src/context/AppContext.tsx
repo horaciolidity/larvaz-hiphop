@@ -16,6 +16,7 @@ import {
   UserRole,
   WithdrawalRequest,
   PostMedia,
+  HipHopDiscipline,
 } from '@/types';
 import { dataStore, GUEST_USER, INITIAL_PROFILES } from '@/lib/data-store';
 import { mapDbPostToPost } from '@/lib/post-mapper';
@@ -26,6 +27,7 @@ import {
   PlatformSettings,
 } from '@/lib/platform-settings';
 import { withEffectiveRole } from '@/lib/roles';
+import { toDbPostId } from '@/lib/post-id';
 
 interface AppContextType {
   currentUser: Profile;
@@ -41,6 +43,8 @@ interface AppContextType {
   setFeedFilter: (f: FeedFilter) => void;
   contentTypeFilter: ContentType | 'all';
   setContentTypeFilter: (ct: ContentType | 'all') => void;
+  disciplineFilter: HipHopDiscipline | 'all';
+  setDisciplineFilter: (d: HipHopDiscipline | 'all') => void;
   isSupabaseConnected: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
@@ -121,12 +125,13 @@ interface AppContextType {
     provider?: any;
     metadata?: any;
     media?: PostMedia[];
+    disciplines?: HipHopDiscipline[];
   }) => Post;
   createEvent: (data: any) => HipHopEvent;
   deleteEvent: (eventIdOrSlug: string) => boolean;
   createReport: (data: any) => Report;
   markNotificationsAsRead: () => void;
-  updateProfile: (data: Partial<Profile>) => void;
+  updateProfile: (data: Partial<Profile>) => Promise<{ success: boolean; error?: string }>;
   incrementViews: (postId: string) => number;
 }
 
@@ -137,6 +142,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUserState] = useState<Profile>(GUEST_USER);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('para_ti');
   const [contentTypeFilter, setContentTypeFilter] = useState<ContentType | 'all'>('all');
+  const [disciplineFilter, setDisciplineFilter] = useState<HipHopDiscipline | 'all'>('all');
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<HipHopEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -276,13 +282,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Use refs so realtime callbacks always see latest filter values (avoids stale closure)
   const feedFilterRef = React.useRef(feedFilter);
   const contentTypeFilterRef = React.useRef(contentTypeFilter);
+  const disciplineFilterRef = React.useRef(disciplineFilter);
   useEffect(() => { feedFilterRef.current = feedFilter; }, [feedFilter]);
   useEffect(() => { contentTypeFilterRef.current = contentTypeFilter; }, [contentTypeFilter]);
+  useEffect(() => { disciplineFilterRef.current = disciplineFilter; }, [disciplineFilter]);
 
   const refreshPosts = useCallback(() => {
     const fetched = dataStore.getPosts({
       filter: feedFilterRef.current,
       contentType: contentTypeFilterRef.current === 'all' ? undefined : contentTypeFilterRef.current,
+      discipline: disciplineFilterRef.current,
     });
     setPosts(fetched);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -291,7 +300,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshPosts();
     setEvents(dataStore.getEvents());
     setNotifications(dataStore.getNotifications());
-  }, [feedFilter, contentTypeFilter, currentUser, refreshPosts]);
+  }, [feedFilter, contentTypeFilter, disciplineFilter, currentUser, refreshPosts]);
 
   const supabase = createClient();
   const [balance, setBalance] = useState<number>(0);
@@ -572,12 +581,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch(`/api/feed?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
-        const { posts: dbPosts } = await res.json();
+        const { posts: dbPosts, comment_counts: commentCounts } = await res.json();
         const dbList = Array.isArray(dbPosts) ? dbPosts : [];
 
         if (dbList.length > 0) {
           const mappedPosts: Post[] = dbList.map(mapPostFromDB);
           dataStore.mergePosts(mappedPosts);
+        }
+
+        // El servidor es la fuente de verdad del contador de comentarios,
+        // incluso para publicaciones de demo (post-1, post-2...), que se
+        // guardan con un UUID determinista. Se aplica DESPUÉS de mergePosts
+        // para que no lo pise el valor guardado en posts.comments_count.
+        let countsChanged = false;
+        if (commentCounts && typeof commentCounts === 'object') {
+          for (const [postId, count] of Object.entries(commentCounts)) {
+            if (dataStore.setPostCommentsCount(postId, Number(count))) {
+              countsChanged = true;
+            }
+          }
+          for (const post of dataStore.getPosts()) {
+            const dbId = toDbPostId(post.id);
+            const serverCount = commentCounts[dbId] ?? commentCounts[post.id];
+            if (typeof serverCount === 'number') {
+              if (dataStore.setPostCommentsCount(post.id, serverCount)) {
+                countsChanged = true;
+              }
+            }
+          }
+        }
+        if (countsChanged) refreshPostsRef.current();
+
+        if (dbList.length > 0) {
 
           // Extraer y sincronizar comentarios de la comunidad para que todos los vean
           const allDbComments: Comment[] = [];
@@ -585,21 +620,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (Array.isArray(rawPost.comments)) {
               for (const c of rawPost.comments) {
                 if (!c.is_hidden) {
+                  const snapshot = c.author_snapshot || null;
+                  const profile = c.profiles || null;
+                  const base = snapshot || profile || {};
                   allDbComments.push({
                     id: String(c.id),
                     post_id: String(c.post_id || rawPost.id),
-                    user_id: c.user_id,
+                    user_id: base.id || c.user_id,
                     content: c.content || '',
                     is_hidden: false,
                     created_at: c.created_at,
-                    author: c.profiles || {
-                      id: c.user_id,
-                      username: 'artista',
-                      full_name: 'Artista Larvaz',
-                      avatar_url: '',
-                      role: 'user',
-                      is_banned: false,
-                      created_at: c.created_at,
+                    author: {
+                      id: base.id || c.user_id,
+                      username: base.username || 'artista',
+                      full_name: base.full_name || base.username || 'Artista Larvaz',
+                      avatar_url: base.avatar_url || '',
+                      location: base.location || '',
+                      artistic_disciplines: base.artistic_disciplines || '',
+                      disciplines: base.disciplines || [],
+                      role: base.role || profile?.role || 'user',
+                      is_banned: Boolean(base.is_banned ?? profile?.is_banned),
+                      created_at: base.created_at || c.created_at,
                     },
                   });
                 }
@@ -633,6 +674,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 author_avatar: localPost.author?.avatar_url,
                 author_location: localPost.author?.location || (localPost.metadata as any)?.location,
                 author_disciplines: localPost.author?.artistic_disciplines,
+                disciplines: localPost.disciplines || [],
                 description: localPost.description || '',
                 content_type: localPost.content_type || 'text',
                 tags: localPost.tags || ['hiphop'],
@@ -1146,15 +1188,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return res;
   };
 
-  const updateProfile = async (data: Partial<Profile>) => {
+  const updateProfile = async (
+    data: Partial<Profile>
+  ): Promise<{ success: boolean; error?: string }> => {
+    // 1. Actualización optimista local (incluye propagación a posts,
+    //    comentarios, notificaciones y eventos del usuario).
     const updated = dataStore.updateProfile(data);
     setCurrentUserState({ ...updated });
     refreshPosts();
 
-    // Sincronizar en base de datos Supabase si la sesión está activa
-    if (isSupabaseConnected && supabase && updated && !updated.is_guest) {
-      try {
-        await supabase.from('profiles').upsert({
+    // 2. Persistencia real en el servidor. La API valida la sesión, ignora
+    //    campos peligrosos (role, is_banned) y guarda perfiles locales en
+    //    community_profiles para que avatar y disciplinas sean visibles
+    //    para el resto de la comunidad.
+    try {
+      const token = await getAccessToken();
+      const res = await fetch('/api/profiles', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
           id: updated.id,
           username: updated.username,
           full_name: updated.full_name,
@@ -1165,12 +1220,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           website: updated.website,
           portfolio_url: updated.portfolio_url,
           artistic_disciplines: updated.artistic_disciplines,
-          role: updated.role,
-          updated_at: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.warn('Error al sincronizar perfil con Supabase:', err);
+          disciplines: updated.disciplines,
+          sponsorship_available: updated.sponsorship_available,
+          sponsorship_terms_accepted_at: updated.sponsorship_terms_accepted_at,
+          sponsorship_experience: updated.sponsorship_experience,
+          sponsorship_modalities: updated.sponsorship_modalities,
+          sponsorship_travel: updated.sponsorship_travel,
+          sponsorship_contact_email: updated.sponsorship_contact_email,
+          sponsorship_portfolio_url: updated.sponsorship_portfolio_url,
+          created_at: updated.created_at,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: payload?.error || 'No se pudo guardar el perfil en el servidor.',
+        };
       }
+
+      // El servidor manda: si devolvió el perfil guardado, lo reflejamos.
+      if (payload?.profile) {
+        const saved: Profile = {
+          ...updated,
+          ...payload.profile,
+          // El rol efectivo de la app (p. ej. super_admin) se conserva.
+          role: updated.role,
+        };
+        dataStore.mergeProfiles([saved]);
+        dataStore.setCurrentUser(saved);
+        setCurrentUserState({ ...saved });
+        syncProfilesState();
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Error al sincronizar perfil con Supabase:', err);
+      return {
+        success: false,
+        error: 'No se pudo conectar con el servidor. Los cambios quedaron guardados en este dispositivo.',
+      };
     }
   };
 
@@ -1247,31 +1337,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addComment = async (postId: string, content: string): Promise<Comment> => {
     const clean = content.trim();
+    if (!clean) throw new Error('El comentario está vacío.');
+    if (!platformSettings.features.commentsEnabled) {
+      throw new Error('Los comentarios están desactivados por la administración.');
+    }
+
     const token = await getAccessToken();
-    const isPersistable = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    const isDbPost = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       postId
     );
 
-    if (token && isPersistable && platformSettings.features.commentsEnabled) {
-      try {
-        const res = await fetch('/api/comments', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ post_id: postId, content: clean }),
-        });
-        const payload = await res.json().catch(() => ({}));
-        if (res.ok && payload?.comment) {
-          dataStore.mergeComments([payload.comment as Comment]);
-          dataStore.adjustPostCommentsCount(postId, 1);
-          refreshPosts();
-          return payload.comment as Comment;
-        }
-      } catch {
-        // si el servidor falla, se conserva el comentario localmente
+    // Intentamos persistir SIEMPRE. Antes solo se hacía con token y UUID, por
+    // eso los comentarios de cuentas locales y posts de demo quedaban solo en
+    // el navegador. La API acepta ambas variantes y guarda el snapshot del autor.
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          post_id: postId,
+          content: clean,
+          user_id: currentUser.id,
+          author_username: currentUser.username,
+          author_name: currentUser.full_name,
+          author_avatar: currentUser.avatar_url,
+          author_location: userLocation || currentUser.location,
+          author_disciplines: currentUser.artistic_disciplines,
+          author_disciplines_list: currentUser.disciplines,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok && payload?.comment) {
+        dataStore.mergeComments([payload.comment as Comment]);
+        // En posts UUID el trigger de Supabase ya actualizó el contador.
+        if (!isDbPost) dataStore.adjustPostCommentsCount(postId, 1);
+        refreshPosts();
+        return payload.comment as Comment;
       }
+      if (res.status === 401) {
+        throw new Error(payload?.error || 'Tu sesión venció. Volvé a iniciar sesión.');
+      }
+    } catch (err: any) {
+      // Sin conexión (o API no disponible): se conserva el comentario local.
+      console.warn('No se pudo persistir el comentario:', err?.message || err);
     }
 
     const comment = dataStore.addComment(postId, clean);
@@ -1285,18 +1396,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       commentId
     );
 
-    if (token && isPersistable) {
+    if (isPersistable) {
       try {
-        const res = await fetch(`/api/comments?id=${encodeURIComponent(commentId)}`, {
+        const query = new URLSearchParams({ id: commentId });
+        if (!token) query.set('user_id', currentUser.id);
+        const res = await fetch(`/api/comments?${query.toString()}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
-        if (!res.ok) return false;
-        dataStore.removeComment(commentId);
-        refreshPosts();
-        return true;
+        if (res.ok) {
+          dataStore.removeComment(commentId);
+          refreshPosts();
+          return true;
+        }
       } catch {
-        return false;
+        // cae al borrado local
       }
     }
 
@@ -1354,6 +1468,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               author_avatar: currentUser.avatar_url,
               author_location: userLocation || currentUser.location || 'Mendoza, Argentina',
               author_disciplines: currentUser.artistic_disciplines || '',
+              disciplines: newPost.disciplines || [],
               description: newPost.description || '',
               content_type: newPost.content_type || 'text',
               tags: newPost.tags || ['hiphop'],
@@ -1590,6 +1705,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setFeedFilter,
         contentTypeFilter,
         setContentTypeFilter,
+        disciplineFilter,
+        setDisciplineFilter,
         isSupabaseConnected,
         isAdmin,
         isSuperAdmin,

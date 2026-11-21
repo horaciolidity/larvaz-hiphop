@@ -2,11 +2,28 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Settings, Camera, Globe, Music, MapPin, Save, Check, Loader2, Smile, LogOut, HelpCircle } from 'lucide-react';
+import {
+  Settings,
+  Camera,
+  Globe,
+  Music,
+  MapPin,
+  Save,
+  Check,
+  Loader2,
+  Smile,
+  LogOut,
+  HelpCircle,
+  AlertCircle,
+} from 'lucide-react';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import AvatarPicker from '@/components/profile/AvatarPicker';
 import { resolveIpfsUrl } from '@/lib/media-utils';
 import { startAppTutorial } from '@/components/onboarding/AppTutorial';
+import DisciplinePicker from '@/components/profile/DisciplinePicker';
+import SponsorshipProfileForm from '@/components/profile/SponsorshipProfileForm';
+import { resolveDisciplines, formatDisciplines } from '@/lib/disciplines';
+import type { HipHopDiscipline } from '@/types';
 
 
 export default function ConfiguracionPage() {
@@ -21,9 +38,16 @@ export default function ConfiguracionPage() {
   const [avatarUrl, setAvatarUrl] = useState(currentUser.avatar_url || '');
   const [bannerUrl, setBannerUrl] = useState(currentUser.banner_url || '');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [disciplines, setDisciplines] = useState<HipHopDiscipline[]>(() =>
+    resolveDisciplines({
+      disciplines: currentUser.disciplines,
+      artistic_disciplines: currentUser.artistic_disciplines,
+    })
+  );
 
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (currentUser.avatar_url && currentUser.avatar_url !== avatarUrl) {
@@ -31,28 +55,55 @@ export default function ConfiguracionPage() {
     }
   }, [currentUser.avatar_url]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    const next = resolveDisciplines({
+      disciplines: currentUser.disciplines,
+      artistic_disciplines: currentUser.artistic_disciplines,
+    });
+    if (next.length > 0) setDisciplines(next);
+  }, [currentUser.disciplines, currentUser.artistic_disciplines]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setSaveError(null);
 
     const finalAvatar = avatarUrl ? (resolveIpfsUrl(avatarUrl) || avatarUrl) : avatarUrl;
     const finalBanner = bannerUrl ? (resolveIpfsUrl(bannerUrl) || bannerUrl) : bannerUrl;
+    const disciplineText = artisticDisciplines.trim();
 
-    setTimeout(() => {
-      updateProfile({
+    try {
+      const result = await updateProfile({
         full_name: fullName,
         bio,
         location,
         website,
         portfolio_url: portfolioUrl,
-        artistic_disciplines: artisticDisciplines,
+        artistic_disciplines: disciplineText,
+        disciplines,
         avatar_url: finalAvatar,
         banner_url: finalBanner,
       });
-      setIsSaving(false);
+
+      if (!result.success) {
+        setSaveError(result.error || 'No se pudo guardar el perfil.');
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    }, 300);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveAvatar = async (url: string) => {
+    const resolved = resolveIpfsUrl(url) || url;
+    setAvatarUrl(resolved);
+    setSaveError(null);
+    const result = await updateProfile({ avatar_url: resolved });
+    if (!result.success) {
+      setSaveError(result.error || 'No se pudo guardar el avatar.');
+    }
   };
 
   return (
@@ -151,9 +202,7 @@ export default function ConfiguracionPage() {
               onChange={(e) => setAvatarUrl(e.target.value)}
               onBlur={() => {
                 if (avatarUrl.trim()) {
-                  const resolved = resolveIpfsUrl(avatarUrl.trim()) || avatarUrl.trim();
-                  setAvatarUrl(resolved);
-                  updateProfile({ avatar_url: resolved });
+                  void saveAvatar(avatarUrl.trim());
                 }
               }}
               placeholder="https://... · ipfs://Qm... · CID de IPFS"
@@ -210,20 +259,24 @@ export default function ConfiguracionPage() {
           </div>
 
           {/* Disciplines */}
-          <div>
-            <label className="block text-xs font-bold text-content-secondary uppercase tracking-wider mb-1">
-              Actividades Artísticas (MC, DJ, Breaking, Graffiti, Beatmaking...)
-            </label>
-            <input
-              type="text"
-              value={artisticDisciplines}
-              onChange={(e) => setArtisticDisciplines(e.target.value)}
-              placeholder="Ej: MC, Freestyle, Rap Consciente"
-              className="w-full px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary focus:border-acid focus:outline-none"
-            />
-            <p className="text-[11px] text-content-muted mt-1">
-              Puedes describir libremente. No estás obligado a elegir ningún elemento específico.
-            </p>
+          <div className="rounded-2xl border border-acid/25 bg-acid/5 p-3 space-y-3">
+            <DisciplinePicker value={disciplines} onChange={setDisciplines} />
+            <div>
+              <label className="block text-xs font-bold text-content-secondary uppercase tracking-wider mb-1">
+                Detalle libre (opcional)
+              </label>
+              <input
+                type="text"
+                value={artisticDisciplines}
+                onChange={(e) => setArtisticDisciplines(e.target.value)}
+                placeholder="Ej: Freestyle, rap consciente, muralismo, scratch..."
+                className="w-full px-3 py-2 rounded-xl bg-surface border border-surface-border text-xs text-content-primary focus:border-acid focus:outline-none"
+              />
+              <p className="text-[11px] text-content-muted mt-1">
+                Las ramas elegidas arriba te muestran junto al resto de la comunidad:
+                {' '}{formatDisciplines(disciplines) || 'todavía no elegiste ninguna'}.
+              </p>
+            </div>
           </div>
 
           {/* Location */}
@@ -277,6 +330,13 @@ export default function ConfiguracionPage() {
           <span className="font-bold text-content-primary">@{currentUser.username}</span> es tu identificador único. No puede modificarse en esta versión para preservar la consistencia de los enlaces de perfil.
         </div>
 
+        {saveError && (
+          <div className="flex items-start gap-2 rounded-xl border border-magenta/50 bg-magenta/10 p-3 text-[11px] text-magenta">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{saveError}</span>
+          </div>
+        )}
+
         {/* Save Button */}
         <button
           type="submit"
@@ -313,6 +373,19 @@ export default function ConfiguracionPage() {
         )}
       </form>
 
+      {/* Perfil de patrocinio (formulario independiente) */}
+      {!currentUser.is_guest && <SponsorshipProfileForm />}
+
+      {currentUser.is_guest && (
+        <div className="rounded-2xl border border-surface-border bg-surface p-4 text-xs text-content-secondary">
+          <p className="font-bold text-content-primary">¿Querés recibir patrocinios?</p>
+          <p className="mt-1 leading-relaxed">
+            Iniciá sesión o creá tu cuenta para completar el perfil de patrocinio, aceptar
+            los términos y aparecer ante las marcas de la comunidad.
+          </p>
+        </div>
+      )}
+
       {/* Tutorial de uso */}
       <div className="pt-2 border-t border-surface-border">
         <button
@@ -330,9 +403,7 @@ export default function ConfiguracionPage() {
         <AvatarPicker
           currentAvatar={avatarUrl}
           onSelect={(url) => {
-            const resolved = resolveIpfsUrl(url) || url;
-            setAvatarUrl(resolved);
-            updateProfile({ avatar_url: resolved });
+            void saveAvatar(url);
             setShowAvatarPicker(false);
           }}
           onClose={() => setShowAvatarPicker(false)}

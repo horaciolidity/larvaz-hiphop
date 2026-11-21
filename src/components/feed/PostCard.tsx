@@ -12,6 +12,7 @@ import { CryptoTipModal } from './CryptoTipModal';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { getLocationFlag } from '@/lib/country-utils';
 import { normalizeMediaList } from '@/lib/media-utils';
+import { disciplineLabel, formatDisciplines, resolveDisciplines } from '@/lib/disciplines';
 import {
   Heart,
   MessageCircle,
@@ -106,24 +107,23 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
     setLocalComments(dataStore.getComments(post.id));
     setHasLoadedComments(true);
 
-    // Trae los comentarios reales de Supabase para que la conversación
-    // se mantenga aunque el post no esté en el feed cargado.
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id)) {
-      try {
-        const res = await fetch(`/api/comments?post_id=${encodeURIComponent(post.id)}`, {
-          cache: 'no-store',
-        });
-        if (res.ok) {
-          const payload = await res.json();
-          const incoming = Array.isArray(payload?.comments) ? payload.comments : [];
-          if (incoming.length > 0) {
-            dataStore.mergeComments(incoming);
-          }
-          setLocalComments(dataStore.getComments(post.id));
+    // Trae los comentarios reales del servidor para CUALQUIER publicación,
+    // incluidas las de demo (post-1, post-2...). Antes solo se consultaba para
+    // UUID y por eso los comentarios de las publicaciones iniciales no se veían.
+    try {
+      const res = await fetch(`/api/comments?post_id=${encodeURIComponent(post.id)}`, {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        const incoming = Array.isArray(payload?.comments) ? payload.comments : [];
+        if (incoming.length > 0) {
+          dataStore.mergeComments(incoming);
         }
-      } catch {
-        // se mantienen los comentarios locales
+        setLocalComments(dataStore.getComments(post.id));
       }
+    } catch {
+      // se mantienen los comentarios locales
     }
   }, [post.id]);
 
@@ -204,11 +204,32 @@ export const PostCard: React.FC<PostCardProps> = ({ post, showCommentsDefault = 
               </span>
             </div>
 
-            {post.author.artistic_disciplines && (
-              <p className="text-[11px] text-content-secondary/80 truncate">
-                {post.author.artistic_disciplines}
-              </p>
-            )}
+            {(() => {
+              const postDisciplines = resolveDisciplines({
+                disciplines: post.disciplines,
+                artistic_disciplines: post.author.artistic_disciplines,
+                tags: post.tags,
+              });
+              const label = formatDisciplines(postDisciplines);
+              if (!label && !post.author.artistic_disciplines) return null;
+              return (
+                <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                  {postDisciplines.slice(0, 4).map((discipline) => (
+                    <span
+                      key={discipline}
+                      className="rounded-full border border-acid/25 bg-acid/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-acid"
+                    >
+                      {disciplineLabel(discipline)}
+                    </span>
+                  ))}
+                  {!label && post.author.artistic_disciplines && (
+                    <span className="truncate text-[11px] text-content-secondary/80">
+                      {post.author.artistic_disciplines}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </Link>
 

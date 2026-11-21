@@ -12,11 +12,13 @@ import {
   Flame,
   Sliders,
 } from 'lucide-react';
-import { ContentType, PostMedia, PostMetadata } from '@/types';
+import { ContentType, PostMedia, PostMetadata, HipHopDiscipline } from '@/types';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { detectMediaInfo, normalizeInputUrl } from '@/lib/media-utils';
 import { PostMediaComposer } from './PostMediaComposer';
 import { getLocationFlag } from '@/lib/country-utils';
+import DisciplinePicker from '@/components/profile/DisciplinePicker';
+import { resolveDisciplines } from '@/lib/disciplines';
 
 export const InlineFeedComposer: React.FC = () => {
   const { currentUser, createPost, userLocation } = useApp();
@@ -29,6 +31,12 @@ export const InlineFeedComposer: React.FC = () => {
   const [media, setMedia] = useState<PostMedia[]>([]);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>(['hiphop']);
+  const [disciplines, setDisciplines] = useState<HipHopDiscipline[]>(() =>
+    resolveDisciplines({
+      disciplines: currentUser.disciplines,
+      artistic_disciplines: currentUser.artistic_disciplines,
+    })
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -37,7 +45,7 @@ export const InlineFeedComposer: React.FC = () => {
   const [isFetchingMeta, setIsFetchingMeta] = useState(false);
   const metaDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const availableTags = ['freestyle', 'letras', 'boombap', 'breaking', 'graffiti', 'cypher'];
+  const availableTags = ['freestyle', 'letras', 'boombap', 'cypher', 'batalla', 'underground'];
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
@@ -166,6 +174,7 @@ export const InlineFeedComposer: React.FC = () => {
         description: description.trim() || fallbackDescription,
         externalUrl: cleanUrl || undefined,
         tags: selectedTags,
+        disciplines,
         contentType: finalContentType,
         provider: detectedProvider,
         metadata: finalMetadata,
@@ -325,6 +334,16 @@ export const InlineFeedComposer: React.FC = () => {
           )}
         </div>
       </div>
+
+      {(isFocused || media.length > 0 || showUrlInput || description.length > 0) && (
+        <div className="rounded-xl border border-surface-border bg-surface-elevated/60 p-2">
+          <DisciplinePicker
+            value={disciplines}
+            onChange={setDisciplines}
+            compact
+          />
+        </div>
+      )}
 
       {(isFocused || media.length > 0 || showUrlInput || description.length > 0) && (
         <PostMediaComposer

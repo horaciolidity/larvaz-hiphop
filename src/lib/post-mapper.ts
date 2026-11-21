@@ -1,5 +1,6 @@
 import type { ContentType, Post, Profile } from '@/types';
 import { normalizeMediaList } from './media-utils';
+import { normalizeDisciplines, parseDisciplinesFromText } from './disciplines';
 
 /**
  * Convierte una fila de Supabase (posts + profiles + post_metadata) al modelo Post
@@ -24,6 +25,10 @@ export function mapDbPostToPost(p: any): Post {
       avatar_url: savedAuthor.avatar_url || '',
       location: savedAuthor.location || rawMeta.location || 'Mendoza, Argentina',
       artistic_disciplines: savedAuthor.artistic_disciplines || '',
+      disciplines:
+        normalizeDisciplines(savedAuthor.disciplines).length > 0
+          ? normalizeDisciplines(savedAuthor.disciplines)
+          : parseDisciplinesFromText(savedAuthor.artistic_disciplines),
       role: savedAuthor.role || 'user',
       is_banned: false,
       created_at: p?.created_at,
@@ -34,6 +39,12 @@ export function mapDbPostToPost(p: any): Post {
       avatar_url: p.profiles.avatar_url || savedAuthor?.avatar_url || '',
       location: p.profiles.location || savedAuthor?.location || rawMeta.location || 'Mendoza, Argentina',
       artistic_disciplines: p.profiles.artistic_disciplines || savedAuthor?.artistic_disciplines || '',
+      disciplines:
+        normalizeDisciplines(p.profiles.disciplines).length > 0
+          ? normalizeDisciplines(p.profiles.disciplines)
+          : parseDisciplinesFromText(
+              p.profiles.artistic_disciplines || savedAuthor?.artistic_disciplines
+            ),
     };
   } else {
     author = {
@@ -82,6 +93,12 @@ export function mapDbPostToPost(p: any): Post {
       }
     : undefined;
 
+  const postTags = Array.isArray(p?.tags) ? p.tags : [];
+  const postDisciplines =
+    normalizeDisciplines(rawMeta?.disciplines).length > 0
+      ? normalizeDisciplines(rawMeta?.disciplines)
+      : normalizeDisciplines(postTags);
+
   return {
     id: p?.id ? String(p.id) : 'post-' + p?.created_at,
     user_id: savedAuthor?.id || p?.user_id,
@@ -90,7 +107,8 @@ export function mapDbPostToPost(p: any): Post {
     provider: p?.provider || 'generic',
     content_type: realContentType,
     description: p?.description || '',
-    tags: Array.isArray(p?.tags) ? p.tags : [],
+    tags: postTags,
+    disciplines: postDisciplines,
     likes_count: p?.likes_count || 0,
     comments_count: p?.comments_count || 0,
     is_hidden: p?.is_hidden || false,

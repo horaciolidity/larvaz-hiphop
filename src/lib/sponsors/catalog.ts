@@ -30,7 +30,7 @@ export const COMMERCIAL_CATEGORIES: { id: SponsorCommercialCategory; label: stri
 
 export const ARTIST_CATEGORIES: { id: SponsorArtistCategory; label: string; emoji: string }[] = [
   { id: 'mc', label: 'MCs', emoji: '🎤' },
-  { id: 'bboy', label: 'B-Boys', emoji: '🤸' },
+  { id: 'bboy', label: 'Breaking', emoji: '🤸' },
   { id: 'dj', label: 'DJs', emoji: '🎚️' },
   { id: 'graffiti', label: 'Grafiteros', emoji: '🎨' },
   { id: 'bailarin', label: 'Bailarines', emoji: '💃' },

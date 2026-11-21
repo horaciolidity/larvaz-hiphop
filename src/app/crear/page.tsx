@@ -18,10 +18,12 @@ import {
   Sliders,
   Film,
 } from 'lucide-react';
-import { ContentType, PostMedia, PostMetadata } from '@/types';
+import { ContentType, PostMedia, PostMetadata, HipHopDiscipline } from '@/types';
 import { getLocationFlag } from '@/lib/country-utils';
 import { normalizeInputUrl } from '@/lib/media-utils';
 import { PostMediaComposer } from '@/components/feed/PostMediaComposer';
+import DisciplinePicker from '@/components/profile/DisciplinePicker';
+import { resolveDisciplines } from '@/lib/disciplines';
 
 export default function CrearPublicacionPage() {
   const router = useRouter();
@@ -36,6 +38,12 @@ export default function CrearPublicacionPage() {
   const [media, setMedia] = useState<PostMedia[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(['hiphop']);
+  const [disciplines, setDisciplines] = useState<HipHopDiscipline[]>(() =>
+    resolveDisciplines({
+      disciplines: currentUser.disciplines,
+      artistic_disciplines: currentUser.artistic_disciplines,
+    })
+  );
   const [contentType, setContentType] = useState<ContentType>('music');
   const [metadata, setMetadata] = useState<PostMetadata | null>(null);
   const [detectedProvider, setDetectedProvider] = useState<any>('generic');
@@ -169,6 +177,7 @@ export default function CrearPublicacionPage() {
         externalUrl: cleanUrl || undefined,
         description: description.trim() || fallbackDescription,
         tags,
+        disciplines,
         contentType: finalContentType,
         provider: cleanUrl ? detectedProvider : 'generic',
         metadata: finalMetadata,
@@ -350,6 +359,11 @@ export default function CrearPublicacionPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Disciplinas: los 4 elementos en un mismo muro */}
+        <div className="rounded-2xl border border-acid/25 bg-acid/5 p-3">
+          <DisciplinePicker value={disciplines} onChange={setDisciplines} />
         </div>
 
         {/* Description Field */}

@@ -22,7 +22,6 @@ import {
   Radio,
   UserCheck,
   MessageCircle,
-  Zap,
   LogIn,
   UserPlus,
   User,
@@ -93,7 +92,6 @@ export const SidebarLeft: React.FC = () => {
       badge: 'GRATIS',
       badgeColor: 'bg-magenta text-content-primary',
     },
-    { label: 'B-Boys & Breaking', href: '/breaking', icon: Zap },
     {
       label: 'Mensajes',
       href: '/mensajes',
